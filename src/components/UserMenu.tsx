@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, LogOut, Bell, User, KeyRound } from "lucide-react";
+import { ChevronDown, LogOut, Bell, User, KeyRound, LifeBuoy } from "lucide-react";
 import { logout } from "@/app/login/actions";
 
 export default function UserMenu({ name, email, role }: { name: string; email: string; role: string }) {
@@ -53,6 +53,9 @@ export default function UserMenu({ name, email, role }: { name: string; email: s
             </Link>
             <Link href="/settings" onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-2 text-sm text-ink hover:bg-brand-paper">
               <User className="h-4 w-4 text-muted" /> Settings
+            </Link>
+            <Link href="/help" onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-2 text-sm text-ink hover:bg-brand-paper">
+              <LifeBuoy className="h-4 w-4 text-muted" /> Help Center
             </Link>
           </div>
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Bell, Search } from "lucide-react";
 import CompanySwitcher from "./CompanySwitcher";
 import UserMenu from "./UserMenu";
+import HelpLauncher from "./help/HelpLauncher";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 
@@ -21,6 +22,7 @@ export default async function Topbar() {
       </div>
 
       <div className="ml-auto flex items-center gap-3">
+        <HelpLauncher />
         <Link href="/notifications" className="relative grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-line/60" title="Notifications">
           <Bell className="h-5 w-5" />
           {unread > 0 && (

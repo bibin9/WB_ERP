@@ -18,6 +18,7 @@ export default function Sidebar({ allowedScreens }: { allowedScreens: string[] }
   // A whole-module entry (Finance/HR) shows if ANY of its screens is allowed and lands on the first accessible one.
   const firstScreenHref = (moduleKey: string) => SCREENS.find((s) => s.module === moduleKey && allowed.has(s.key))?.href;
   const visibleNav = NAV.flatMap((i) => {
+    if (i.alwaysShow) return [i];
     if (i.moduleLanding) {
       const href = allowed.has(i.screen) ? i.href : firstScreenHref(i.module);
       return href ? [{ ...i, href }] : [];

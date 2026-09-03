@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard, Building2, Boxes, Users, Handshake,
   HardHat, ShieldCheck, Wallet, ClipboardList, Settings, UserCog, ScrollText,
-  Database, KeyRound,
+  Database, KeyRound, LifeBuoy,
 } from "lucide-react";
 import { activeTenant, type TenantCompany } from "@/config/tenant";
 
@@ -20,6 +20,8 @@ export type NavItem = {
   screen: string;
   /** True for a whole-module entry (Finance/HR) that may land on any accessible screen. */
   moduleLanding?: boolean;
+  /** Always visible regardless of permissions (e.g. Help). */
+  alwaysShow?: boolean;
   group: string;
 };
 
@@ -54,6 +56,8 @@ export const NAV: NavItem[] = [
   { label: "Master Data", href: "/settings/master-data", icon: Database, phase: 1, module: "settings", screen: "settings.master", group: "setup" },
   { label: "Audit Log", href: "/audit", icon: ScrollText, phase: 1, module: "audit", screen: "audit.log", group: "setup" },
   { label: "Settings", href: "/settings", icon: Settings, phase: 1, module: "settings", screen: "settings.general", group: "setup" },
+  // Help — always available to everyone (top workspace strip)
+  { label: "Help Center", href: "/help", icon: LifeBuoy, phase: 1, module: "help", screen: "help", alwaysShow: true, group: "workspace" },
 ];
 
 export const PHASE_LABEL: Record<number, string> = {
