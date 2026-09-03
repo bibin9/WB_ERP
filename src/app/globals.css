@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Default theme (White & Bright). Overridden at runtime per tenant — RGB triplets. */
+:root {
+  --brand-navy: 2 62 113;
+  --brand-navy-700: 5 55 97;
+  --brand-navy-900: 4 41 74;
+  --brand-blue: 41 171 226;
+  --brand-blue-600: 30 144 199;
+  --brand-green: 97 177 90;
+  --brand-green-700: 78 148 72;
+  --brand-gold: 224 163 0;
+  --paper: 250 252 250;
+}
+
+html,
+body {
+  background: rgb(var(--paper));
+  color: #1e2a33;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Thin, brand-tinted scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #c4d2df transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #c4d2df;
+  border-radius: 8px;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors;
+  }
+  .btn-primary {
+    @apply btn bg-brand-green text-white hover:bg-brand-green-700;
+  }
+  .btn-navy {
+    @apply btn bg-brand-navy text-white hover:bg-brand-navy-900;
+  }
+  .btn-ghost {
+    @apply btn text-muted hover:bg-line/60 hover:text-ink;
+  }
+  .card {
+    @apply rounded-xl border border-line bg-white shadow-card;
+  }
+  .stat-card {
+    @apply card p-5;
+  }
+  .input {
+    @apply w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20;
+  }
+}
