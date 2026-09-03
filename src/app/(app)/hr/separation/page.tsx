@@ -1,4 +1,5 @@
-import { UserMinus } from "lucide-react";
+import Link from "next/link";
+import { UserMinus, FileText } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import HrTabs from "@/components/HrTabs";
 import ConfirmDelete from "@/components/ConfirmDelete";
@@ -71,7 +72,15 @@ export default async function SeparationPage() {
                   <td className="px-4 py-3 text-right tabular-nums text-ink">{aed(s.leaveAmount)}</td>
                   <td className="px-4 py-3 text-right font-semibold tabular-nums text-brand-green-700">{aed(s.netSettlement)}</td>
                   <td className="px-4 py-3"><SeparationStatus id={s.id} status={s.status} /></td>
-                  <td className="px-4 py-3 text-right"><ConfirmDelete action={deleteSeparation.bind(null, s.id)} label={`Delete settlement for ${s.employee.name}? This reactivates the employee.`} /></td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-1">
+                      <Link href={`/statement/${s.id}`} target="_blank" title="Open settlement statement"
+                        className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-brand-navy hover:bg-brand-paper">
+                        <FileText className="h-3.5 w-3.5" /> Statement
+                      </Link>
+                      <ConfirmDelete action={deleteSeparation.bind(null, s.id)} label={`Delete settlement for ${s.employee.name}? This reactivates the employee.`} />
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
