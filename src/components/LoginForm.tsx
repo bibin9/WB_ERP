@@ -20,7 +20,7 @@ export default function LoginForm() {
       </div>
       <div>
         <label className="mb-1.5 block text-sm font-medium text-ink">Password</label>
-        <input name="password" type="password" className="input" placeholder="••••••••" defaultValue="admin123" required />
+        <input name="password" type="password" className="input" placeholder="••••••••" defaultValue="admin@123" required />
       </div>
       <button type="submit" disabled={pending} className="btn-primary w-full disabled:opacity-60">
         {pending ? "Signing in…" : "Sign in"}
