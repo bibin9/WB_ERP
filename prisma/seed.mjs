@@ -2,7 +2,9 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const db = new PrismaClient();
-const ADMIN_PASSWORD = "admin123"; // demo credentials — change in production
+// First-run admin password. Set ADMIN_PASSWORD in the host env for the pilot/production;
+// falls back to a demo value for local dev. Only applied when the admin is first created.
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
 
 // Mirrors src/config/tenant.ts (White & Bright default tenant)
 const TENANT = { key: "wandb", name: "White & Bright Group" };
@@ -105,7 +107,7 @@ async function main() {
   const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
   const admin = await db.user.upsert({
     where: { tenantId_email: { tenantId: tenant.id, email: "admin@wandb.ae" } },
-    update: { passwordHash },
+    update: {}, // never reset an existing admin's password on redeploy
     create: { tenantId: tenant.id, email: "admin@wandb.ae", name: "Administrator", passwordHash },
   });
   for (const company of companies) {
