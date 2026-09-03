@@ -8,15 +8,34 @@ let pass = 0, fail = 0;
 function ok(id, name, cond, detail = "") { if (cond) pass++; else fail++; console.log(`${cond ? "✅" : "❌"} ${id}  ${name}${detail ? "  — " + detail : ""}`); }
 
 const MODULE_KEYS = ["dashboard", "companies", "finance", "hr", "approvals", "users", "inventory", "crm", "projects", "hse", "audit", "settings"];
+// Screen taxonomy mirrors src/lib/rbac.ts — permissions are stored per screen now.
+const MODULE_SCREENS = {
+  dashboard: ["dashboard.home"], companies: ["companies.list"],
+  finance: ["finance.overview", "finance.daybook", "finance.ledgers", "finance.reports", "finance.vat", "finance.tally"],
+  hr: ["hr.employees", "hr.onboarding", "hr.payroll", "hr.leave", "hr.attendance", "hr.certifications", "hr.reports", "hr.tasks"],
+  approvals: ["approvals.inbox"], users: ["users.list", "users.access"],
+  inventory: ["inventory.items"], crm: ["crm.leads"], projects: ["projects.list"], hse: ["hse.register"],
+  audit: ["audit.log"], settings: ["settings.general", "settings.master", "settings.approvals", "settings.custom"],
+};
+const SCREEN_KEYS = new Set(Object.values(MODULE_SCREENS).flat());
+const screensForModule = (m) => MODULE_SCREENS[m] || [];
 function parse(json) { try { const v = JSON.parse(json); return v && typeof v === "object" ? v : {}; } catch { return {}; } }
 function isAdminRole(r) { return r.approvalLevel >= 80 || r.name === "Group Admin"; }
-function can(role, mod, action = "view") { if (isAdminRole(role)) return true; return (parse(role.permissions)[mod] || []).includes(action); }
-function visibleModules(role) { if (isAdminRole(role)) return MODULE_KEYS.slice(); return MODULE_KEYS.filter((m) => (parse(role.permissions)[m] || []).includes("view")); }
-// replicate setRolePermission toggle logic
-function toggle(perms, mod, action, enabled) {
-  const set = new Set(perms[mod] || []);
+// Screen-aware can(): exact screen/module grant, screen→module legacy fallback, module→any screen.
+function can(role, key, action = "view") {
+  if (isAdminRole(role)) return true;
+  const perms = parse(role.permissions);
+  if ((perms[key] || []).includes(action)) return true;
+  if (SCREEN_KEYS.has(key)) { const mod = key.split(".")[0]; return (perms[mod] || []).includes(action); }
+  if (MODULE_KEYS.includes(key)) return screensForModule(key).some((s) => (perms[s] || []).includes(action));
+  return false;
+}
+function visibleModules(role) { if (isAdminRole(role)) return MODULE_KEYS.slice(); return MODULE_KEYS.filter((m) => can(role, m, "view")); }
+// replicate setRolePermission per-screen toggle logic
+function toggle(perms, key, action, enabled) {
+  const set = new Set(perms[key] || []);
   if (enabled) { set.add(action); set.add("view"); } else { if (action === "view") set.clear(); else set.delete(action); }
-  if (set.size === 0) delete perms[mod]; else perms[mod] = [...set];
+  if (set.size === 0) delete perms[key]; else perms[key] = [...set];
   return perms;
 }
 
@@ -53,10 +72,10 @@ async function main() {
 
   // ===== toggle logic =====
   let p = {};
-  p = toggle(p, "hr", "create", true);
-  ok("RB-11", "Enabling an action auto-adds 'view'", p.hr.includes("view") && p.hr.includes("create"));
-  p = toggle(p, "hr", "view", false);
-  ok("RB-12", "Removing 'view' clears the whole module", !p.hr);
+  p = toggle(p, "hr.employees", "create", true);
+  ok("RB-11", "Enabling an action auto-adds 'view'", p["hr.employees"].includes("view") && p["hr.employees"].includes("create"));
+  p = toggle(p, "hr.employees", "view", false);
+  ok("RB-12", "Removing 'view' clears the screen", !p["hr.employees"]);
 
   // ===== role delete guard =====
   const admin = byName("Group Admin");
