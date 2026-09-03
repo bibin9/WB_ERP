@@ -38,6 +38,7 @@ Open your **app service** (the one built from the repo) → **Variables** tab �
 | Variable | Value |
 |---|---|
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` — this references the Postgres service (type it exactly, including the `${{ }}`) |
+| `PRISMA_PROVIDER` | `postgresql` — tells the build to compile for Postgres (a plain value, so it's available at build time when the `DATABASE_URL` reference isn't yet resolved) |
 | `AUTH_SECRET` | a long random string (32+ chars). Generate one, e.g. run `openssl rand -base64 48` locally, or use any password generator |
 | `ADMIN_PASSWORD` | the first-login password for `admin@wandb.ae` — **set a strong one**, not the demo value |
 
@@ -78,14 +79,16 @@ DNS instructions. Railway provisions HTTPS automatically.
 
 ## How it works
 
-- **`railway.json`** tells Railway to build with `npm run build:deploy` and start with
-  `npm run start:deploy`.
-- **`scripts/set-db-provider.mjs`** runs before every Prisma step (install, build, start)
-  and sets the datasource provider to match `DATABASE_URL`: a `postgres://` URL selects
-  `postgresql`, anything else stays `sqlite`. So the schema and the connection string can
-  never disagree (local stays SQLite; the deploy uses Postgres automatically).
-- **`start:deploy`** runs `prisma db push` (creates/updates the tables — no manual
-  migration needed for the pilot), seeds initial data, then `next start`.
+- The standard **`build`** and **`start`** scripts do everything (no special Railway
+  config needed):
+  - `build` = `set-db-provider` → `prisma generate` → `next build`
+  - `start` = `set-db-provider` → `prisma db push` (creates the tables — no manual
+    migration needed for the pilot) → seed → `next start`
+- **`scripts/set-db-provider.mjs`** picks the datasource provider: **PostgreSQL** when
+  `PRISMA_PROVIDER=postgresql`, or a `postgres://` `DATABASE_URL`, or any `RAILWAY_*` env
+  var is present; otherwise **SQLite** (local dev). Setting `PRISMA_PROVIDER=postgresql`
+  on Railway guarantees the app is *built* for Postgres even before the `DATABASE_URL`
+  reference resolves.
 - **Seeding is safe to re-run:** an existing admin's password is never overwritten, and
   core data uses upserts.
 
