@@ -12,7 +12,7 @@ const MODULE_KEYS = ["dashboard", "companies", "finance", "hr", "approvals", "us
 const MODULE_SCREENS = {
   dashboard: ["dashboard.home"], companies: ["companies.list"],
   finance: ["finance.overview", "finance.daybook", "finance.ledgers", "finance.reports", "finance.vat", "finance.tally"],
-  hr: ["hr.employees", "hr.onboarding", "hr.payroll", "hr.leave", "hr.attendance", "hr.certifications", "hr.reports", "hr.tasks"],
+  hr: ["hr.employees", "hr.onboarding", "hr.payroll", "hr.leave", "hr.attendance", "hr.certifications", "hr.separation", "hr.reports", "hr.tasks"],
   approvals: ["approvals.inbox"], users: ["users.list", "users.access"],
   inventory: ["inventory.items"], crm: ["crm.leads"], projects: ["projects.list"], hse: ["hse.register"],
   audit: ["audit.log"], settings: ["settings.general", "settings.master", "settings.approvals", "settings.custom"],

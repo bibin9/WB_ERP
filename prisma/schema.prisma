@@ -299,6 +299,7 @@ model Employee {
   appraisals     Appraisal[]
   documents      EmployeeDocument[]
   customValues   CustomFieldValue[]
+  separations    Separation[]
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -444,6 +445,39 @@ model Attendance {
 
   @@unique([employeeId, date])
   @@index([companyId])
+}
+
+/// HR — Employee separation (resignation / termination) + UAE end-of-service settlement
+model Separation {
+  id             String   @id @default(cuid())
+  companyId      String
+  employeeId     String
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type           String // Resignation | Termination | Termination (Misconduct)
+  lastWorkingDay DateTime
+  reason         String?
+  // Settlement snapshot (UAE Labour Law) — stored so the record is a fixed statement
+  basicSalary    Float
+  serviceText    String // e.g. "3y 2m 10d"
+  serviceYears   Float
+  gratuityDays   Float   @default(0)
+  gratuityAmount Float   @default(0)
+  leaveDays      Float   @default(0)
+  leaveAmount    Float   @default(0)
+  pendingSalary  Float   @default(0)
+  noticePay      Float   @default(0)
+  airTicket      Float   @default(0)
+  otherAdditions Float   @default(0)
+  deductions     Float   @default(0)
+  adjustment     Float   @default(0) // HR manual +/- tweak
+  adjustmentNote String?
+  netSettlement  Float   @default(0)
+  status         String   @default("Draft") // Draft | Approved | Settled
+  processedBy    String?
+  createdAt      DateTime @default(now())
+
+  @@index([companyId])
+  @@index([employeeId])
 }
 
 /// HR — Competency certifications & medical clearances (FSD HR-12,13,16)

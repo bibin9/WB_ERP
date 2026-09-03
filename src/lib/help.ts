@@ -195,6 +195,19 @@ export const HELP_ARTICLES: HelpArticle[] = [
     body: "Record each certificate with its expiry date. Anything within 60 days shows amber, expired shows red, and it appears in the notifications and the compliance report so nothing lapses unnoticed.",
   },
   {
+    id: "separation", category: "Human Resources", screens: ["/hr/separation"],
+    title: "Separation & end-of-service settlement",
+    summary: "Resignation/termination with an automatic UAE gratuity calculation.",
+    body: "When an employee resigns or is terminated, record it here and the system calculates their final settlement per UAE Labour Law (Decree-Law 33/2021): end-of-service gratuity, unused-leave encashment, plus any pending salary, notice pay or air ticket, minus deductions. The figures update live as you type, and HR can adjust any of them.",
+    steps: [
+      "Pick the employee and their last working day, and choose Resignation or Termination.",
+      "Review the live settlement: gratuity, leave encashment and the net amount.",
+      "Add any pending salary, notice pay, air ticket, deductions or a manual adjustment.",
+      "Save — the employee is marked inactive and the settlement statement is stored.",
+    ],
+    tip: "Gratuity = 21 days' basic pay per year for the first 5 years, 30 days per year after that, minimum 1 year of service, capped at 2 years' basic pay. Under the current law resignation and termination earn the same gratuity; gross-misconduct dismissal can forfeit it.",
+  },
+  {
     id: "compliance", category: "Human Resources", screens: ["/hr/reports"],
     title: "Compliance & expiry report",
     summary: "All expiring visas, IDs and cards in one place.",
