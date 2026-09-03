@@ -36,7 +36,7 @@ export default function LoginPage() {
           <LoginForm />
 
           <p className="mt-6 rounded-lg bg-brand-blue/5 px-3 py-2 text-center text-xs text-muted">
-            Demo login is pre-filled: <span className="font-medium text-ink">admin@wandb.ae / admin@123</span>
+            Demo login is pre-filled: <span className="font-medium text-ink">admin@wandb.ae / admin123</span>
           </p>
         </div>
       </div>
