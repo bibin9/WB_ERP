@@ -7,12 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate",
+    "postinstall": "node scripts/set-db-provider.mjs && prisma generate",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.mjs",
-    "build:deploy": "node scripts/use-postgres.mjs && prisma generate && next build",
-    "start:deploy": "prisma db push --skip-generate && node prisma/seed.mjs && next start"
+    "build:deploy": "node scripts/set-db-provider.mjs && prisma generate && next build",
+    "start:deploy": "node scripts/set-db-provider.mjs && prisma generate && prisma db push --skip-generate && node prisma/seed.mjs && next start"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

@@ -80,9 +80,10 @@ DNS instructions. Railway provisions HTTPS automatically.
 
 - **`railway.json`** tells Railway to build with `npm run build:deploy` and start with
   `npm run start:deploy`.
-- **`build:deploy`** runs `scripts/use-postgres.mjs` (flips the Prisma datasource from
-  `sqlite` to `postgresql` in the built image only), generates the Prisma client, then
-  `next build`.
+- **`scripts/set-db-provider.mjs`** runs before every Prisma step (install, build, start)
+  and sets the datasource provider to match `DATABASE_URL`: a `postgres://` URL selects
+  `postgresql`, anything else stays `sqlite`. So the schema and the connection string can
+  never disagree (local stays SQLite; the deploy uses Postgres automatically).
 - **`start:deploy`** runs `prisma db push` (creates/updates the tables — no manual
   migration needed for the pilot), seeds initial data, then `next start`.
 - **Seeding is safe to re-run:** an existing admin's password is never overwritten, and
