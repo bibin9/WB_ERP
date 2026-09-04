@@ -42,10 +42,15 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
       })
     : [];
 
+  // Master data for the requisition dropdowns
+  const mi = session?.tenant.id ? await db.masterItem.findMany({ where: { tenantId: session.tenant.id, isActive: true }, orderBy: { order: "asc" } }) : [];
+  const departments = mi.filter((m) => m.type === "Department").map((m) => m.value);
+  const designations = mi.filter((m) => m.type === "Designation").map((m) => m.value);
+
   return (
     <div>
       <PageHeader title="HR & Admin — Onboarding" subtitle="Recruitment requisitions, candidate pipeline, hiring, and new-joiner onboarding checklists.">
-        {companyId && <RequisitionForm companyId={companyId} />}
+        {companyId && <RequisitionForm companyId={companyId} departments={departments} designations={designations} />}
       </PageHeader>
       <HrTabs />
 

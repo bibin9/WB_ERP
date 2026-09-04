@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { createRequisition } from "@/app/(app)/hr/onboarding/actions";
 
-export default function RequisitionForm({ companyId }: { companyId: string }) {
+export default function RequisitionForm({ companyId, departments = [], designations = [] }: { companyId: string; departments?: string[]; designations?: string[] }) {
   const [open, setOpen] = useState(false);
   if (!open) return <button className="btn-primary" onClick={() => setOpen(true)} disabled={!companyId}><Plus className="h-4 w-4" /> New requisition</button>;
 
@@ -19,12 +19,16 @@ export default function RequisitionForm({ companyId }: { companyId: string }) {
           <input type="hidden" name="companyId" value={companyId} />
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">Position</label>
-            <input name="position" className="input" placeholder="e.g. Site Engineer" required />
+            <input name="position" list="req-designations" className="input" placeholder="Select or type a designation" required />
+            <datalist id="req-designations">{designations.map((d) => <option key={d} value={d} />)}</datalist>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium text-ink">Department</label>
-              <input name="department" className="input" placeholder="e.g. Projects" />
+              <select name="department" className="input" defaultValue="">
+                <option value="">Select…</option>
+                {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-ink">Headcount</label>

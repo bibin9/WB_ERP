@@ -5,8 +5,10 @@ import { Plus, X } from "lucide-react";
 import { createLeaveRequest } from "@/app/(app)/hr/leave/actions";
 
 type Emp = { id: string; label: string };
+const FALLBACK_TYPES = ["Annual", "Sick", "Unpaid", "Comp-Off"];
 
-export default function LeaveForm({ employees }: { employees: Emp[] }) {
+export default function LeaveForm({ employees, leaveTypes }: { employees: Emp[]; leaveTypes?: string[] }) {
+  const types = leaveTypes && leaveTypes.length ? leaveTypes : FALLBACK_TYPES;
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   if (!open) return <button className="btn-primary" onClick={() => setOpen(true)} disabled={employees.length === 0}><Plus className="h-4 w-4" /> Request leave</button>;
@@ -27,8 +29,8 @@ export default function LeaveForm({ employees }: { employees: Emp[] }) {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">Leave type</label>
-            <select name="type" className="input" defaultValue="Annual">
-              <option>Annual</option><option>Sick</option><option>Unpaid</option><option>Comp-Off</option>
+            <select name="type" className="input" defaultValue={types[0]}>
+              {types.map((t) => <option key={t}>{t}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">

@@ -28,12 +28,19 @@ export default async function TasksPage() {
   const companies = tenant
     ? await db.company.findMany({ where: { tenantId: tenant.id }, orderBy: { code: "asc" } })
     : [];
+  const companyIds = companies.map((c) => c.id);
   const jobs = await db.jobAssignment.findMany({
-    where: { companyId: { in: companies.map((c) => c.id) } },
+    where: { companyId: { in: companyIds } },
     include: { company: true },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
   });
   const open = jobs.filter((j) => j.status !== "Closed").length;
+
+  // Master-data + people for the assignment dropdowns
+  const mi = tenant ? await db.masterItem.findMany({ where: { tenantId: tenant.id, isActive: true }, orderBy: { order: "asc" } }) : [];
+  const departments = mi.filter((m) => m.type === "Department").map((m) => m.value);
+  const emps = await db.employee.findMany({ where: { companyId: { in: companyIds }, status: { not: "Inactive" } }, orderBy: { name: "asc" }, select: { name: true } });
+  const people = emps.map((e) => e.name);
 
   return (
     <div>
@@ -41,7 +48,7 @@ export default async function TasksPage() {
         title="HR & Admin"
         subtitle="Assign jobs to a department or person, track progress, and close them as tickets."
       >
-        <JobForm companies={companies.map((c) => ({ id: c.id, code: c.code, name: c.name }))} />
+        <JobForm companies={companies.map((c) => ({ id: c.id, code: c.code, name: c.name }))} departments={departments} people={people} />
       </PageHeader>
       <HrTabs />
 
@@ -94,6 +101,7 @@ export default async function TasksPage() {
                     <div className="flex items-center justify-end gap-1">
                       <JobForm
                         companies={companies.map((c) => ({ id: c.id, code: c.code, name: c.name }))}
+                        departments={departments} people={people}
                         job={{
                           id: j.id, title: j.title, description: j.description, priority: j.priority,
                           assignedTo: j.assignedTo, assignedToType: j.assignedToType,

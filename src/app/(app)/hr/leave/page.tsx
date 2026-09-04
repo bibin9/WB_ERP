@@ -29,11 +29,14 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
   const requests = companyId
     ? await db.leaveRequest.findMany({ where: { companyId }, include: { employee: true }, orderBy: [{ status: "asc" }, { createdAt: "desc" }] })
     : [];
+  const leaveTypes = session?.tenant.id
+    ? (await db.masterItem.findMany({ where: { tenantId: session.tenant.id, type: "Leave Type", isActive: true }, orderBy: { order: "asc" } })).map((m) => m.value)
+    : [];
 
   return (
     <div>
       <PageHeader title="HR & Admin — Leave" subtitle="Leave requests, approvals and balances. Approving annual leave deducts the balance automatically.">
-        {companyId && <LeaveForm employees={employees.map((e) => ({ id: e.id, label: `${e.empNo} — ${e.name} (${e.annualLeaveBalance}d left)` }))} />}
+        {companyId && <LeaveForm employees={employees.map((e) => ({ id: e.id, label: `${e.empNo} — ${e.name} (${e.annualLeaveBalance}d left)` }))} leaveTypes={leaveTypes} />}
       </PageHeader>
       <HrTabs />
 

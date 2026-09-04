@@ -10,10 +10,14 @@ export type EditingJob = {
   assignedTo: string; assignedToType: string; timeAllocation: string | null; dueDate: string | null;
 };
 
-export default function JobForm({ companies, job }: { companies: Company[]; job?: EditingJob }) {
+export default function JobForm({ companies, departments, people, job }: { companies: Company[]; departments: string[]; people: string[]; job?: EditingJob }) {
   const [open, setOpen] = useState(false);
   const editing = !!job;
   const due = job?.dueDate ? job.dueDate.slice(0, 10) : "";
+  const [type, setType] = useState(job?.assignedToType ?? "person");
+  const [assignee, setAssignee] = useState(job?.assignedTo ?? "");
+  const options = type === "department" ? departments : people;
+  const withCurrent = assignee && !options.includes(assignee) ? [assignee, ...options] : options;
 
   const trigger = editing ? (
     <button onClick={() => setOpen(true)} title="Edit" className="grid h-8 w-8 place-items-center rounded text-muted hover:bg-line hover:text-ink">
@@ -65,14 +69,17 @@ export default function JobForm({ companies, job }: { companies: Company[]; job?
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-ink">Assign to</label>
-              <input name="assignedTo" className="input" defaultValue={job?.assignedTo ?? ""} placeholder="Person or department" />
-            </div>
-            <div>
               <label className="mb-1 block text-sm font-medium text-ink">Type</label>
-              <select name="assignedToType" className="input" defaultValue={job?.assignedToType ?? "person"}>
+              <select name="assignedToType" value={type} onChange={(e) => { setType(e.target.value); setAssignee(""); }} className="input">
                 <option value="person">Person</option>
                 <option value="department">Department</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-ink">Assign to ({type === "department" ? "department" : "employee"})</label>
+              <select name="assignedTo" value={assignee} onChange={(e) => setAssignee(e.target.value)} className="input" required>
+                <option value="">Select…</option>
+                {withCurrent.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
           </div>
