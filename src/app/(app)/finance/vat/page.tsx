@@ -4,6 +4,8 @@ import FinanceTabs from "@/components/FinanceTabs";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import PeriodPicker from "@/components/PeriodPicker";
+import { resolvePeriod, quarters } from "@/lib/period";
 
 export const dynamic = "force-dynamic";
 
@@ -15,17 +17,20 @@ const fmtDate = (d: Date) => new Date(d).toLocaleDateString("en-GB", { day: "2-d
 const OUTPUT_TYPES = new Set(["Sales", "Receipt"]);
 const INPUT_TYPES = new Set(["Purchase", "Payment"]);
 
-export default async function VatPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
+export default async function VatPage({ searchParams }: { searchParams: Promise<{ c?: string; from?: string; to?: string }> }) {
   await requireAccess("finance.vat");
   const session = await getSession();
   const sp = await searchParams;
   const accessible = session?.companies ?? [];
   const companyId = accessible.find((c) => c.id === sp.c)?.id ?? accessible[0]?.id ?? "";
 
-  const yearStart = new Date(new Date().getFullYear(), 0, 1);
+  const company = companyId ? await db.company.findUnique({ where: { id: companyId } }) : null;
+  const period = resolvePeriod(sp, company?.fyStartMonth ?? 1);
+  const qtrs = quarters(company?.fyStartMonth ?? 1);
+
   const entries = companyId
     ? await db.journalEntry.findMany({
-        where: { companyId, vatAmount: { gt: 0 }, date: { gte: yearStart } },
+        where: { companyId, vatAmount: { gt: 0 }, date: { gte: period.from, lte: period.to } },
         orderBy: { date: "asc" },
       })
     : [];
@@ -44,6 +49,9 @@ export default async function VatPage({ searchParams }: { searchParams: Promise<
       <PageHeader title="Finance — VAT Report" subtitle="UAE FTA VAT summary (standard rate 5%), current year — from posted vouchers." />
       <FinanceTabs companyId={companyId} />
       <div className="mb-5"><CompanyPicker companies={accessible.map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={companyId} /></div>
+      <div className="mb-5">
+        <PeriodPicker from={period.fromStr} to={period.toStr} label={period.label} presets={qtrs} />
+      </div>
 
       {/* Summary cards */}
       <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -124,7 +132,7 @@ export default async function VatPage({ searchParams }: { searchParams: Promise<
       <div className="mt-4 rounded-lg bg-brand-blue/5 p-3 text-xs text-muted">
         <span className="font-medium text-ink">How this is built:</span> VAT is read from the <span className="text-ink">VAT amount</span> entered on each voucher.
         Sales &amp; Receipt vouchers count as <span className="text-ink">output VAT</span>; Purchase &amp; Payment as <span className="text-ink">input (recoverable) VAT</span>.
-        Taxable value is estimated at the 5% standard rate. Full FTA return periods (quarterly) and zero-rated/exempt handling come with the tax-filing feature.
+        Taxable value is estimated at the 5% standard rate. Use the quarter buttons above to match your FTA return period. Zero-rated and exempt handling comes with the tax-filing feature.
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Plus, X, Pencil } from "lucide-react";
 import { createCompany, updateCompany } from "@/app/(app)/companies/actions";
 
-export type EditingCompany = { id: string; name: string; baseCurrency: string };
+export type EditingCompany = { id: string; name: string; baseCurrency: string; fyStartMonth: number; openingAsOf: string | null };
 
 export default function CompanyForm({ company }: { company?: EditingCompany }) {
   const [open, setOpen] = useState(false);
@@ -47,6 +47,22 @@ export default function CompanyForm({ company }: { company?: EditingCompany }) {
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">Base currency</label>
             <input name="baseCurrency" className="input" defaultValue={company?.baseCurrency ?? "AED"} maxLength={3} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-ink">Financial year starts</label>
+              <select name="fyStartMonth" className="input" defaultValue={String(company?.fyStartMonth ?? 1)}>
+                {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].map((m, i) => (
+                  <option key={m} value={i + 1}>{m}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted">Most UAE companies use January.</p>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-ink">Opening balances as at</label>
+              <input name="openingAsOf" type="date" className="input" defaultValue={company?.openingAsOf ?? ""} />
+              <p className="mt-1 text-xs text-muted">The date you moved onto this system. Leave blank if the balances are brought forward from before.</p>
+            </div>
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={() => setOpen(false)} className="btn-ghost">Cancel</button>

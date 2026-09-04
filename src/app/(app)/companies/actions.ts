@@ -40,6 +40,16 @@ export async function toggleCompanyActive(id: string, next: boolean) {
   revalidatePath("/companies");
 }
 
+/** Financial-year start and the date opening balances are stated as at. */
+function financialYearFrom(formData: FormData): { fyStartMonth: number; openingAsOf: Date | null } {
+  const month = Number(formData.get("fyStartMonth"));
+  const asOf = String(formData.get("openingAsOf") || "").trim();
+  return {
+    fyStartMonth: month >= 1 && month <= 12 ? month : 1,
+    openingAsOf: /^\d{4}-\d{2}-\d{2}$/.test(asOf) ? new Date(asOf + "T00:00:00.000Z") : null,
+  };
+}
+
 export async function updateCompany(formData: FormData) {
   if (!(await allow("companies.list", "edit"))) return;
   const session = await getSession();
@@ -50,7 +60,7 @@ export async function updateCompany(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const baseCurrency = (String(formData.get("baseCurrency") || "AED").trim().toUpperCase()) || "AED";
   if (!name) return;
-  await db.company.update({ where: { id }, data: { name, baseCurrency } });
+  await db.company.update({ where: { id }, data: { name, baseCurrency, ...financialYearFrom(formData) } });
   await audit({ action: "Updated", entity: "Company", entityId: id, summary: `Updated company ${company.code} — ${name}` });
   revalidatePath("/companies");
 }

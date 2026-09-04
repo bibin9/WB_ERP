@@ -130,6 +130,31 @@ export const HELP_ARTICLES: HelpArticle[] = [
     body: "Payment = money going out (you paid someone). Receipt = money coming in (someone paid you). Sales = an invoice raised to a customer. Purchase = a bill received from a supplier. Contra = moving money between your own cash and bank. Journal = adjustments and anything that doesn't fit the others.",
   },
   {
+    id: "opening-balances", category: "Finance & Accounting", screens: ["/finance"],
+    title: "Opening balances — moving from your old system",
+    summary: "Carry your existing balances in, so the books start from where you really are.",
+    body: "When you move onto this system your accounts already have balances — money in the bank, money customers owe you, money you owe suppliers. An opening balance is that starting figure. Enter it once per account and every report picks it up from then on.",
+    steps: [
+      "First set the date: Companies & Group → edit the company → 'Opening balances as at'. This is normally the first day of your financial year, and it is the date you moved onto the system.",
+      "Then, on Finance → Overview, click the pencil on an account (or add a new one).",
+      "Type the amount and choose Dr or Cr.",
+      "Repeat for every account that had a balance. Your opening figures should total zero — the debits equal the credits, exactly as in your old system's trial balance.",
+    ],
+    tip: "Which side? Things you have or are owed are Dr — cash, bank, stock, customers who owe you, equipment. Things you owe are Cr — suppliers, loans, and the owners' capital. If you have a trial balance from your old system or your accountant, copy it straight across; the totals should match.",
+  },
+  {
+    id: "periods", category: "Finance & Accounting", screens: ["/finance", "/finance/daybook", "/finance/ledgers", "/finance/reports", "/finance/vat"],
+    title: "Choosing the dates a report covers",
+    summary: "Every finance screen has a From and To. It opens on the current financial year.",
+    body: "The Period bar at the top of each finance screen decides what you are looking at. It opens showing the current financial year, so most of the time you can ignore it.",
+    steps: [
+      "Change From and To to look at any stretch of time — a month, a quarter, last year.",
+      "On the VAT report there are quarter buttons that match the FTA return periods.",
+      "The dates are in the web address, so you can bookmark a period or send someone the exact view you are looking at.",
+    ],
+    tip: "The two headline reports answer different questions, and the dates mean different things in each. Profit & Loss covers what happened between the two dates. The Balance Sheet is a snapshot on the To date — what the company owns and owes at that moment — so changing From does not affect it.",
+  },
+  {
     id: "daybook", category: "Finance & Accounting", screens: ["/finance/daybook"],
     title: "The Day Book",
     summary: "Every voucher in date order.",

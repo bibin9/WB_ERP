@@ -63,6 +63,16 @@ export async function createJournalEntry(formData: FormData) {
 
 const ACCOUNT_TYPES = ["Asset", "Liability", "Equity", "Income", "Expense"];
 
+/**
+ * Opening balance from the form: an amount plus a Dr/Cr side, stored signed
+ * (debit positive) so it adds straight into the ledger arithmetic.
+ */
+function openingFrom(formData: FormData): number {
+  const amount = Math.abs(Number(formData.get("openingAmount")) || 0);
+  const side = String(formData.get("openingSide") || "Dr");
+  return side === "Cr" ? -amount : amount;
+}
+
 export async function createAccount(formData: FormData) {
   if (!(await allow("finance.ledgers", "create"))) return;
   const session = await getSession();
@@ -74,7 +84,7 @@ export async function createAccount(formData: FormData) {
   if (!session.companies.some((c) => c.id === companyId) || !code || !name || !ACCOUNT_TYPES.includes(type)) return;
   const exists = await db.chartOfAccount.findUnique({ where: { companyId_code: { companyId, code } } });
   if (exists) return;
-  const created = await db.chartOfAccount.create({ data: { companyId, code, name, type } });
+  const created = await db.chartOfAccount.create({ data: { companyId, code, name, type, openingBalance: openingFrom(formData) } });
   await audit({ action: "Created", entity: "ChartOfAccount", entityId: created.id, summary: `Added account ${code} — ${name}` });
   revalidatePath("/finance");
 }
@@ -89,7 +99,7 @@ export async function updateAccount(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const type = String(formData.get("type") || "");
   if (!name || !ACCOUNT_TYPES.includes(type)) return;
-  await db.chartOfAccount.update({ where: { id }, data: { name, type } });
+  await db.chartOfAccount.update({ where: { id }, data: { name, type, openingBalance: openingFrom(formData) } });
   await audit({ action: "Updated", entity: "ChartOfAccount", entityId: id, summary: `Updated account ${acc.code} — ${name}` });
   revalidatePath("/finance");
 }

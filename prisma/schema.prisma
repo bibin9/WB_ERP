@@ -41,6 +41,10 @@ model Company {
   baseCurrency String            @default("AED")
   // UAE WPS (Wage Protection System) employer details, used to generate the bank SIF file
   wpsEmployerId  String? // MOL establishment / employer unique ID
+  /// Month the financial year starts (1 = January).
+  fyStartMonth   Int     @default(1)
+  /// Date the opening balances are stated as at — normally the FY start.
+  openingAsOf    DateTime?
   wpsBankRouting String? // employer bank routing code (agent ID)
   isActive     Boolean           @default(true)
   memberships  CompanyMembership[]
@@ -175,6 +179,9 @@ model ChartOfAccount {
   name        String // e.g. "Cash at Bank"
   type        String // Asset | Liability | Equity | Income | Expense
   parentGroup String? // Tally-style group, e.g. "Current Assets", "Sundry Debtors"
+  /// Balance carried in when the books were migrated. Debit positive,
+  /// credit negative — the sign convention the ledgers already use.
+  openingBalance Float @default(0)
   tallyGuid   String? // mapping key when synced from Tally
   isActive    Boolean       @default(true)
   lines       JournalLine[]

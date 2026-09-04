@@ -5,6 +5,8 @@ import FinanceTabs from "@/components/FinanceTabs";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import PeriodPicker from "@/components/PeriodPicker";
+import { resolvePeriod } from "@/lib/period";
 
 export const dynamic = "force-dynamic";
 const n = (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -14,22 +16,33 @@ const vColor: Record<string, string> = {
   Contra: "bg-brand-gold/15 text-brand-gold", Sales: "bg-brand-blue/10 text-brand-blue-600", Purchase: "bg-brand-navy/10 text-heading",
 };
 
-export default async function DayBookPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
+export default async function DayBookPage({ searchParams }: { searchParams: Promise<{ c?: string; from?: string; to?: string }> }) {
   await requireAccess("finance.daybook");
   const session = await getSession();
   const sp = await searchParams;
   const accessible = session?.companies ?? [];
   const companyId = accessible.find((c) => c.id === sp.c)?.id ?? accessible[0]?.id ?? "";
 
+  const company = companyId ? await db.company.findUnique({ where: { id: companyId } }) : null;
+  const period = resolvePeriod(sp, company?.fyStartMonth ?? 1);
+
   const entries = companyId
-    ? await db.journalEntry.findMany({ where: { companyId }, include: { lines: { include: { account: true } } }, orderBy: [{ date: "desc" }, { createdAt: "desc" }], take: 100 })
+    ? await db.journalEntry.findMany({
+        where: { companyId, date: { gte: period.from, lte: period.to } },
+        include: { lines: { include: { account: true } } },
+        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+        take: 500,
+      })
     : [];
 
   return (
     <div>
-      <PageHeader title="Finance — Day Book" subtitle="Every voucher in date order — Tally's Day Book. Filter by voucher type coming with reporting." />
+      <PageHeader title="Finance — Day Book" subtitle="Every voucher in date order for the selected period — Tally's Day Book." />
       <FinanceTabs companyId={companyId} />
       <div className="mb-5"><CompanyPicker companies={accessible.map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={companyId} /></div>
+      <div className="mb-5">
+        <PeriodPicker from={period.fromStr} to={period.toStr} label={`${period.label} · ${entries.length} voucher${entries.length === 1 ? "" : "s"}`} />
+      </div>
 
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">

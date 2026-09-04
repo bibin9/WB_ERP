@@ -5,7 +5,7 @@ import { Plus, X, Pencil } from "lucide-react";
 import { createAccount, updateAccount } from "@/app/(app)/finance/actions";
 
 const TYPES = ["Asset", "Liability", "Equity", "Income", "Expense"];
-export type EditingAccount = { id: string; code: string; name: string; type: string };
+export type EditingAccount = { id: string; code: string; name: string; type: string; openingBalance: number };
 
 export default function AccountForm({ companyId, account }: { companyId: string; account?: EditingAccount }) {
   const [open, setOpen] = useState(false);
@@ -50,6 +50,29 @@ export default function AccountForm({ companyId, account }: { companyId: string;
             <select name="type" className="input" defaultValue={account?.type ?? "Asset"}>
               {TYPES.map((t) => <option key={t}>{t}</option>)}
             </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-ink">Opening balance</label>
+            <div className="flex gap-2">
+              <input
+                name="openingAmount"
+                type="number"
+                step="0.01"
+                min="0"
+                className="input"
+                defaultValue={account ? Math.abs(account.openingBalance) || "" : ""}
+                placeholder="0.00"
+              />
+              <select name="openingSide" className="input w-28" defaultValue={account && account.openingBalance < 0 ? "Cr" : "Dr"}>
+                <option value="Dr">Dr</option>
+                <option value="Cr">Cr</option>
+              </select>
+            </div>
+            <p className="mt-1 text-xs text-muted">
+              The balance this account already had when you moved onto the system. Leave blank for a new account.
+              Cash, bank, stock and money owed to you are <span className="font-medium">Dr</span>; loans, money you
+              owe and capital are <span className="font-medium">Cr</span>.
+            </p>
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={() => setOpen(false)} className="btn-ghost">Cancel</button>

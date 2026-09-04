@@ -72,7 +72,13 @@ async function main() {
     const company = await db.company.upsert({
       where: { tenantId_code: { tenantId: tenant.id, code: c.code } },
       update: { name: c.name },
-      create: { tenantId: tenant.id, code: c.code, name: c.name, baseCurrency: "AED" },
+      // Books opened on 1 January of the current year, so the demo opening
+      // balances sit in the right financial year.
+      create: {
+        tenantId: tenant.id, code: c.code, name: c.name, baseCurrency: "AED",
+        fyStartMonth: 1,
+        openingAsOf: new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1)),
+      },
     });
     companies.push(company);
   }
@@ -141,15 +147,17 @@ async function main() {
   }
 
   // Standard chart of accounts per company
+  // Opening balances demonstrate migrating onto the system mid-life: debit
+  // positive, credit negative, and the set balances to zero.
   const COA = [
-    ["1000", "Cash at Bank", "Asset"],
+    ["1000", "Cash at Bank", "Asset", 150000],
     ["1100", "Accounts Receivable", "Asset"],
     ["1200", "Inventory", "Asset"],
     ["1500", "Plant & Equipment", "Asset"],
-    ["2000", "Accounts Payable", "Liability"],
+    ["2000", "Accounts Payable", "Liability", -50000],
     ["2100", "Accruals & Provisions", "Liability"],
     ["2200", "Retention Payable", "Liability"],
-    ["3000", "Share Capital", "Equity"],
+    ["3000", "Share Capital", "Equity", -100000],
     ["3100", "Retained Earnings", "Equity"],
     ["4000", "Contract Revenue", "Income"],
     ["4100", "Other Income", "Income"],
@@ -159,11 +167,12 @@ async function main() {
     ["6200", "Utilities", "Expense"],
   ];
   for (const company of companies) {
-    for (const [code, name, type] of COA) {
+    for (const [code, name, type, opening] of COA) {
+      const openingBalance = opening ?? 0;
       await db.chartOfAccount.upsert({
         where: { companyId_code: { companyId: company.id, code } },
         update: { name, type },
-        create: { companyId: company.id, code, name, type },
+        create: { companyId: company.id, code, name, type, openingBalance },
       });
     }
   }

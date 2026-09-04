@@ -63,7 +63,7 @@ export default async function CompaniesPage() {
                 <div className="text-xs text-muted">Legal entity · own ledger</div>
               </div>
               <div className="flex items-center gap-0.5">
-                <CompanyForm company={{ id: c.id, name: c.name, baseCurrency: c.baseCurrency }} />
+                <CompanyForm company={{ id: c.id, name: c.name, baseCurrency: c.baseCurrency, fyStartMonth: c.fyStartMonth, openingAsOf: c.openingAsOf ? c.openingAsOf.toISOString().slice(0, 10) : null }} />
                 <GuardedDelete screen="companies.list" action={deleteCompany.bind(null, c.id)} label={`Delete company ${c.code}? (only if it has no records)`} />
               </div>
             </div>

@@ -9,13 +9,16 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
 import ExportButton from "@/components/ExportButton";
+import PeriodPicker from "@/components/PeriodPicker";
+import { resolvePeriod } from "@/lib/period";
+import { balanceAsAt } from "@/lib/ledger";
 
 export const dynamic = "force-dynamic";
 
 const TYPE_ORDER = ["Asset", "Liability", "Equity", "Income", "Expense"];
 const n = (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export default async function FinancePage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
+export default async function FinancePage({ searchParams }: { searchParams: Promise<{ c?: string; from?: string; to?: string }> }) {
   await requireAccess("finance.overview");
   const session = await getSession();
   const sp = await searchParams;
@@ -24,10 +27,14 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const companyId = accessible.find((c) => c.id === sp.c)?.id ?? accessible[0]?.id ?? "";
   const company = accessible.find((c) => c.id === companyId);
 
+  const companyRow = companyId ? await db.company.findUnique({ where: { id: companyId } }) : null;
+  const period = resolvePeriod(sp, companyRow?.fyStartMonth ?? 1);
+  const openingAsOf = companyRow?.openingAsOf ?? null;
+
   const accounts = companyId
     ? await db.chartOfAccount.findMany({
         where: { companyId },
-        include: { lines: { select: { debit: true, credit: true } } },
+        include: { lines: { select: { debit: true, credit: true, entry: { select: { date: true } } } } },
         orderBy: { code: "asc" },
       })
     : [];
@@ -41,13 +48,9 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       })
     : [];
 
-  // Trial balance: net debit/credit per account
-  const tb = accounts.map((a) => {
-    const debit = a.lines.reduce((s, l) => s + l.debit, 0);
-    const credit = a.lines.reduce((s, l) => s + l.credit, 0);
-    const net = debit - credit; // + => debit balance
-    return { ...a, net };
-  });
+  // Trial balance: cumulative balance as at the end of the period, including
+  // any opening balance carried in when the books were migrated.
+  const tb = accounts.map((a) => ({ ...a, net: balanceAsAt(a, period.to, openingAsOf) }));
   const totalDebit = tb.reduce((s, a) => s + (a.net > 0 ? a.net : 0), 0);
   const totalCredit = tb.reduce((s, a) => s + (a.net < 0 ? -a.net : 0), 0);
 
@@ -131,7 +134,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
                   <span className="flex-1 truncate text-sm text-ink">{a.name}</span>
                   <span className="rounded bg-brand-navy/5 px-1.5 py-0.5 text-[10px] font-medium text-heading">{a.type}</span>
                   <span className="flex items-center opacity-0 transition-opacity group-hover:opacity-100">
-                    <AccountForm companyId={companyId} account={{ id: a.id, code: a.code, name: a.name, type: a.type }} />
+                    <AccountForm companyId={companyId} account={{ id: a.id, code: a.code, name: a.name, type: a.type, openingBalance: a.openingBalance }} />
                     <GuardedDelete screen="finance.ledgers" action={deleteAccount.bind(null, a.id)} label={`Delete account ${a.code}? (only if no postings)`} />
                   </span>
                 </div>
