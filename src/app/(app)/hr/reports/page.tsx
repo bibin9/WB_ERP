@@ -20,9 +20,11 @@ function statusOf(expiry: Date | null): { label: string; days: number | null; cl
 }
 
 export default async function HrReportsPage() {
-  await requireAccess("hr.reports");
+  const session = await requireAccess("hr.reports");
   const tenant = await db.tenant.findUnique({ where: { key: activeTenant.key } });
-  const companies = tenant ? await db.company.findMany({ where: { tenantId: tenant.id } }) : [];
+  // Only the companies this user is a member of — never the whole tenant.
+  const scope = session.companies.map((c) => c.id);
+  const companies = tenant ? await db.company.findMany({ where: { tenantId: tenant.id, id: { in: scope } } }) : [];
   const companyMap = new Map(companies.map((c) => [c.id, c.code]));
 
   const employees = await db.employee.findMany({

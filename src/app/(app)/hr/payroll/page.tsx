@@ -12,6 +12,7 @@ import { deletePayrollRun, deleteAdvance } from "./actions";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
+import ExportButton from "@/components/ExportButton";
 
 export const dynamic = "force-dynamic";
 const money = (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -38,7 +39,8 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
   return (
     <div>
       <PageHeader title="HR & Admin — Payroll" subtitle="Run monthly payroll, recover salary advances, and generate the UAE WPS SIF file for the bank.">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {companyId && <ExportButton dataset="payroll" companyId={companyId} label="Export payslips" />}
           {companyId && <AdvanceForm companyId={companyId} employees={employees.map((e) => ({ id: e.id, label: `${e.empNo} — ${e.name}` }))} />}
           {companyId && <RunPayrollForm companyId={companyId} />}
         </div>

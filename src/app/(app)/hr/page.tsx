@@ -10,6 +10,7 @@ import { deleteEmployee } from "@/app/(app)/hr/employee-actions";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/guard";
 import { activeTenant } from "@/config/tenant";
+import ExportButton from "@/components/ExportButton";
 
 export const dynamic = "force-dynamic";
 
@@ -29,10 +30,12 @@ const typeColor: Record<string, string> = {
 const money = (v: number) => v.toLocaleString();
 
 export default async function EmployeesPage() {
-  await requireAccess("hr.employees");
+  const session = await requireAccess("hr.employees");
   const tenant = await db.tenant.findUnique({ where: { key: activeTenant.key } });
+  // Only the companies this user is a member of — never the whole tenant.
+  const scope = session.companies.map((c) => c.id);
   const companies = tenant
-    ? await db.company.findMany({ where: { tenantId: tenant.id }, orderBy: { code: "asc" } })
+    ? await db.company.findMany({ where: { tenantId: tenant.id, id: { in: scope } }, orderBy: { code: "asc" } })
     : [];
   const employees = await db.employee.findMany({
     where: { companyId: { in: companies.map((c) => c.id) } },
@@ -55,7 +58,10 @@ export default async function EmployeesPage() {
         title="HR & Admin"
         subtitle="Employee master data and payroll structure (Phase 1). Attendance, leave and payroll runs come in Phase 3."
       >
-        <EmployeeForm companies={companies.map((c) => ({ id: c.id, code: c.code, name: c.name }))} master={master} />
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportButton dataset="employees" companyId="*" label="Export employees" />
+          <EmployeeForm companies={companies.map((c) => ({ id: c.id, code: c.code, name: c.name }))} master={master} />
+        </div>
       </PageHeader>
       <HrTabs />
 

@@ -6,12 +6,15 @@ import GuardedDelete from "@/components/GuardedDelete";
 import { toggleCompanyActive, deleteCompany } from "@/app/(app)/companies/actions";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/guard";
+import { canAdminister } from "@/lib/auth";
 import { activeTenant } from "@/config/tenant";
+import { ExportAllButton } from "@/components/ExportButton";
 
 export const dynamic = "force-dynamic";
 
 export default async function CompaniesPage() {
-  await requireAccess("companies.list");
+  const session = await requireAccess("companies.list");
+  const isAdmin = await canAdminister();
   const tenant = await db.tenant.findUnique({ where: { key: activeTenant.key } });
   const companies = tenant
     ? await db.company.findMany({
@@ -29,6 +32,24 @@ export default async function CompaniesPage() {
       >
         <CompanyForm />
       </PageHeader>
+
+      {isAdmin && session.companies.length > 0 && (
+        <div className="card mb-5 flex flex-wrap items-center justify-between gap-3 p-5">
+          <div>
+            <h2 className="font-semibold text-heading">Export all data</h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted">
+              Download every record for one company as a ZIP of spreadsheets — employees, payroll, leave,
+              attendance, certifications, settlements and the books. For your own records, an auditor, or moving
+              data elsewhere. It is not a system backup, and it holds personal data, so store it securely.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {session.companies.map((c) => (
+              <ExportAllButton key={c.id} companyId={c.id} label={c.code} />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {companies.map((c) => (

@@ -9,6 +9,7 @@ import { deleteCertification, deleteAppraisal } from "./actions";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
+import ExportButton from "@/components/ExportButton";
 
 export const dynamic = "force-dynamic";
 const fmt = (d: Date | null) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—");
@@ -46,7 +47,9 @@ export default async function CertificationsPage({ searchParams }: { searchParam
 
   return (
     <div>
-      <PageHeader title="HR & Admin — Certifications, Medical & Performance" subtitle="Competency & safety certifications, medical clearances (restricted) with expiry alerts, and appraisals." />
+      <PageHeader title="HR & Admin — Certifications, Medical & Performance" subtitle="Competency & safety certifications, medical clearances (restricted) with expiry alerts, and appraisals.">
+        {companyId && <ExportButton dataset="certifications" companyId={companyId} />}
+      </PageHeader>
       <HrTabs />
       <div className="mb-5"><CompanyPicker companies={accessible.map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={companyId} /></div>
 

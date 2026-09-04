@@ -8,6 +8,7 @@ import { deleteAccount } from "@/app/(app)/finance/actions";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
+import ExportButton from "@/components/ExportButton";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,10 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   return (
     <div>
       <PageHeader title="Finance & Accounting" subtitle="Each company keeps its own books. Chart of accounts, journal entries and trial balance.">
-        {companyId && <JournalForm companyId={companyId} accounts={accounts.map((a) => ({ id: a.id, code: a.code, name: a.name }))} />}
+        <div className="flex flex-wrap items-center gap-2">
+          {companyId && <ExportButton dataset="journals" companyId={companyId} label="Export journals" />}
+          {companyId && <JournalForm companyId={companyId} accounts={accounts.map((a) => ({ id: a.id, code: a.code, name: a.name }))} />}
+        </div>
       </PageHeader>
 
       <FinanceTabs companyId={companyId} />

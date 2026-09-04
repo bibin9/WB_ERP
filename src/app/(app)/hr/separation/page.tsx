@@ -9,6 +9,7 @@ import { deleteSeparation } from "./actions";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
+import ExportButton from "@/components/ExportButton";
 
 export const dynamic = "force-dynamic";
 const aed = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -34,7 +35,9 @@ export default async function SeparationPage() {
 
   return (
     <div>
-      <PageHeader title="HR — Separation & Settlement" subtitle="Resignation or termination with an automatic UAE end-of-service settlement (gratuity, leave, adjustments)." />
+      <PageHeader title="HR — Separation & Settlement" subtitle="Resignation or termination with an automatic UAE end-of-service settlement (gratuity, leave, adjustments).">
+        {companyIds.length > 0 && <ExportButton dataset="separations" companyId="*" />}
+      </PageHeader>
       <HrTabs />
 
       <div className="mb-6">

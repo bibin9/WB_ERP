@@ -66,6 +66,19 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "This is deliberate, and it is what keeps payroll, settlements and journals trustworthy — the people allowed to look at a figure are not automatically the people allowed to change it.",
   },
   {
+    id: "export-data", category: "Getting Started", screens: [],
+    title: "Getting your data out",
+    summary: "Download any list as a spreadsheet, or the whole company's records as one file.",
+    body: "Most list screens have an Export button that downloads what you are looking at as a spreadsheet you can open in Excel. It is the quickest way to send figures to an auditor, work on them offline, or keep your own copy.",
+    steps: [
+      "Open the screen you want — Employees, Payroll, Leave, Attendance, Certifications, Settlements or Finance.",
+      "Click Export. The file downloads to your computer and opens in Excel.",
+      "You only ever export what you are allowed to see: your own companies, and only the screens your role can open.",
+      "Administrators can also go to Companies & Group and click Export for a company, which downloads every record as one ZIP file of spreadsheets.",
+    ],
+    tip: "This is not the system backup. It is a copy of your records for your own use — it cannot be loaded back in to restore the system. Ask your administrator about the backup schedule. Exported files contain salaries, passport numbers and bank details, so store them somewhere safe and delete copies you no longer need.",
+  },
+  {
     id: "day-night", category: "Getting Started", screens: [],
     title: "Day mode and night mode",
     summary: "Switch the whole app to a dark colour scheme, easier on the eyes in low light.",

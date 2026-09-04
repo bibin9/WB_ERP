@@ -10,6 +10,7 @@ import { deleteAttendance, deleteTimesheet } from "./actions";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
+import ExportButton from "@/components/ExportButton";
 
 export const dynamic = "force-dynamic";
 const fmt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
@@ -48,7 +49,9 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
 
   return (
     <div>
-      <PageHeader title="HR & Admin — Attendance & Timesheets" subtitle="Mark daily attendance and log project time (Project ID) — the basis for payroll and project cost." />
+      <PageHeader title="HR & Admin — Attendance & Timesheets" subtitle="Mark daily attendance and log project time (Project ID) — the basis for payroll and project cost.">
+        {companyId && <ExportButton dataset="attendance" companyId={companyId} />}
+      </PageHeader>
       <HrTabs />
       <div className="mb-5"><CompanyPicker companies={accessible.map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={companyId} /></div>
 

@@ -9,6 +9,7 @@ import { deleteLeaveRequest } from "./actions";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
+import ExportButton from "@/components/ExportButton";
 
 export const dynamic = "force-dynamic";
 const fmt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
@@ -36,7 +37,10 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
   return (
     <div>
       <PageHeader title="HR & Admin — Leave" subtitle="Leave requests, approvals and balances. Approving annual leave deducts the balance automatically.">
-        {companyId && <LeaveForm employees={employees.map((e) => ({ id: e.id, label: `${e.empNo} — ${e.name} (${e.annualLeaveBalance}d left)` }))} leaveTypes={leaveTypes} />}
+        <div className="flex flex-wrap items-center gap-2">
+          {companyId && <ExportButton dataset="leave" companyId={companyId} />}
+          {companyId && <LeaveForm employees={employees.map((e) => ({ id: e.id, label: `${e.empNo} — ${e.name} (${e.annualLeaveBalance}d left)` }))} leaveTypes={leaveTypes} />}
+        </div>
       </PageHeader>
       <HrTabs />
 
