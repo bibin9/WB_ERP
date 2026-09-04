@@ -4,7 +4,7 @@ Project and end-user documentation for the White & Bright Group ERP.
 
 | Document | Audience | Purpose |
 |---|---|---|
-| **White_and_Bright_ERP_User_Manual.docx** | End users | Step-by-step guide to every screen, with 25 embedded screenshots. Version 1.2. |
+| **White_and_Bright_ERP_User_Manual.docx** | End users | Step-by-step guide to every screen, with 25 embedded screenshots. Version 1.3. |
 | **White_and_Bright_ERP_Test_Cases.xlsx** | QA / testing team | 141 test cases across all modules, with a Status tracker and auto-counting Summary. |
 | **White_and_Bright_ERP_BRD_v1.2_APPROVED.docx** | Client / stakeholders | Business Requirements Document (approved baseline). |
 | **White_and_Bright_ERP_FSD_v1.1.docx** | Developers / stakeholders | Functional Specification (aligned to BRD v1.2). |
@@ -35,7 +35,8 @@ functionality added after the first documentation pack:
   TC-GEN-016.
 - **Opening balances & reporting periods** — carry balances in from the old system, and
   run every finance report for any date range. Profit & Loss covers the period; the
-  Balance Sheet is a snapshot at its end date. Test cases TC-FIN-013 to TC-FIN-025.
+  Balance Sheet is a snapshot at its end date. Manual sections 4.2 and 4.3;
+  test cases TC-FIN-013 to TC-FIN-025.
 - **Data export** — an Export button on every list screen, plus an administrator-only
   "Export all data" producing a ZIP of spreadsheets. Scoped to the user's companies and
   permissions, and audit-logged. Test cases TC-GEN-003 to TC-GEN-010.
