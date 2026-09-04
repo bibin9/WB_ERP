@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { allow } from "@/lib/guard";
 
 function rev() {
   revalidatePath("/hr/tasks");
@@ -18,6 +19,7 @@ async function nextTicketNo(companyId: string): Promise<string> {
 }
 
 export async function createJob(formData: FormData) {
+  if (!(await allow("hr.tasks", "create"))) return;
   const session = await getSession();
   if (!session) return;
   const companyId = String(formData.get("companyId") || "");
@@ -46,6 +48,7 @@ export async function createJob(formData: FormData) {
 }
 
 export async function updateJob(formData: FormData) {
+  if (!(await allow("hr.tasks", "edit"))) return;
   const session = await getSession();
   if (!session) return;
   const id = String(formData.get("id") || "");
@@ -71,6 +74,7 @@ export async function updateJob(formData: FormData) {
 }
 
 export async function updateStatus(id: string, status: string) {
+  if (!(await allow("hr.tasks", "edit"))) return;
   const session = await getSession();
   if (!session) return;
   const job = await db.jobAssignment.findUnique({ where: { id } });
@@ -86,6 +90,7 @@ export async function updateStatus(id: string, status: string) {
 }
 
 export async function deleteJob(id: string) {
+  if (!(await allow("hr.tasks", "delete"))) return;
   const session = await getSession();
   if (!session) return;
   const job = await db.jobAssignment.findUnique({ where: { id } });

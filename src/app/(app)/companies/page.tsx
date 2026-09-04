@@ -2,7 +2,7 @@ import { Building2 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import CompanyForm from "@/components/CompanyForm";
 import ActiveToggle from "@/components/ActiveToggle";
-import ConfirmDelete from "@/components/ConfirmDelete";
+import GuardedDelete from "@/components/GuardedDelete";
 import { toggleCompanyActive, deleteCompany } from "@/app/(app)/companies/actions";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/guard";
@@ -43,7 +43,7 @@ export default async function CompaniesPage() {
               </div>
               <div className="flex items-center gap-0.5">
                 <CompanyForm company={{ id: c.id, name: c.name, baseCurrency: c.baseCurrency }} />
-                <ConfirmDelete action={deleteCompany.bind(null, c.id)} label={`Delete company ${c.code}? (only if it has no records)`} />
+                <GuardedDelete screen="companies.list" action={deleteCompany.bind(null, c.id)} label={`Delete company ${c.code}? (only if it has no records)`} />
               </div>
             </div>
             <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { allow } from "@/lib/guard";
 
 async function empInScope(employeeId: string) {
   const session = await getSession();
@@ -14,6 +15,7 @@ async function empInScope(employeeId: string) {
 }
 
 export async function addCertification(formData: FormData) {
+  if (!(await allow("hr.certifications", "create"))) return;
   const employeeId = String(formData.get("employeeId") || "");
   const name = String(formData.get("name") || "").trim();
   const emp = await empInScope(employeeId);
@@ -35,6 +37,7 @@ export async function addCertification(formData: FormData) {
 }
 
 export async function deleteCertification(id: string) {
+  if (!(await allow("hr.certifications", "delete"))) return;
   const session = await getSession();
   if (!session) return;
   const c = await db.certification.findUnique({ where: { id } });
@@ -44,6 +47,7 @@ export async function deleteCertification(id: string) {
 }
 
 export async function addAppraisal(formData: FormData) {
+  if (!(await allow("hr.certifications", "create"))) return;
   const session = await getSession();
   if (!session) return;
   const employeeId = String(formData.get("employeeId") || "");
@@ -64,6 +68,7 @@ export async function addAppraisal(formData: FormData) {
 }
 
 export async function deleteAppraisal(id: string) {
+  if (!(await allow("hr.certifications", "delete"))) return;
   const session = await getSession();
   if (!session) return;
   const a = await db.appraisal.findUnique({ where: { id } });

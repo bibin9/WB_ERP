@@ -7,3 +7,6 @@ out
 .DS_Store
 /prisma/dev.db
 uploads/
+
+# TypeScript incremental build cache
+*.tsbuildinfo

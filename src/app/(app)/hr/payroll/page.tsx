@@ -3,7 +3,7 @@ import { Wallet, HandCoins } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import HrTabs from "@/components/HrTabs";
 import CompanyPicker from "@/components/CompanyPicker";
-import ConfirmDelete from "@/components/ConfirmDelete";
+import GuardedDelete from "@/components/GuardedDelete";
 import RunPayrollForm from "@/components/payroll/RunPayrollForm";
 import RunStatus from "@/components/payroll/RunStatus";
 import AdvanceForm from "@/components/payroll/AdvanceForm";
@@ -62,7 +62,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
                     <div className="text-xs text-muted">{r._count.payslips} payslips · AED {money(total)} · by {r.runBy}</div>
                   </div>
                   <RunStatus id={r.id} status={r.status} />
-                  {r.status === "Draft" && <ConfirmDelete action={deletePayrollRun.bind(null, r.id)} label={`Delete draft payroll ${r.period}?`} />}
+                  {r.status === "Draft" && <GuardedDelete screen="hr.payroll" action={deletePayrollRun.bind(null, r.id)} label={`Delete draft payroll ${r.period}?`} />}
                 </div>
               );
             })}
@@ -135,7 +135,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
                   <div className="font-semibold tabular-nums text-brand-navy">AED {money(a.balance)}</div>
                   <div className="text-[11px] text-muted">outstanding</div>
                 </div>
-                <ConfirmDelete action={deleteAdvance.bind(null, a.id)} label={`Delete advance for ${a.employeeName}?`} />
+                <GuardedDelete screen="hr.payroll" action={deleteAdvance.bind(null, a.id)} label={`Delete advance for ${a.employeeName}?`} />
               </div>
             ))}
           </div>

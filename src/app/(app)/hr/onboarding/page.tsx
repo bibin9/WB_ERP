@@ -3,7 +3,7 @@ import clsx from "clsx";
 import PageHeader from "@/components/PageHeader";
 import HrTabs from "@/components/HrTabs";
 import CompanyPicker from "@/components/CompanyPicker";
-import ConfirmDelete from "@/components/ConfirmDelete";
+import GuardedDelete from "@/components/GuardedDelete";
 import RequisitionForm from "@/components/onboarding/RequisitionForm";
 import { AddCandidate, CandidateStage } from "@/components/onboarding/CandidateControls";
 import OnboardingCheck from "@/components/onboarding/OnboardingCheck";
@@ -72,7 +72,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
                 <div className="text-xs text-muted">{r.department ?? "—"} · {r.headcount} position(s) · by {r.raisedBy}</div>
               </div>
               <span className={clsx("rounded-full px-2.5 py-0.5 text-xs font-medium", reqStatus[r.status])}>{r.status}</span>
-              <ConfirmDelete action={deleteRequisition.bind(null, r.id)} label={`Delete requisition "${r.position}"?`} />
+              <GuardedDelete screen="hr.onboarding" action={deleteRequisition.bind(null, r.id)} label={`Delete requisition "${r.position}"?`} />
             </div>
 
             <div className="mt-3 divide-y divide-line rounded-lg border border-line">

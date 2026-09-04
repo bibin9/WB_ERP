@@ -6,8 +6,10 @@ import { getSession } from "@/lib/auth";
 import { resolveRoute } from "@/lib/approval-engine";
 import { notifyApprovers } from "@/lib/notify";
 import { audit } from "@/lib/audit";
+import { allow } from "@/lib/guard";
 
 export async function createApprovalRequest(formData: FormData) {
+  if (!(await allow("approvals.inbox", "view"))) return;
   const session = await getSession();
   if (!session) return;
 
@@ -61,6 +63,7 @@ export async function createApprovalRequest(formData: FormData) {
 }
 
 export async function decideStep(stepId: string, decision: "Approved" | "Rejected", comment: string) {
+  if (!(await allow("approvals.inbox", "approve"))) return;
   const session = await getSession();
   if (!session) return;
 

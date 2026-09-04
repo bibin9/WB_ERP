@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { getSession, canAdminister } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { tallyRequest, companyListXml, ledgersExportXml, parseLedgers, parseCompanyNames, mapGroupToType } from "@/lib/tally";
+import { allow } from "@/lib/guard";
 
 async function scoped(companyId: string) {
   const session = await getSession();
@@ -13,6 +14,7 @@ async function scoped(companyId: string) {
 }
 
 export async function saveTallyConfig(formData: FormData) {
+  if (!(await allow("finance.tally", "edit"))) return;
   const companyId = String(formData.get("companyId") || "");
   const session = await scoped(companyId);
   if (!session || !(await canAdminister())) return;
@@ -28,6 +30,7 @@ export async function saveTallyConfig(formData: FormData) {
 }
 
 export async function testTallyConnection(companyId: string): Promise<{ ok: boolean; message: string }> {
+  if (!(await allow("finance.tally", "view"))) return { ok: false, message: "Not authorised" };
   const session = await scoped(companyId);
   if (!session) return { ok: false, message: "No access" };
   const cfg = await db.tallyConfig.findUnique({ where: { companyId } });
@@ -42,6 +45,7 @@ export async function testTallyConnection(companyId: string): Promise<{ ok: bool
 }
 
 export async function importLedgersFromTally(companyId: string): Promise<{ ok: boolean; message: string }> {
+  if (!(await allow("finance.tally", "create"))) return { ok: false, message: "Not authorised" };
   const session = await scoped(companyId);
   if (!session || !(await canAdminister())) return { ok: false, message: "Not authorised" };
   const cfg = await db.tallyConfig.findUnique({ where: { companyId } });

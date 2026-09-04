@@ -6,10 +6,12 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { computeSettlement, type SeparationType } from "@/lib/settlement";
+import { allow } from "@/lib/guard";
 
 const num = (fd: FormData, k: string) => Number(fd.get(k)) || 0;
 
 export async function createSeparation(formData: FormData) {
+  if (!(await allow("hr.separation", "create"))) return;
   const session = await getSession();
   if (!session || !can(session, "hr.separation", "create")) return;
 
@@ -59,6 +61,7 @@ export async function createSeparation(formData: FormData) {
 }
 
 export async function setSeparationStatus(id: string, status: string) {
+  if (!(await allow("hr.separation", "edit"))) return;
   const session = await getSession();
   if (!session || !can(session, "hr.separation", "edit")) return;
   const sep = await db.separation.findFirst({ where: { id, companyId: { in: session.companies.map((c) => c.id) } } });
@@ -69,6 +72,7 @@ export async function setSeparationStatus(id: string, status: string) {
 }
 
 export async function deleteSeparation(id: string): Promise<{ ok: boolean; error?: string }> {
+  if (!(await allow("hr.separation", "delete"))) return { ok: false, error: "Not authorised" };
   const session = await getSession();
   if (!session || !can(session, "hr.separation", "delete")) return { ok: false, error: "Not authorised" };
   const sep = await db.separation.findFirst({ where: { id, companyId: { in: session.companies.map((c) => c.id) } } });

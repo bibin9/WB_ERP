@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession, canAdminister } from "@/lib/auth";
 import { MASTER_TYPES } from "@/lib/master";
+import { allow } from "@/lib/guard";
 
 export async function addMasterItem(formData: FormData) {
+  if (!(await allow("settings.master", "create"))) return;
   const session = await getSession();
   if (!session || !(await canAdminister())) return;
   const type = String(formData.get("type") || "");
@@ -19,6 +21,7 @@ export async function addMasterItem(formData: FormData) {
 }
 
 export async function deleteMasterItem(id: string) {
+  if (!(await allow("settings.master", "delete"))) return;
   const session = await getSession();
   if (!session || !(await canAdminister())) return;
   const item = await db.masterItem.findFirst({ where: { id, tenantId: session.tenant.id } });

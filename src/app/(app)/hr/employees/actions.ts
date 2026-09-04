@@ -7,6 +7,7 @@ import { randomBytes } from "crypto";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { allow } from "@/lib/guard";
 
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
 const STR_FIELDS = [
@@ -25,6 +26,7 @@ async function scoped(employeeId: string) {
 }
 
 export async function updateEmployeeProfile(formData: FormData) {
+  if (!(await allow("hr.employees", "edit"))) return;
   const id = String(formData.get("id") || "");
   const s = await scoped(id);
   if (!s) return;
@@ -56,6 +58,7 @@ export async function updateEmployeeProfile(formData: FormData) {
 }
 
 export async function uploadDocument(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  if (!(await allow("hr.employees", "create"))) return { ok: false, error: "Not authorised" };
   const employeeId = String(formData.get("employeeId") || "");
   const s = await scoped(employeeId);
   if (!s) return { ok: false, error: "Not authorised" };
@@ -78,6 +81,7 @@ export async function uploadDocument(formData: FormData): Promise<{ ok: boolean;
 }
 
 export async function deleteDocument(id: string) {
+  if (!(await allow("hr.employees", "delete"))) return;
   const session = await getSession();
   if (!session) return;
   const doc = await db.employeeDocument.findUnique({ where: { id } });

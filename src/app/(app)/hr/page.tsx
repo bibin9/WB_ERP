@@ -5,7 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import HrTabs from "@/components/HrTabs";
 import EmployeeForm from "@/components/EmployeeForm";
 import EmployeeStatus from "@/components/EmployeeStatus";
-import ConfirmDelete from "@/components/ConfirmDelete";
+import GuardedDelete from "@/components/GuardedDelete";
 import { deleteEmployee } from "@/app/(app)/hr/employee-actions";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/guard";
@@ -120,7 +120,8 @@ export default async function EmployeesPage() {
                           employmentType: e.employmentType, supplier: e.supplier, basicSalary: e.basicSalary, allowances: e.allowances,
                         }}
                       />
-                      <ConfirmDelete
+                      <GuardedDelete
+                        screen="hr.employees"
                         action={deleteEmployee.bind(null, e.id)}
                         label={`Delete employee ${e.empNo} — ${e.name}?`}
                       />

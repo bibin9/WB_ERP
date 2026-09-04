@@ -3,7 +3,7 @@ import { Star } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import HrTabs from "@/components/HrTabs";
 import CompanyPicker from "@/components/CompanyPicker";
-import ConfirmDelete from "@/components/ConfirmDelete";
+import GuardedDelete from "@/components/GuardedDelete";
 import { CertForm, AppraisalForm } from "@/components/certifications/CertForms";
 import { deleteCertification, deleteAppraisal } from "./actions";
 import { db } from "@/lib/db";
@@ -78,7 +78,7 @@ export default async function CertificationsPage({ searchParams }: { searchParam
                     <td className="px-4 py-2"><span className={clsx("rounded px-1.5 py-0.5 text-[10px] font-medium", catCls[c.category])}>{c.category}</span></td>
                     <td className="whitespace-nowrap px-4 py-2 text-muted">{fmt(c.expiryDate)}</td>
                     <td className="px-4 py-2"><span className={clsx("rounded-full px-2 py-0.5 text-xs font-medium", st.cls)}>{st.label}</span></td>
-                    <td className="px-4 py-2 text-right"><ConfirmDelete action={deleteCertification.bind(null, c.id)} label={`Delete "${c.name}"?`} /></td>
+                    <td className="px-4 py-2 text-right"><GuardedDelete screen="hr.certifications" action={deleteCertification.bind(null, c.id)} label={`Delete "${c.name}"?`} /></td>
                   </tr>
                 );
               })}
@@ -105,7 +105,7 @@ export default async function CertificationsPage({ searchParams }: { searchParam
                   <Star key={r} className={clsx("h-4 w-4", r <= a.rating ? "fill-brand-gold text-brand-gold" : "text-line")} />
                 ))}
               </div>
-              <ConfirmDelete action={deleteAppraisal.bind(null, a.id)} label="Delete this appraisal?" />
+              <GuardedDelete screen="hr.certifications" action={deleteAppraisal.bind(null, a.id)} label="Delete this appraisal?" />
             </div>
           ))}
         </div>

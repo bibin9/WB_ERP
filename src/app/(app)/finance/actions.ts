@@ -4,10 +4,12 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { allow } from "@/lib/guard";
 
 type LineInput = { accountId: string; debit: number; credit: number };
 
 export async function createJournalEntry(formData: FormData) {
+  if (!(await allow("finance.overview", "create"))) return;
   const session = await getSession();
   if (!session) return { ok: false, error: "Not signed in" };
 
@@ -62,6 +64,7 @@ export async function createJournalEntry(formData: FormData) {
 const ACCOUNT_TYPES = ["Asset", "Liability", "Equity", "Income", "Expense"];
 
 export async function createAccount(formData: FormData) {
+  if (!(await allow("finance.ledgers", "create"))) return;
   const session = await getSession();
   if (!session) return;
   const companyId = String(formData.get("companyId") || "");
@@ -77,6 +80,7 @@ export async function createAccount(formData: FormData) {
 }
 
 export async function updateAccount(formData: FormData) {
+  if (!(await allow("finance.ledgers", "edit"))) return;
   const session = await getSession();
   if (!session) return;
   const id = String(formData.get("id") || "");
@@ -91,6 +95,7 @@ export async function updateAccount(formData: FormData) {
 }
 
 export async function deleteAccount(id: string): Promise<{ ok: boolean; error?: string }> {
+  if (!(await allow("finance.ledgers", "delete"))) return { ok: false, error: "Not authorised" };
   const session = await getSession();
   if (!session) return { ok: false, error: "Not signed in" };
   const acc = await db.chartOfAccount.findUnique({ where: { id } });

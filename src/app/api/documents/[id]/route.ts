@@ -3,11 +3,13 @@ import { promises as fs } from "fs";
 import path from "path";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { can } from "@/lib/rbac";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession();
   if (!session) return new NextResponse("Unauthorized", { status: 401 });
+  if (!can(session, "hr.employees")) return new NextResponse("Forbidden", { status: 403 });
 
   const doc = await db.employeeDocument.findUnique({ where: { id } });
   if (!doc || !session.companies.some((c) => c.id === doc.companyId)) {

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
-import ConfirmDelete from "@/components/ConfirmDelete";
+import GuardedDelete from "@/components/GuardedDelete";
 import AddItemForm from "@/components/masterdata/AddItemForm";
 import { deleteMasterItem } from "./actions";
 import { MASTER_TYPES } from "@/lib/master";
@@ -35,7 +35,7 @@ export default async function MasterDataPage() {
               {byType(type).map((i) => (
                 <div key={i.id} className="flex items-center gap-2 px-5 py-1.5">
                   <span className="flex-1 text-sm text-ink">{i.value}</span>
-                  <ConfirmDelete action={deleteMasterItem.bind(null, i.id)} label={`Delete "${i.value}"?`} />
+                  <GuardedDelete screen="settings.master" action={deleteMasterItem.bind(null, i.id)} label={`Delete "${i.value}"?`} />
                 </div>
               ))}
             </div>

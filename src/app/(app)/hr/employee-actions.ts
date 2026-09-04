@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { allow } from "@/lib/guard";
 
 async function nextEmpNo(companyId: string): Promise<string> {
   const n = await db.employee.count({ where: { companyId } });
@@ -11,6 +12,7 @@ async function nextEmpNo(companyId: string): Promise<string> {
 }
 
 export async function createEmployee(formData: FormData) {
+  if (!(await allow("hr.employees", "create"))) return;
   const session = await getSession();
   if (!session) return;
 
@@ -40,6 +42,7 @@ export async function createEmployee(formData: FormData) {
 }
 
 export async function setEmployeeStatus(id: string, status: string) {
+  if (!(await allow("hr.employees", "edit"))) return;
   const session = await getSession();
   if (!session) return;
   const emp = await db.employee.findUnique({ where: { id } });
@@ -50,6 +53,7 @@ export async function setEmployeeStatus(id: string, status: string) {
 }
 
 export async function updateEmployee(formData: FormData) {
+  if (!(await allow("hr.employees", "edit"))) return;
   const session = await getSession();
   if (!session) return;
   const id = String(formData.get("id") || "");
@@ -78,6 +82,7 @@ export async function updateEmployee(formData: FormData) {
 }
 
 export async function deleteEmployee(id: string) {
+  if (!(await allow("hr.employees", "delete"))) return;
   const session = await getSession();
   if (!session) return;
   const emp = await db.employee.findUnique({ where: { id } });

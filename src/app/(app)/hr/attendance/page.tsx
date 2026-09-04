@@ -2,7 +2,7 @@ import clsx from "clsx";
 import PageHeader from "@/components/PageHeader";
 import HrTabs from "@/components/HrTabs";
 import CompanyPicker from "@/components/CompanyPicker";
-import ConfirmDelete from "@/components/ConfirmDelete";
+import GuardedDelete from "@/components/GuardedDelete";
 import { TimesheetForm } from "@/components/attendance/AttendanceForms";
 import MusterBoard from "@/components/attendance/MusterBoard";
 import PunchImport from "@/components/attendance/PunchImport";
@@ -86,7 +86,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                   <td className="px-4 py-2"><span className={clsx("rounded-full px-2 py-0.5 text-xs font-medium", attBadge[a.status])}>{a.status}</span></td>
                   <td className="px-4 py-2 text-center tabular-nums">{a.hours}</td>
                   <td className="px-4 py-2 text-muted">{a.remarks ?? "—"}</td>
-                  <td className="px-4 py-2 text-right"><ConfirmDelete action={deleteAttendance.bind(null, a.id)} label="Delete this attendance record?" /></td>
+                  <td className="px-4 py-2 text-right"><GuardedDelete screen="hr.attendance" action={deleteAttendance.bind(null, a.id)} label="Delete this attendance record?" /></td>
                 </tr>
               ))}
             </tbody>
@@ -114,7 +114,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                   <td className="px-4 py-2"><span className="rounded bg-brand-navy/5 px-2 py-0.5 font-mono text-xs text-brand-navy">{t.projectRef}</span></td>
                   <td className="px-4 py-2 text-center tabular-nums">{t.hours}</td>
                   <td className="px-4 py-2 text-muted">{t.notes ?? "—"}</td>
-                  <td className="px-4 py-2 text-right"><ConfirmDelete action={deleteTimesheet.bind(null, t.id)} label="Delete this time entry?" /></td>
+                  <td className="px-4 py-2 text-right"><GuardedDelete screen="hr.attendance" action={deleteTimesheet.bind(null, t.id)} label="Delete this time entry?" /></td>
                 </tr>
               ))}
             </tbody>

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession, canAdminister } from "@/lib/auth";
+import { allow } from "@/lib/guard";
 
 async function guard() {
   const session = await getSession();
@@ -11,6 +12,7 @@ async function guard() {
 }
 
 export async function createRoute(formData: FormData) {
+  if (!(await allow("settings.approvals", "create"))) return;
   const session = await guard();
   if (!session) return;
   const docType = String(formData.get("docType") || "").trim();
@@ -24,6 +26,7 @@ export async function createRoute(formData: FormData) {
 }
 
 export async function deleteRoute(routeId: string) {
+  if (!(await allow("settings.approvals", "delete"))) return;
   const session = await guard();
   if (!session) return;
   const route = await db.approvalRoute.findUnique({ where: { id: routeId } });
@@ -33,6 +36,7 @@ export async function deleteRoute(routeId: string) {
 }
 
 export async function addStep(formData: FormData) {
+  if (!(await allow("settings.approvals", "create"))) return;
   const session = await guard();
   if (!session) return;
   const routeId = String(formData.get("routeId") || "");
@@ -58,6 +62,7 @@ export async function addStep(formData: FormData) {
 }
 
 export async function removeStep(stepId: string) {
+  if (!(await allow("settings.approvals", "delete"))) return;
   const session = await guard();
   if (!session) return;
   const step = await db.approvalRouteStep.findUnique({ where: { id: stepId }, include: { route: true } });
@@ -67,6 +72,7 @@ export async function removeStep(stepId: string) {
 }
 
 export async function moveStep(stepId: string, dir: "up" | "down") {
+  if (!(await allow("settings.approvals", "edit"))) return;
   const session = await guard();
   if (!session) return;
   const step = await db.approvalRouteStep.findUnique({ where: { id: stepId }, include: { route: true } });

@@ -4,10 +4,12 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { allow } from "@/lib/guard";
 
 const CHECKLIST = ["Visa processing", "Emirates ID / residency", "Bank account setup", "HSE induction", "Issue assets (laptop/PPE)", "Collect certificates", "Sign contract"];
 
 export async function createRequisition(formData: FormData) {
+  if (!(await allow("hr.onboarding", "create"))) return;
   const session = await getSession();
   if (!session) return;
   const companyId = String(formData.get("companyId") || "");
@@ -27,6 +29,7 @@ export async function createRequisition(formData: FormData) {
 }
 
 export async function deleteRequisition(id: string): Promise<{ ok: boolean; error?: string }> {
+  if (!(await allow("hr.onboarding", "delete"))) return { ok: false, error: "Not authorised" };
   const session = await getSession();
   if (!session) return { ok: false, error: "Not signed in" };
   const req = await db.requisition.findUnique({ where: { id } });
@@ -38,6 +41,7 @@ export async function deleteRequisition(id: string): Promise<{ ok: boolean; erro
 }
 
 export async function addCandidate(formData: FormData) {
+  if (!(await allow("hr.onboarding", "create"))) return;
   const session = await getSession();
   if (!session) return;
   const requisitionId = String(formData.get("requisitionId") || "");
@@ -58,6 +62,7 @@ export async function addCandidate(formData: FormData) {
 }
 
 export async function setCandidateStage(id: string, stage: string) {
+  if (!(await allow("hr.onboarding", "edit"))) return;
   const session = await getSession();
   if (!session) return;
   const cand = await db.candidate.findUnique({ where: { id }, include: { requisition: true } });
@@ -68,6 +73,7 @@ export async function setCandidateStage(id: string, stage: string) {
 
 /** Hire a candidate → create an Employee + a standard onboarding checklist. */
 export async function hireCandidate(id: string) {
+  if (!(await allow("hr.onboarding", "edit"))) return;
   const session = await getSession();
   if (!session) return;
   const cand = await db.candidate.findUnique({ where: { id }, include: { requisition: true } });
@@ -91,6 +97,7 @@ export async function hireCandidate(id: string) {
 }
 
 export async function toggleOnboardingItem(id: string, done: boolean) {
+  if (!(await allow("hr.onboarding", "edit"))) return;
   const session = await getSession();
   if (!session) return;
   const item = await db.onboardingItem.findUnique({ where: { id }, include: { employee: true } });

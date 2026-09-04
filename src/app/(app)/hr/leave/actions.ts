@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { allow } from "@/lib/guard";
 
 function daysBetween(from: string, to: string) {
   const a = new Date(from), b = new Date(to);
@@ -11,6 +12,7 @@ function daysBetween(from: string, to: string) {
 }
 
 export async function createLeaveRequest(formData: FormData) {
+  if (!(await allow("hr.leave", "create"))) return;
   const session = await getSession();
   if (!session) return { ok: false, error: "Not signed in" };
   const employeeId = String(formData.get("employeeId") || "");
@@ -34,6 +36,7 @@ export async function createLeaveRequest(formData: FormData) {
 }
 
 export async function decideLeaveRequest(id: string, decision: "Approved" | "Rejected") {
+  if (!(await allow("hr.leave", "approve"))) return;
   const session = await getSession();
   if (!session) return;
   const lr = await db.leaveRequest.findUnique({ where: { id }, include: { employee: true } });
@@ -49,6 +52,7 @@ export async function decideLeaveRequest(id: string, decision: "Approved" | "Rej
 }
 
 export async function deleteLeaveRequest(id: string): Promise<{ ok: boolean; error?: string }> {
+  if (!(await allow("hr.leave", "delete"))) return { ok: false, error: "Not authorised" };
   const session = await getSession();
   if (!session) return { ok: false, error: "Not signed in" };
   const lr = await db.leaveRequest.findUnique({ where: { id } });

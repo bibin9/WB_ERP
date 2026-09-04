@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
-import ConfirmDelete from "@/components/ConfirmDelete";
+import GuardedDelete from "@/components/GuardedDelete";
 import CustomFieldAdmin from "@/components/customfields/CustomFieldAdmin";
 import { deleteCustomField } from "./actions";
 import { db } from "@/lib/db";
@@ -35,7 +35,7 @@ export default async function CustomFieldsPage() {
               <span className="flex-1 text-sm font-medium text-ink">{f.label}</span>
               <span className="rounded bg-brand-navy/5 px-2 py-0.5 text-xs text-brand-navy">{f.type}</span>
               {f.options && <span className="text-xs text-muted">{f.options}</span>}
-              <ConfirmDelete action={deleteCustomField.bind(null, f.id)} label={`Delete custom field "${f.label}"? (removes its values)`} />
+              <GuardedDelete screen="settings.custom" action={deleteCustomField.bind(null, f.id)} label={`Delete custom field "${f.label}"? (removes its values)`} />
             </div>
           ))}
         </div>

@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession, canAdminister } from "@/lib/auth";
+import { allow } from "@/lib/guard";
 
 export async function createCustomField(formData: FormData) {
+  if (!(await allow("settings.custom", "create"))) return;
   const session = await getSession();
   if (!session || !(await canAdminister())) return;
   const label = String(formData.get("label") || "").trim();
@@ -22,6 +24,7 @@ export async function createCustomField(formData: FormData) {
 }
 
 export async function deleteCustomField(id: string) {
+  if (!(await allow("settings.custom", "delete"))) return;
   const session = await getSession();
   if (!session || !(await canAdminister())) return;
   const def = await db.customFieldDef.findFirst({ where: { id, tenantId: session.tenant.id } });

@@ -3,7 +3,7 @@ import PageHeader from "@/components/PageHeader";
 import HrTabs from "@/components/HrTabs";
 import JobForm from "@/components/JobForm";
 import JobStatus from "@/components/JobStatus";
-import ConfirmDelete from "@/components/ConfirmDelete";
+import GuardedDelete from "@/components/GuardedDelete";
 import { deleteJob } from "@/app/(app)/hr/actions";
 import { db } from "@/lib/db";
 import { activeTenant } from "@/config/tenant";
@@ -108,7 +108,7 @@ export default async function TasksPage() {
                           timeAllocation: j.timeAllocation, dueDate: j.dueDate ? j.dueDate.toISOString() : null,
                         }}
                       />
-                      <ConfirmDelete action={deleteJob.bind(null, j.id)} label={`Delete task ${j.ticketNo}?`} />
+                      <GuardedDelete screen="hr.tasks" action={deleteJob.bind(null, j.id)} label={`Delete task ${j.ticketNo}?`} />
                     </div>
                   </td>
                 </tr>

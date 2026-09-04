@@ -2,7 +2,7 @@ import clsx from "clsx";
 import PageHeader from "@/components/PageHeader";
 import HrTabs from "@/components/HrTabs";
 import CompanyPicker from "@/components/CompanyPicker";
-import ConfirmDelete from "@/components/ConfirmDelete";
+import GuardedDelete from "@/components/GuardedDelete";
 import LeaveForm from "@/components/leave/LeaveForm";
 import LeaveDecision from "@/components/leave/LeaveDecision";
 import { deleteLeaveRequest } from "./actions";
@@ -72,7 +72,7 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
                     <td className="px-4 py-2">
                       <div className="flex items-center justify-end gap-1">
                         {r.status === "Pending" && <LeaveDecision id={r.id} />}
-                        <ConfirmDelete action={deleteLeaveRequest.bind(null, r.id)} label="Delete this leave request?" />
+                        <GuardedDelete screen="hr.leave" action={deleteLeaveRequest.bind(null, r.id)} label="Delete this leave request?" />
                       </div>
                     </td>
                   </tr>

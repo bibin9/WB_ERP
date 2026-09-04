@@ -3,7 +3,7 @@ import CompanyPicker from "@/components/CompanyPicker";
 import FinanceTabs from "@/components/FinanceTabs";
 import JournalForm from "@/components/JournalForm";
 import AccountForm from "@/components/AccountForm";
-import ConfirmDelete from "@/components/ConfirmDelete";
+import GuardedDelete from "@/components/GuardedDelete";
 import { deleteAccount } from "@/app/(app)/finance/actions";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
@@ -128,7 +128,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
                   <span className="rounded bg-brand-navy/5 px-1.5 py-0.5 text-[10px] font-medium text-brand-navy">{a.type}</span>
                   <span className="flex items-center opacity-0 transition-opacity group-hover:opacity-100">
                     <AccountForm companyId={companyId} account={{ id: a.id, code: a.code, name: a.name, type: a.type }} />
-                    <ConfirmDelete action={deleteAccount.bind(null, a.id)} label={`Delete account ${a.code}? (only if no postings)`} />
+                    <GuardedDelete screen="finance.ledgers" action={deleteAccount.bind(null, a.id)} label={`Delete account ${a.code}? (only if no postings)`} />
                   </span>
                 </div>
               ))}

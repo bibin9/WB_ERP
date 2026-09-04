@@ -2,11 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, FileText, Download, IdCard } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
-import ConfirmDelete from "@/components/ConfirmDelete";
+import GuardedDelete from "@/components/GuardedDelete";
 import DocumentUpload from "@/components/employee/DocumentUpload";
 import { updateEmployeeProfile, deleteDocument } from "../actions";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { requireAccess } from "@/lib/guard";
 
 export const dynamic = "force-dynamic";
 const d = (v: Date | null) => (v ? new Date(v).toISOString().slice(0, 10) : "");
@@ -41,6 +42,7 @@ function Section({ title, icon, children }: { title: string; icon?: React.ReactN
 
 export default async function EmployeeProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  await requireAccess("hr.employees");
   const session = await getSession();
   if (!session) return null;
   const e = await db.employee.findUnique({
@@ -142,7 +144,7 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
               <a href={`/api/documents/${doc.id}`} target="_blank" className="grid h-8 w-8 place-items-center rounded text-muted hover:bg-line hover:text-brand-blue-600" title="View / download">
                 <Download className="h-4 w-4" />
               </a>
-              <ConfirmDelete action={deleteDocument.bind(null, doc.id)} label={`Delete ${doc.fileName}?`} />
+              <GuardedDelete screen="hr.employees" action={deleteDocument.bind(null, doc.id)} label={`Delete ${doc.fileName}?`} />
             </div>
           ))}
         </div>

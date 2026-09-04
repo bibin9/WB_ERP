@@ -2,7 +2,7 @@ import Link from "next/link";
 import { UserMinus, FileText } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import HrTabs from "@/components/HrTabs";
-import ConfirmDelete from "@/components/ConfirmDelete";
+import GuardedDelete from "@/components/GuardedDelete";
 import SeparationForm from "@/components/hr/SeparationForm";
 import SeparationStatus from "@/components/hr/SeparationStatus";
 import { deleteSeparation } from "./actions";
@@ -78,7 +78,7 @@ export default async function SeparationPage() {
                         className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-brand-navy hover:bg-brand-paper">
                         <FileText className="h-3.5 w-3.5" /> Statement
                       </Link>
-                      <ConfirmDelete action={deleteSeparation.bind(null, s.id)} label={`Delete settlement for ${s.employee.name}? This reactivates the employee.`} />
+                      <GuardedDelete screen="hr.separation" action={deleteSeparation.bind(null, s.id)} label={`Delete settlement for ${s.employee.name}? This reactivates the employee.`} />
                     </div>
                   </td>
                 </tr>

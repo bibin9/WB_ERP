@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { parsePunchLog, aggregateDaily, dayToAttendance } from "@/lib/punch";
+import { allow } from "@/lib/guard";
 
 async function empInScope(employeeId: string) {
   const session = await getSession();
@@ -15,6 +16,7 @@ async function empInScope(employeeId: string) {
 }
 
 export async function markAttendance(formData: FormData) {
+  if (!(await allow("hr.attendance", "create"))) return;
   const employeeId = String(formData.get("employeeId") || "");
   const dateStr = String(formData.get("date") || "");
   const emp = await empInScope(employeeId);
@@ -34,6 +36,7 @@ const HOURS_FOR = (s: string) => (s === "Present" ? 8 : s === "Half-day" ? 4 : 0
 
 // Exception-based bulk entry: save the whole site crew for one day in a single action.
 export async function saveMuster(formData: FormData) {
+  if (!(await allow("hr.attendance", "create"))) return;
   const session = await getSession();
   if (!session) return;
   const companyId = String(formData.get("companyId") || "");
@@ -74,6 +77,7 @@ export type PunchImportResult = {
 
 // Universal punch-machine import: upload the device's exported log, map by biometric ID, create attendance.
 export async function importPunchLog(companyId: string, formData: FormData): Promise<PunchImportResult> {
+  if (!(await allow("hr.attendance", "create"))) return { ok: false, message: "Not authorised" };
   const session = await getSession();
   if (!session || !session.companies.some((c) => c.id === companyId)) return { ok: false, message: "No access to this company." };
 
@@ -116,6 +120,7 @@ export async function importPunchLog(companyId: string, formData: FormData): Pro
 }
 
 export async function deleteAttendance(id: string) {
+  if (!(await allow("hr.attendance", "delete"))) return;
   const session = await getSession();
   if (!session) return;
   const a = await db.attendance.findUnique({ where: { id } });
@@ -125,6 +130,7 @@ export async function deleteAttendance(id: string) {
 }
 
 export async function addTimesheet(formData: FormData) {
+  if (!(await allow("hr.attendance", "create"))) return;
   const employeeId = String(formData.get("employeeId") || "");
   const emp = await empInScope(employeeId);
   const dateStr = String(formData.get("date") || "");
@@ -139,6 +145,7 @@ export async function addTimesheet(formData: FormData) {
 }
 
 export async function deleteTimesheet(id: string) {
+  if (!(await allow("hr.attendance", "delete"))) return;
   const session = await getSession();
   if (!session) return;
   const t = await db.timesheet.findUnique({ where: { id } });

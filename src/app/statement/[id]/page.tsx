@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import PrintButton from "@/components/hr/PrintButton";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { requireAccess } from "@/lib/guard";
 import { activeTenant } from "@/config/tenant";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ const fmt = (d?: Date | null) => (d ? new Date(d).toLocaleDateString("en-GB", { 
 
 export default async function StatementPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  await requireAccess("hr.separation");
   const session = await getSession();
   if (!session) return null;
 

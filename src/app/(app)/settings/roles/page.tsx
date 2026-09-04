@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, ShieldCheck, Crown } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
-import ConfirmDelete from "@/components/ConfirmDelete";
+import GuardedDelete from "@/components/GuardedDelete";
 import CreateRoleForm from "@/components/roles/CreateRoleForm";
 import PermissionMatrix from "@/components/roles/PermissionMatrix";
 import { deleteRole } from "./actions";
@@ -40,7 +40,7 @@ export default async function RolesPage() {
                 <span className="rounded-full bg-brand-gold/15 px-2 py-0.5 text-xs font-semibold text-brand-gold">L{r.approvalLevel}</span>
                 <span className="text-xs text-muted">{r._count.memberships} user(s)</span>
                 {r._count.memberships === 0 && (
-                  <span className="ml-auto"><ConfirmDelete action={deleteRole.bind(null, r.id)} label={`Delete role ${r.name}?`} /></span>
+                  <span className="ml-auto"><GuardedDelete screen="users.access" action={deleteRole.bind(null, r.id)} label={`Delete role ${r.name}?`} /></span>
                 )}
               </div>
               {admin ? (

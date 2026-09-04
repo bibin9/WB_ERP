@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession, canAdminister } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { allow } from "@/lib/guard";
 
 export async function createCompany(formData: FormData) {
+  if (!(await allow("companies.list", "create"))) return;
   const session = await getSession();
   if (!session || !(await canAdminister())) return;
 
@@ -28,6 +30,7 @@ export async function createCompany(formData: FormData) {
 }
 
 export async function toggleCompanyActive(id: string, next: boolean) {
+  if (!(await allow("companies.list", "edit"))) return;
   const session = await getSession();
   if (!session || !(await canAdminister())) return;
   const company = await db.company.findFirst({ where: { id, tenantId: session.tenant.id } });
@@ -38,6 +41,7 @@ export async function toggleCompanyActive(id: string, next: boolean) {
 }
 
 export async function updateCompany(formData: FormData) {
+  if (!(await allow("companies.list", "edit"))) return;
   const session = await getSession();
   if (!session || !(await canAdminister())) return;
   const id = String(formData.get("id") || "");
@@ -52,6 +56,7 @@ export async function updateCompany(formData: FormData) {
 }
 
 export async function deleteCompany(id: string): Promise<{ ok: boolean; error?: string }> {
+  if (!(await allow("companies.list", "delete"))) return { ok: false, error: "Not authorised" };
   const session = await getSession();
   if (!session || !(await canAdminister())) return { ok: false, error: "Not authorised" };
   const company = await db.company.findFirst({ where: { id, tenantId: session.tenant.id } });

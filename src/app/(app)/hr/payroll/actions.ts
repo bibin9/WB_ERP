@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { buildSif, splitFixedVariable, type SifEmployee } from "@/lib/wps";
+import { allow } from "@/lib/guard";
 
 async function scoped(companyId: string) {
   const session = await getSession();
@@ -13,6 +14,7 @@ async function scoped(companyId: string) {
 }
 
 export async function createPayrollRun(formData: FormData) {
+  if (!(await allow("hr.payroll", "create"))) return;
   const session = await getSession();
   if (!session) return { ok: false, error: "Not signed in" };
   const companyId = String(formData.get("companyId") || "");
@@ -48,6 +50,7 @@ export async function createPayrollRun(formData: FormData) {
 }
 
 export async function setRunStatus(runId: string, status: string) {
+  if (!(await allow("hr.payroll", "approve"))) return;
   const session = await getSession();
   if (!session) return;
   const run = await db.payrollRun.findUnique({ where: { id: runId } });
@@ -69,6 +72,7 @@ export async function setRunStatus(runId: string, status: string) {
 }
 
 export async function deletePayrollRun(runId: string): Promise<{ ok: boolean; error?: string }> {
+  if (!(await allow("hr.payroll", "delete"))) return { ok: false, error: "Not authorised" };
   const session = await getSession();
   if (!session) return { ok: false, error: "Not signed in" };
   const run = await db.payrollRun.findUnique({ where: { id: runId } });
@@ -82,6 +86,7 @@ export async function deletePayrollRun(runId: string): Promise<{ ok: boolean; er
 
 /* ---------------- Salary advances ---------------- */
 export async function createAdvance(formData: FormData) {
+  if (!(await allow("hr.payroll", "create"))) return;
   const companyId = String(formData.get("companyId") || "");
   if (!(await scoped(companyId))) return;
   const employeeId = String(formData.get("employeeId") || "");
@@ -98,6 +103,7 @@ export async function createAdvance(formData: FormData) {
 }
 
 export async function deleteAdvance(id: string): Promise<{ ok: boolean; error?: string }> {
+  if (!(await allow("hr.payroll", "delete"))) return { ok: false, error: "Not authorised" };
   const session = await getSession();
   if (!session) return { ok: false, error: "Not signed in" };
   const adv = await db.advance.findUnique({ where: { id } });
@@ -109,6 +115,7 @@ export async function deleteAdvance(id: string): Promise<{ ok: boolean; error?: 
 
 /* ---------------- WPS employer config ---------------- */
 export async function updateWpsConfig(formData: FormData) {
+  if (!(await allow("hr.payroll", "edit"))) return;
   const companyId = String(formData.get("companyId") || "");
   const session = await scoped(companyId);
   if (!session) return;
@@ -124,6 +131,7 @@ export async function updateWpsConfig(formData: FormData) {
 
 /* ---------------- WPS SIF generation ---------------- */
 export async function generateWpsSif(runId: string): Promise<{ ok: boolean; error?: string; content?: string; filename?: string; missing?: string[] }> {
+  if (!(await allow("hr.payroll", "view"))) return { ok: false, error: "Not authorised" };
   const session = await getSession();
   if (!session) return { ok: false, error: "Not signed in" };
   const run = await db.payrollRun.findUnique({ where: { id: runId }, include: { payslips: { orderBy: { empNo: "asc" } }, company: true } });

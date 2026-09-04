@@ -2,7 +2,7 @@ import { ShieldCheck } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import UserForm from "@/components/UserForm";
 import ActiveToggle from "@/components/ActiveToggle";
-import ConfirmDelete from "@/components/ConfirmDelete";
+import GuardedDelete from "@/components/GuardedDelete";
 import UserSecurityControls from "@/components/UserSecurityControls";
 import { setUserActive, deleteUser } from "@/app/(app)/users/actions";
 import { db } from "@/lib/db";
@@ -82,7 +82,7 @@ export default async function UsersPage() {
                     roles={roles.map((r) => ({ id: r.id, label: r.name }))}
                     user={{ id: u.id, name: u.name, roleId: u.memberships[0]?.role.id }}
                   />
-                  <ConfirmDelete action={deleteUser.bind(null, u.id)} label={`Delete user ${u.name}?`} />
+                  <GuardedDelete screen="users.list" action={deleteUser.bind(null, u.id)} label={`Delete user ${u.name}?`} />
                 </div>
               </div>
             ))}
