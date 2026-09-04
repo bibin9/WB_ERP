@@ -274,6 +274,21 @@ async function main() {
       employmentType: "Supplied", supplier: "Gulf Manpower Supply LLC", basicSalary: 2500, allowances: 500, ...supDocs },
   });
 
+  // WPS demo data: employer config, employee bank details, a sample advance
+  await db.company.update({ where: { id: wbeCo.id }, data: { wpsEmployerId: "1234567890123", wpsBankRouting: "302460010" } });
+  const wbeAll = await db.employee.findMany({ where: { companyId: wbeCo.id }, orderBy: { empNo: "asc" } });
+  for (const [i, e] of wbeAll.entries()) {
+    await db.employee.update({ where: { id: e.id }, data: {
+      bankName: e.bankName ?? "Emirates NBD",
+      iban: e.iban ?? ("AE070331234567890" + String(100000 + i).slice(-6)),
+      bankRoutingCode: e.bankRoutingCode ?? "302460010",
+    } });
+  }
+  if ((await db.advance.count({ where: { companyId: wbeCo.id } })) === 0) {
+    const rajesh = wbeAll.find((e) => e.empNo === "EMP-0001");
+    if (rajesh) await db.advance.create({ data: { companyId: wbeCo.id, employeeId: rajesh.id, employeeName: rajesh.name, amount: 6000, monthlyRecovery: 2000, balance: 6000, reason: "Ramadan advance" } });
+  }
+
   // Sample finance vouchers for WBE (Tally-style, with UAE VAT) — powers Day Book, P&L, VAT report & dashboard KPIs
   const seededVouchers = await db.journalEntry.count({ where: { companyId: wbeCo.id, source: "seed" } });
   if (seededVouchers === 0) {

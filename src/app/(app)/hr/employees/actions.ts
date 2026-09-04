@@ -12,7 +12,7 @@ const UPLOAD_DIR = path.join(process.cwd(), "uploads");
 const STR_FIELDS = [
   "name", "email", "phone", "department", "designation", "grade", "employmentType", "supplier",
   "gender", "nationality", "maritalStatus", "bloodGroup", "personalEmail", "address", "emergencyName", "emergencyPhone",
-  "contractType", "emiratesIdNo", "passportNo", "visaNo", "visaType", "labourCardNo", "bankName", "iban",
+  "contractType", "emiratesIdNo", "passportNo", "visaNo", "visaType", "labourCardNo", "bankName", "iban", "bankRoutingCode",
 ];
 const DATE_FIELDS = ["dateOfBirth", "joinDate", "contractEndDate", "emiratesIdExpiry", "passportExpiry", "visaExpiry", "labourCardExpiry"];
 

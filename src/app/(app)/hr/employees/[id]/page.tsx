@@ -108,6 +108,7 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
         <Section title="Banking (WPS)">
           <Field label="Bank name" name="bankName" def={e.bankName ?? ""} />
           <Field label="IBAN" name="iban" def={e.iban ?? ""} />
+          <Field label="Bank routing code (WPS agent ID)" name="bankRoutingCode" def={e.bankRoutingCode ?? ""} />
         </Section>
 
         {customDefs.length > 0 && (

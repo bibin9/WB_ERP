@@ -39,6 +39,9 @@ model Company {
   code         String
   name         String
   baseCurrency String            @default("AED")
+  // UAE WPS (Wage Protection System) employer details, used to generate the bank SIF file
+  wpsEmployerId  String? // MOL establishment / employer unique ID
+  wpsBankRouting String? // employer bank routing code (agent ID)
   isActive     Boolean           @default(true)
   memberships  CompanyMembership[]
   jobAssignments JobAssignment[]
@@ -289,8 +292,9 @@ model Employee {
   labourCardNo      String?
   labourCardExpiry  DateTime?
   // Banking (WPS)
-  bankName       String?
-  iban           String?
+  bankName        String?
+  iban            String?
+  bankRoutingCode String? // employee bank routing code (agent ID) for the WPS SIF
   onboarding     OnboardingItem[]
   leaveRequests  LeaveRequest[]
   attendance     Attendance[]
@@ -300,6 +304,7 @@ model Employee {
   documents      EmployeeDocument[]
   customValues   CustomFieldValue[]
   separations    Separation[]
+  advances       Advance[]
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -403,12 +408,31 @@ model Payslip {
   employeeId   String
   empNo        String
   employeeName String
-  basic        Float
-  allowances   Float
-  deductions   Float      @default(0)
-  netPay       Float
+  basic           Float
+  allowances      Float
+  deductions      Float      @default(0) // other deductions (fines, unpaid leave, etc.)
+  advanceRecovery Float      @default(0) // salary-advance / loan installment recovered this run
+  netPay          Float
 
   @@index([runId])
+}
+
+/// HR — Salary advances / loans, recovered through payroll
+model Advance {
+  id              String   @id @default(cuid())
+  companyId       String
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeName    String
+  amount          Float // original amount advanced
+  monthlyRecovery Float // installment recovered each payroll run
+  balance         Float // outstanding balance
+  reason          String?
+  status          String   @default("Active") // Active | Cleared
+  createdAt       DateTime @default(now())
+
+  @@index([companyId])
+  @@index([employeeId])
 }
 
 /// HR — Leave management (FSD HR-03…06)
