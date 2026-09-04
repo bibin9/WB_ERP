@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   TrendingUp, Wallet, ClipboardCheck, ShieldAlert, ArrowUpRight, ArrowRight,
-  Receipt, Users, IdCard, BadgeCheck, CalendarDays, ClipboardList, Building2,
+  Receipt, Users, IdCard, BadgeCheck, ClipboardList, Building2,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { db } from "@/lib/db";
@@ -15,7 +15,6 @@ const toneMap: Record<string, string> = {
   green: "bg-brand-green/10 text-brand-green", navy: "bg-brand-navy/10 text-brand-navy",
   blue: "bg-brand-blue/10 text-brand-blue-600", gold: "bg-brand-gold/15 text-brand-gold",
 };
-const fmt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 
 export default async function DashboardPage() {
   const session = await getSession();
@@ -23,75 +22,96 @@ export default async function DashboardPage() {
   const companyIds = session.companies.map((c) => c.id);
   const roles = Array.from(new Set(session.companies.map((c) => c.role)));
   const isAdmin = session.isAdmin;
-  const show = { finance: can(session, "finance"), hr: can(session, "hr"), approvals: can(session, "approvals"), companies: can(session, "companies") };
+
+  // Fine-grained, per-screen access flags
+  const g = {
+    finReports: can(session, "finance.reports"),
+    finVat: can(session, "finance.vat"),
+    hrEmp: can(session, "hr.employees"),
+    hrReports: can(session, "hr.reports"),
+    hrLeave: can(session, "hr.leave"),
+    hrCerts: can(session, "hr.certifications"),
+    hrTasks: can(session, "hr.tasks"),
+    approvals: can(session, "approvals.inbox"),
+    companies: can(session, "companies.list"),
+  };
+  const anyFin = g.finReports || g.finVat;
+  const anyHr = g.hrEmp || g.hrReports || g.hrLeave || g.hrCerts || g.hrTasks;
 
   const now = new Date();
   const yearStart = new Date(now.getFullYear(), 0, 1);
   const in60 = new Date(now.getTime() + 60 * 86400000);
 
   // ---- Finance ----
-  let fin: { income: number; expense: number; netProfit: number; cash: number; netVat: number } | null = null;
-  if (show.finance) {
+  let pnl: { income: number; expense: number; netProfit: number; cash: number } | null = null;
+  let netVat: number | null = null;
+  if (g.finReports) {
     const accounts = await db.chartOfAccount.findMany({ where: { companyId: { in: companyIds } }, include: { lines: { include: { entry: { select: { date: true } } } } } });
     const bal = (a: (typeof accounts)[number]) => a.lines.reduce((s, l) => s + l.debit - l.credit, 0);
     const income = accounts.filter((a) => a.type === "Income").reduce((s, a) => s + a.lines.reduce((t, l) => (l.entry.date >= yearStart ? t + l.credit - l.debit : t), 0), 0);
     const expense = accounts.filter((a) => a.type === "Expense").reduce((s, a) => s + a.lines.reduce((t, l) => (l.entry.date >= yearStart ? t + l.debit - l.credit : t), 0), 0);
     const cash = accounts.filter((a) => a.type === "Asset" && /cash|bank|receiv/i.test(a.name)).reduce((s, a) => s + bal(a), 0);
+    pnl = { income, expense, netProfit: income - expense, cash };
+  }
+  if (g.finVat) {
     const vat = await db.journalEntry.findMany({ where: { companyId: { in: companyIds }, vatAmount: { gt: 0 } }, select: { voucherType: true, vatAmount: true } });
-    const outVat = vat.filter((v) => ["Sales", "Receipt"].includes(v.voucherType)).reduce((s, v) => s + v.vatAmount, 0);
-    const inVat = vat.filter((v) => ["Purchase", "Payment"].includes(v.voucherType)).reduce((s, v) => s + v.vatAmount, 0);
-    fin = { income, expense, netProfit: income - expense, cash, netVat: outVat - inVat };
+    const out = vat.filter((v) => ["Sales", "Receipt"].includes(v.voucherType)).reduce((s, v) => s + v.vatAmount, 0);
+    const inp = vat.filter((v) => ["Purchase", "Payment"].includes(v.voucherType)).reduce((s, v) => s + v.vatAmount, 0);
+    netVat = out - inp;
   }
 
   // ---- HR ----
-  let hr: { headcount: number; supplied: number; docs: { name: string; label: string; date: Date }[]; certs: number; pendingLeave: number; openTasks: number } | null = null;
-  if (show.hr) {
+  let headcount: { active: number; supplied: number } | null = null;
+  let docs: { name: string; label: string; date: Date }[] | null = null;
+  if (g.hrEmp || g.hrReports) {
     const emps = await db.employee.findMany({ where: { companyId: { in: companyIds }, status: { not: "Inactive" } }, select: { name: true, employmentType: true, emiratesIdExpiry: true, visaExpiry: true, labourCardExpiry: true } });
-    const docs: { name: string; label: string; date: Date }[] = [];
-    for (const e of emps) {
-      const add = (l: string, d: Date | null) => { if (d && d <= in60) docs.push({ name: e.name, label: l, date: d }); };
-      add("Emirates ID", e.emiratesIdExpiry); add("Visa", e.visaExpiry); add("Labour Card", e.labourCardExpiry);
+    if (g.hrEmp) headcount = { active: emps.length, supplied: emps.filter((e) => e.employmentType === "Supplied").length };
+    if (g.hrReports) {
+      const d: { name: string; label: string; date: Date }[] = [];
+      for (const e of emps) {
+        const add = (l: string, x: Date | null) => { if (x && x <= in60) d.push({ name: e.name, label: l, date: x }); };
+        add("Emirates ID", e.emiratesIdExpiry); add("Visa", e.visaExpiry); add("Labour Card", e.labourCardExpiry);
+      }
+      d.sort((a, b) => a.date.getTime() - b.date.getTime());
+      docs = d;
     }
-    docs.sort((a, b) => a.date.getTime() - b.date.getTime());
-    const certs = await db.certification.count({ where: { companyId: { in: companyIds }, expiryDate: { not: null, lte: in60 } } });
-    const pendingLeave = await db.leaveRequest.count({ where: { companyId: { in: companyIds }, status: "Pending" } });
-    const openTasks = await db.jobAssignment.count({ where: { companyId: { in: companyIds }, status: { notIn: ["Closed", "Completed"] } } });
-    hr = { headcount: emps.length, supplied: emps.filter((e) => e.employmentType === "Supplied").length, docs, certs, pendingLeave, openTasks };
   }
+  const certs = g.hrCerts ? await db.certification.count({ where: { companyId: { in: companyIds }, expiryDate: { not: null, lte: in60 } } }) : null;
+  const pendingLeave = g.hrLeave ? await db.leaveRequest.count({ where: { companyId: { in: companyIds }, status: "Pending" } }) : null;
+  const openTasks = g.hrTasks ? await db.jobAssignment.count({ where: { companyId: { in: companyIds }, status: { notIn: ["Closed", "Completed"] } } }) : null;
 
   // ---- Approvals ----
   let appr: { count: number; pending: { id: string; title: string; docType: string; company: { code: string } }[] } | null = null;
-  if (show.approvals) {
+  if (g.approvals) {
     const pending = await db.approvalRequest.findMany({ where: { companyId: { in: companyIds }, status: "Pending" }, orderBy: { createdAt: "desc" }, take: 5, include: { company: true } });
     const count = await db.approvalRequest.count({ where: { companyId: { in: companyIds }, status: "Pending" } });
     appr = { count, pending };
   }
 
-  // ---- Group (admin) ----
+  // ---- Group ----
   const tenant = await db.tenant.findUnique({ where: { key: activeTenant.key } });
-  const companies = show.companies && tenant ? await db.company.findMany({ where: { tenantId: tenant.id }, orderBy: { code: "asc" } }) : [];
+  const companies = g.companies && tenant ? await db.company.findMany({ where: { tenantId: tenant.id }, orderBy: { code: "asc" } }) : [];
   const userCount = isAdmin && tenant ? await db.user.count({ where: { tenantId: tenant.id } }) : 0;
 
-  // ---- Title adapts to access ----
-  const title = isAdmin ? "Group Dashboard"
-    : show.finance && !show.hr ? "Finance Dashboard"
-    : show.hr && !show.finance ? "HR Dashboard"
-    : "Dashboard";
+  const title = isAdmin ? "Group Dashboard" : anyFin && !anyHr ? "Finance Dashboard" : anyHr && !anyFin ? "HR Dashboard" : "Dashboard";
 
-  // ---- KPI cards (only those the user can see) ----
+  // ---- KPI cards (each gated by its own screen) ----
   const STATS = [
-    fin && { label: "Group Revenue (YTD)", value: aed(fin.income), hint: "Income posted across your companies", icon: TrendingUp, tone: "green" },
-    fin && { label: "Cash Position", value: aed(fin.cash), hint: "Combined bank & receivables", icon: Wallet, tone: "navy" },
+    pnl && { label: "Group Revenue (YTD)", value: aed(pnl.income), hint: "Income posted across your companies", icon: TrendingUp, tone: "green" },
+    pnl && { label: "Cash Position", value: aed(pnl.cash), hint: "Combined bank & receivables", icon: Wallet, tone: "navy" },
     appr && { label: "Open Approvals", value: String(appr.count), hint: "Waiting for sign-off", icon: ClipboardCheck, tone: "blue" },
-    hr && { label: "Docs expiring (60d)", value: String(hr.docs.length), hint: "Visa / Emirates ID / Labour Card", icon: ShieldAlert, tone: "gold" },
+    docs && { label: "Docs expiring (60d)", value: String(docs.length), hint: "Visa / Emirates ID / Labour Card", icon: ShieldAlert, tone: "gold" },
   ].filter(Boolean) as { label: string; value: string; hint: string; icon: typeof TrendingUp; tone: string }[];
+
+  const noPanels = !anyFin && !anyHr && !appr && companies.length === 0;
 
   return (
     <div>
-      <PageHeader title={`Welcome to ${title === "Group Dashboard" ? activeTenant.productName + " ERP" : title}`}
-        subtitle={`Signed in as ${session.user.name}${roles.length ? " · " + roles.join(", ") : ""}. Your view is tailored to your access.`} />
+      <PageHeader
+        title={`Welcome to ${title === "Group Dashboard" ? activeTenant.productName + " ERP" : title}`}
+        subtitle={`Signed in as ${session.user.name}${roles.length ? " · " + roles.join(", ") : ""}. Your view is tailored to your access.`}
+      />
 
-      {/* KPI cards */}
       {STATS.length > 0 && (
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {STATS.map((s) => {
@@ -111,43 +131,46 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* Module panels */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* FINANCE */}
-        {fin && (
-          <Panel title="Finance" icon={Wallet} href="/finance" tone="navy">
-            <div className="grid grid-cols-3 gap-3">
-              <Mini label="Income (YTD)" value={aed(fin.income)} />
-              <Mini label="Expenses (YTD)" value={aed(fin.expense)} />
-              <Mini label="Net profit" value={aed(fin.netProfit)} accent={fin.netProfit >= 0 ? "green" : "red"} />
-            </div>
-            <Line icon={Receipt} label="Net VAT payable to FTA" value={aed(fin.netVat)} accent={fin.netVat > 0 ? "gold" : "green"} />
+        {anyFin && (
+          <Panel title="Finance" icon={Wallet} href={g.finReports ? "/finance/reports" : "/finance/vat"} tone="navy">
+            {pnl && (
+              <div className="grid grid-cols-3 gap-3">
+                <Mini label="Income (YTD)" value={aed(pnl.income)} />
+                <Mini label="Expenses (YTD)" value={aed(pnl.expense)} />
+                <Mini label="Net profit" value={aed(pnl.netProfit)} accent={pnl.netProfit >= 0 ? "green" : "red"} />
+              </div>
+            )}
+            {netVat !== null && <Line icon={Receipt} label="Net VAT payable to FTA" value={aed(netVat)} accent={netVat > 0 ? "gold" : "green"} href="/finance/vat" />}
           </Panel>
         )}
 
         {/* HR */}
-        {hr && (
-          <Panel title="Human Resources" icon={Users} href="/hr" tone="green">
-            <div className="grid grid-cols-3 gap-3">
-              <Mini label="Active staff" value={String(hr.headcount)} sub={hr.supplied ? `${hr.supplied} supplied` : undefined} />
-              <Mini label="Docs expiring" value={String(hr.docs.length)} accent={hr.docs.length ? "gold" : undefined} />
-              <Mini label="Pending leave" value={String(hr.pendingLeave)} />
-            </div>
-            {hr.docs.length > 0 && (
+        {anyHr && (
+          <Panel title="Human Resources" icon={Users} href={g.hrEmp ? "/hr" : g.hrReports ? "/hr/reports" : g.hrLeave ? "/hr/leave" : g.hrCerts ? "/hr/certifications" : "/hr/tasks"} tone="green">
+            {(headcount || docs || pendingLeave !== null) && (
+              <div className="grid grid-cols-3 gap-3">
+                {headcount && <Mini label="Active staff" value={String(headcount.active)} sub={headcount.supplied ? `${headcount.supplied} supplied` : undefined} />}
+                {docs && <Mini label="Docs expiring" value={String(docs.length)} accent={docs.length ? "gold" : undefined} />}
+                {pendingLeave !== null && <Mini label="Pending leave" value={String(pendingLeave)} />}
+              </div>
+            )}
+            {docs && docs.length > 0 && (
               <div className="mt-3 divide-y divide-line rounded-lg border border-line">
-                {hr.docs.slice(0, 4).map((d, i) => {
+                {docs.slice(0, 4).map((d, i) => {
                   const days = Math.ceil((d.date.getTime() - now.getTime()) / 86400000);
                   return (
                     <Link key={i} href="/hr/reports" className="flex items-center justify-between px-3 py-2 text-sm hover:bg-brand-paper">
                       <span><IdCard className="mr-1.5 inline h-3.5 w-3.5 text-muted" />{d.name} · {d.label}</span>
-                      <span className={days < 0 ? "text-xs font-medium text-red-600" : "text-xs font-medium text-brand-gold"}>{days < 0 ? `expired` : `${days}d`}</span>
+                      <span className={days < 0 ? "text-xs font-medium text-red-600" : "text-xs font-medium text-brand-gold"}>{days < 0 ? "expired" : `${days}d`}</span>
                     </Link>
                   );
                 })}
               </div>
             )}
-            {hr.certs > 0 && <Line icon={BadgeCheck} label="Certificates expiring / expired" value={String(hr.certs)} accent="gold" href="/hr/certifications" />}
-            {hr.openTasks > 0 && <Line icon={ClipboardList} label="Open job assignments" value={String(hr.openTasks)} href="/hr/tasks" />}
+            {certs !== null && certs > 0 && <Line icon={BadgeCheck} label="Certificates expiring / expired" value={String(certs)} accent="gold" href="/hr/certifications" />}
+            {openTasks !== null && openTasks > 0 && <Line icon={ClipboardList} label="Open job assignments" value={String(openTasks)} href="/hr/tasks" />}
           </Panel>
         )}
 
@@ -169,8 +192,8 @@ export default async function DashboardPage() {
           </Panel>
         )}
 
-        {/* GROUP / ADMIN */}
-        {show.companies && companies.length > 0 && (
+        {/* GROUP */}
+        {companies.length > 0 && (
           <Panel title="Group Companies" icon={Building2} href="/companies" tone="navy" note={`${companies.length} companies${isAdmin ? ` · ${userCount} users` : ""}`}>
             <div className="divide-y divide-line">
               {companies.map((c) => (
@@ -185,14 +208,15 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {STATS.length === 0 && !fin && !hr && !appr && companies.length === 0 && (
-        <div className="card p-10 text-center text-muted">Your dashboard has no panels yet — your role has limited access. Use the sidebar to open the screens you can access.</div>
+      {noPanels && (
+        <div className="card p-10 text-center text-muted">
+          Your dashboard is focused on your tasks. Use the sidebar to open the screens you have access to.
+        </div>
       )}
     </div>
   );
 }
 
-/* ---- presentational helpers ---- */
 function Panel({ title, icon: Icon, href, tone, note, children }: { title: string; icon: typeof Wallet; href: string; tone: string; note?: string; children: React.ReactNode }) {
   return (
     <div className="card p-5">
