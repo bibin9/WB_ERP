@@ -13,3 +13,7 @@ uploads/
 
 # Generated schema used only to query the hosted database
 /prisma/.prod.prisma
+
+# Database backups - contain live employee data, never commit
+backups/
+*.dump

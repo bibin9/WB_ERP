@@ -212,10 +212,18 @@ the datasource automatically. Remember to set it back to
   (Step 4).
 - **Node version errors** → `.nvmrc` pins Node 20; make sure Railway isn't overriding it.
 
+## Backups
+
+Railway's volume snapshots are **not enabled by default** and must be turned on for
+both the Postgres volume and the uploads volume. Keep an off-platform copy as well
+(`npm run db:backup`).
+
+See **BACKUP.md** for the schedule, restore steps and how to test a restore.
+
 ## When you move to real production later
 
 For a resold/production deployment (beyond this pilot):
 - Move file uploads to S3-compatible object storage (Cloudflare R2 / AWS S3).
 - Replace `prisma db push` with proper migrations (`prisma migrate`).
 - Use a UAE region if the client needs data residency (AWS me-central-1 / Azure UAE North).
-- Automated database backups + error monitoring (e.g. Sentry).
+- Automated, tested database backups (see BACKUP.md) + error monitoring (e.g. Sentry).
