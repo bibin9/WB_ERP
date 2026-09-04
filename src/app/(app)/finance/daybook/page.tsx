@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 const n = (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 const vColor: Record<string, string> = {
-  Journal: "bg-brand-navy/5 text-brand-navy", Payment: "bg-red-50 text-red-600", Receipt: "bg-brand-green/10 text-brand-green-700",
-  Contra: "bg-brand-gold/15 text-brand-gold", Sales: "bg-brand-blue/10 text-brand-blue-600", Purchase: "bg-brand-navy/10 text-brand-navy",
+  Journal: "bg-brand-navy/5 text-heading", Payment: "bg-red-50 text-red-600", Receipt: "bg-brand-green/10 text-brand-green-700",
+  Contra: "bg-brand-gold/15 text-brand-gold", Sales: "bg-brand-blue/10 text-brand-blue-600", Purchase: "bg-brand-navy/10 text-heading",
 };
 
 export default async function DayBookPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
@@ -54,7 +54,7 @@ export default async function DayBookPage({ searchParams }: { searchParams: Prom
                   <tr key={e.id} className="align-top hover:bg-brand-paper/60">
                     <td className="whitespace-nowrap px-4 py-2.5 text-muted">{fmt(e.date)}</td>
                     <td className="px-4 py-2.5"><span className={clsx("rounded px-2 py-0.5 text-xs font-medium", vColor[e.voucherType] ?? vColor.Journal)}>{e.voucherType}</span></td>
-                    <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-brand-navy">{e.reference}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-heading">{e.reference}</td>
                     <td className="px-4 py-2.5 text-ink">
                       <div>Dr: {dr.join(", ")}</div>
                       <div className="text-muted">Cr: {cr.join(", ")}</div>

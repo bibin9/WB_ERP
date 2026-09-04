@@ -17,7 +17,7 @@ export default function EmployeeStatus({ id, status }: { id: string; status: str
       value={status}
       disabled={pending}
       onChange={(e) => { const v = e.target.value; start(() => setEmployeeStatus(id, v)); }}
-      className={clsx("rounded-md border border-line bg-white px-2 py-1 text-xs font-medium outline-none focus:border-brand-blue", colors[status])}
+      className={clsx("rounded-md border border-line bg-surface px-2 py-1 text-xs font-medium outline-none focus:border-brand-blue", colors[status])}
     >
       <option>Active</option>
       <option>On Leave</option>

@@ -34,7 +34,7 @@ function Select({ label, name, def, options }: { label: string; name: string; de
 function Section({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="card p-5">
-      <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-brand-navy">{icon}{title}</h3>
+      <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-heading">{icon}{title}</h3>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">{children}</div>
     </div>
   );
@@ -132,13 +132,13 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
 
       {/* Documents */}
       <div className="mt-6">
-        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-brand-navy"><FileText className="h-4 w-4" /> Documents</h3>
+        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-heading"><FileText className="h-4 w-4" /> Documents</h3>
         <div className="mb-3"><DocumentUpload employeeId={e.id} /></div>
         <div className="card divide-y divide-line">
           {e.documents.length === 0 && <p className="px-5 py-8 text-center text-sm text-muted">No documents uploaded yet.</p>}
           {e.documents.map((doc) => (
             <div key={doc.id} className="flex items-center gap-3 px-5 py-3">
-              <span className="rounded bg-brand-navy/5 px-2 py-0.5 text-xs font-medium text-brand-navy">{doc.category}</span>
+              <span className="rounded bg-brand-navy/5 px-2 py-0.5 text-xs font-medium text-heading">{doc.category}</span>
               <span className="min-w-0 flex-1 truncate text-sm text-ink">{doc.fileName}</span>
               <span className="text-xs text-muted">{(doc.size / 1024).toFixed(0)} KB · by {doc.uploadedBy}</span>
               <a href={`/api/documents/${doc.id}`} target="_blank" className="grid h-8 w-8 place-items-center rounded text-muted hover:bg-line hover:text-brand-blue-600" title="View / download">

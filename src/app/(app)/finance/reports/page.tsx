@@ -54,7 +54,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         {/* P&L */}
         <div className="card">
-          <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-brand-navy">Profit &amp; Loss</h2></div>
+          <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-heading">Profit &amp; Loss</h2></div>
           <div className="py-2">
             <div className="px-5 pb-1 pt-2 text-xs font-semibold uppercase text-muted">Income</div>
             {income.length === 0 && <div className="px-5 py-1 text-sm text-muted">—</div>}
@@ -74,7 +74,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
         {/* Balance Sheet */}
         <div className="card">
-          <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-brand-navy">Balance Sheet</h2></div>
+          <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-heading">Balance Sheet</h2></div>
           <div className="py-2">
             <div className="px-5 pb-1 pt-2 text-xs font-semibold uppercase text-muted">Assets</div>
             {assets.map((x) => <Row key={x.name} label={x.name} amount={x.amt} />)}

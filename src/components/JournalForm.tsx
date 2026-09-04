@@ -68,7 +68,7 @@ export default function JournalForm({ companyId, accounts }: { companyId: string
     <div className="fixed inset-0 z-30 flex items-start justify-center bg-black/30 p-4 pt-12">
       <div className="card w-full max-w-2xl p-0">
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
-          <h2 className="font-semibold text-brand-navy">New Journal Entry</h2>
+          <h2 className="font-semibold text-heading">New Journal Entry</h2>
           <button onClick={() => setOpen(false)} className="text-muted hover:text-ink"><X className="h-5 w-5" /></button>
         </div>
 

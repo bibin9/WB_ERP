@@ -82,13 +82,13 @@ export default async function TasksPage() {
               )}
               {jobs.map((j) => (
                 <tr key={j.id} className="hover:bg-brand-paper/60">
-                  <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-brand-navy">{j.ticketNo}</td>
+                  <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-heading">{j.ticketNo}</td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-ink">{j.title}</div>
                     {j.description && <div className="text-xs text-muted">{j.description}</div>}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
-                    <span className="rounded bg-brand-navy/5 px-2 py-0.5 text-xs font-medium text-brand-navy">{j.company.code}</span>
+                    <span className="rounded bg-brand-navy/5 px-2 py-0.5 text-xs font-medium text-heading">{j.company.code}</span>
                   </td>
                   <td className="px-4 py-3 text-ink">
                     {j.assignedTo}

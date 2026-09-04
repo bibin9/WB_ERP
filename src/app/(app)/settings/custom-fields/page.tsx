@@ -24,7 +24,7 @@ export default async function CustomFieldsPage() {
       <div className="mb-4"><CustomFieldAdmin /></div>
 
       <div className="card">
-        <div className="flex items-center gap-2 border-b border-line px-5 py-3 text-brand-navy">
+        <div className="flex items-center gap-2 border-b border-line px-5 py-3 text-heading">
           <SlidersHorizontal className="h-4 w-4" /> <h2 className="font-semibold">Defined fields</h2>
           <span className="ml-auto text-xs text-muted">{fields.length}</span>
         </div>
@@ -33,7 +33,7 @@ export default async function CustomFieldsPage() {
           {fields.map((f) => (
             <div key={f.id} className="flex items-center gap-3 px-5 py-3">
               <span className="flex-1 text-sm font-medium text-ink">{f.label}</span>
-              <span className="rounded bg-brand-navy/5 px-2 py-0.5 text-xs text-brand-navy">{f.type}</span>
+              <span className="rounded bg-brand-navy/5 px-2 py-0.5 text-xs text-heading">{f.type}</span>
               {f.options && <span className="text-xs text-muted">{f.options}</span>}
               <GuardedDelete screen="settings.custom" action={deleteCustomField.bind(null, f.id)} label={`Delete custom field "${f.label}"? (removes its values)`} />
             </div>

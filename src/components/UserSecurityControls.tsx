@@ -35,13 +35,13 @@ export default function UserSecurityControls({ userId, locked, isSelf }: { userI
     <div className="relative">
       <div className="flex items-center gap-1">
         <button onClick={reset} disabled={pending} title="Reset password"
-          className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-brand-paper hover:text-brand-navy disabled:opacity-50">
+          className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-brand-paper hover:text-heading disabled:opacity-50">
           {pending && !temp ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
         </button>
         {!isSelf && (
           <button onClick={toggleLock} disabled={pending} title={locked ? "Unlock account" : "Lock account"}
             className={clsx("grid h-8 w-8 place-items-center rounded-lg hover:bg-brand-paper disabled:opacity-50",
-              locked ? "text-red-600" : "text-muted hover:text-brand-navy")}>
+              locked ? "text-red-600" : "text-muted hover:text-heading")}>
             {locked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
           </button>
         )}
@@ -50,14 +50,14 @@ export default function UserSecurityControls({ userId, locked, isSelf }: { userI
       {err && <div className="absolute right-0 z-20 mt-1 w-56 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 shadow-panel">{err}</div>}
 
       {temp && (
-        <div className="absolute right-0 z-20 mt-1 w-72 rounded-xl border border-line bg-white p-3 shadow-panel">
+        <div className="absolute right-0 z-20 mt-1 w-72 rounded-xl border border-line bg-surface p-3 shadow-panel">
           <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-xs font-semibold text-brand-navy">Temporary password</span>
+            <span className="text-xs font-semibold text-heading">Temporary password</span>
             <button onClick={() => setTemp(null)} className="text-muted hover:text-ink"><X className="h-3.5 w-3.5" /></button>
           </div>
           <div className="flex items-center gap-2 rounded-lg bg-brand-paper px-2.5 py-1.5">
             <code className="flex-1 select-all font-mono text-sm text-ink">{temp}</code>
-            <button onClick={copy} title="Copy" className="text-muted hover:text-brand-navy">
+            <button onClick={copy} title="Copy" className="text-muted hover:text-heading">
               {copied ? <Check className="h-4 w-4 text-brand-green-700" /> : <Copy className="h-4 w-4" />}
             </button>
           </div>

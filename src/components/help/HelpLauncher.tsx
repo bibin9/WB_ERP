@@ -28,7 +28,7 @@ export default function HelpLauncher() {
       <button
         onClick={() => setOpen(true)}
         title="Help for this page"
-        className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-line/60 hover:text-brand-navy"
+        className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-line/60 hover:text-heading"
       >
         <HelpCircle className="h-5 w-5" />
       </button>
@@ -36,10 +36,10 @@ export default function HelpLauncher() {
       {open && (
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/20" onClick={() => setOpen(false)} />
-          <aside className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-white shadow-panel">
+          <aside className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-surface shadow-panel">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
-              <div className="flex items-center gap-2 text-brand-navy">
+              <div className="flex items-center gap-2 text-heading">
                 <HelpCircle className="h-5 w-5" /><h2 className="font-semibold">Help</h2>
               </div>
               <button onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-brand-paper hover:text-ink">
@@ -77,7 +77,7 @@ export default function HelpLauncher() {
 
             {/* Footer */}
             <div className="border-t border-line px-5 py-3">
-              <Link href="/help" onClick={() => setOpen(false)} className="flex items-center justify-center gap-2 rounded-lg bg-brand-paper px-4 py-2 text-sm font-medium text-brand-navy hover:bg-line/50">
+              <Link href="/help" onClick={() => setOpen(false)} className="flex items-center justify-center gap-2 rounded-lg bg-brand-paper px-4 py-2 text-sm font-medium text-heading hover:bg-line/50">
                 Open the full Help Center <ArrowRight className="h-4 w-4" />
               </Link>
             </div>

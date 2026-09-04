@@ -46,7 +46,7 @@ export default function CompanySwitcher({ companies }: { companies: SwitcherComp
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2.5 rounded-lg border border-line bg-white px-3 py-2 text-sm hover:border-brand-blue"
+        className="flex items-center gap-2.5 rounded-lg border border-line bg-surface px-3 py-2 text-sm hover:border-brand-blue"
       >
         <span className="grid h-6 w-6 place-items-center rounded bg-brand-navy text-[10px] font-bold text-white">
           {current.code}
@@ -56,7 +56,7 @@ export default function CompanySwitcher({ companies }: { companies: SwitcherComp
       </button>
 
       {open && (
-        <div className="absolute left-0 z-20 mt-2 w-64 overflow-hidden rounded-xl border border-line bg-white shadow-panel">
+        <div className="absolute left-0 z-20 mt-2 w-64 overflow-hidden rounded-xl border border-line bg-surface shadow-panel">
           <div className="flex items-center gap-2 border-b border-line px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
             <Building2 className="h-3.5 w-3.5" /> Group companies
           </div>

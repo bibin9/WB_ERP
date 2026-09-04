@@ -12,7 +12,7 @@ import { activeTenant } from "@/config/tenant";
 export const dynamic = "force-dynamic";
 const aed = (v: number) => `AED ${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 const toneMap: Record<string, string> = {
-  green: "bg-brand-green/10 text-brand-green", navy: "bg-brand-navy/10 text-brand-navy",
+  green: "bg-brand-green/10 text-brand-green", navy: "bg-brand-navy/10 text-heading",
   blue: "bg-brand-blue/10 text-brand-blue-600", gold: "bg-brand-gold/15 text-brand-gold",
 };
 
@@ -221,7 +221,7 @@ function Panel({ title, icon: Icon, href, tone, note, children }: { title: strin
   return (
     <div className="card p-5">
       <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-brand-navy">
+        <div className="flex items-center gap-2 text-heading">
           <span className={`grid h-8 w-8 place-items-center rounded-lg ${toneMap[tone]}`}><Icon className="h-4 w-4" /></span>
           <h2 className="font-semibold">{title}</h2>
           {note && <span className="text-xs text-muted">· {note}</span>}

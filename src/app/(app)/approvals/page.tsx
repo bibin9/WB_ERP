@@ -20,7 +20,7 @@ const statusBadge: Record<string, string> = {
 const stepColor: Record<string, string> = {
   Approved: "border-brand-green bg-brand-green/10 text-brand-green-700",
   Rejected: "border-red-200 bg-red-50 text-red-600",
-  Pending: "border-line bg-white text-muted",
+  Pending: "border-line bg-surface text-muted",
   Current: "border-brand-blue bg-brand-blue/10 text-brand-blue-600",
 };
 
@@ -66,7 +66,7 @@ export default async function ApprovalsPage() {
       <div className="card mb-6">
         <div className="flex items-center gap-2 border-b border-line px-5 py-3">
           <Inbox className="h-4 w-4 text-brand-blue-600" />
-          <h2 className="font-semibold text-brand-navy">My pending approvals</h2>
+          <h2 className="font-semibold text-heading">My pending approvals</h2>
           <span className="ml-auto rounded-full bg-brand-blue/10 px-2 py-0.5 text-xs font-semibold text-brand-blue-600">
             {myQueue.length}
           </span>
@@ -96,7 +96,7 @@ export default async function ApprovalsPage() {
       {/* All requests */}
       <div className="card">
         <div className="border-b border-line px-5 py-3">
-          <h2 className="font-semibold text-brand-navy">All requests</h2>
+          <h2 className="font-semibold text-heading">All requests</h2>
         </div>
         <div className="divide-y divide-line">
           {requests.length === 0 && (

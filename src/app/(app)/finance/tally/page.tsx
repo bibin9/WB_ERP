@@ -28,7 +28,7 @@ export default async function TallyPage({ searchParams }: { searchParams: Promis
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Connection settings */}
         <div className="card p-5">
-          <div className="mb-4 flex items-center gap-2 text-brand-navy">
+          <div className="mb-4 flex items-center gap-2 text-heading">
             <RefreshCw className="h-5 w-5" /><h2 className="font-semibold">Connection settings</h2>
           </div>
           <form action={saveTallyConfig} className="space-y-3">
@@ -64,7 +64,7 @@ export default async function TallyPage({ searchParams }: { searchParams: Promis
 
         {/* How-to */}
         <div className="card p-5">
-          <div className="mb-3 flex items-center gap-2 text-brand-navy">
+          <div className="mb-3 flex items-center gap-2 text-heading">
             <Info className="h-5 w-5" /><h2 className="font-semibold">How the integration works</h2>
           </div>
           <ol className="list-decimal space-y-2 pl-5 text-sm text-muted">

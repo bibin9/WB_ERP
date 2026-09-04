@@ -46,7 +46,7 @@ export default function SeparationForm({ employees }: { employees: Emp[] }) {
     <form action={createSeparation} className="grid grid-cols-1 gap-5 lg:grid-cols-2">
       {/* Inputs */}
       <div className="card p-5">
-        <div className="mb-4 flex items-center gap-2 text-brand-navy"><UserMinus className="h-5 w-5" /><h2 className="font-semibold">Separation details</h2></div>
+        <div className="mb-4 flex items-center gap-2 text-heading"><UserMinus className="h-5 w-5" /><h2 className="font-semibold">Separation details</h2></div>
         <div className="space-y-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">Employee</label>
@@ -105,7 +105,7 @@ export default function SeparationForm({ employees }: { employees: Emp[] }) {
 
       {/* Live settlement preview */}
       <div className="card overflow-hidden">
-        <div className="flex items-center gap-2 border-b border-line px-4 py-3 text-brand-navy"><Calculator className="h-5 w-5" /><h2 className="font-semibold">Settlement (live)</h2></div>
+        <div className="flex items-center gap-2 border-b border-line px-4 py-3 text-heading"><Calculator className="h-5 w-5" /><h2 className="font-semibold">Settlement (live)</h2></div>
         {!s ? (
           <div className="px-4 py-12 text-center text-sm text-muted">Pick an employee and last working day to see the calculation.</div>
         ) : (

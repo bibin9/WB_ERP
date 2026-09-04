@@ -9,7 +9,7 @@ export function WpsSettings({ companyId, employerId, routing }: { companyId: str
   const [saved, setSaved] = useState(false);
   return (
     <div className="card p-5">
-      <div className="mb-3 flex items-center gap-2 text-brand-navy"><Landmark className="h-5 w-5" /><h2 className="font-semibold">WPS employer details</h2></div>
+      <div className="mb-3 flex items-center gap-2 text-heading"><Landmark className="h-5 w-5" /><h2 className="font-semibold">WPS employer details</h2></div>
       <p className="mb-3 text-xs text-muted">Used to generate the bank SIF file. Get these from your WPS-registered bank / MOHRE.</p>
       <form action={async (fd) => { await updateWpsConfig(fd); setSaved(true); }} className="space-y-3">
         <input type="hidden" name="companyId" value={companyId} />

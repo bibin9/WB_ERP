@@ -9,7 +9,7 @@ const STAGES = ["Applied", "Interview", "Offer", "Hired", "Rejected"];
 const badge: Record<string, string> = {
   Applied: "bg-brand-blue/10 text-brand-blue-600",
   Interview: "bg-brand-gold/15 text-brand-gold",
-  Offer: "bg-brand-navy/10 text-brand-navy",
+  Offer: "bg-brand-navy/10 text-heading",
   Hired: "bg-brand-green/10 text-brand-green-700",
   Rejected: "bg-red-50 text-red-600",
 };
@@ -43,7 +43,7 @@ export function CandidateStage({ id, stage }: { id: string; stage: string }) {
             value={stage}
             disabled={pending}
             onChange={(e) => { const v = e.target.value; start(() => setCandidateStage(id, v)); }}
-            className="rounded-md border border-line bg-white px-1.5 py-1 text-xs outline-none focus:border-brand-blue"
+            className="rounded-md border border-line bg-surface px-1.5 py-1 text-xs outline-none focus:border-brand-blue"
           >
             {STAGES.filter((s) => s !== "Hired").map((s) => <option key={s}>{s}</option>)}
           </select>

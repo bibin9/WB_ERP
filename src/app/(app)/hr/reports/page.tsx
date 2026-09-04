@@ -73,13 +73,13 @@ export default async function HrReportsPage() {
       <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="stat-card"><div className="text-2xl font-bold text-red-600">{expired}</div><div className="text-sm text-muted">Documents expired</div></div>
         <div className="stat-card"><div className="text-2xl font-bold text-brand-gold">{expiring}</div><div className="text-sm text-muted">Expiring ≤ 60 days</div></div>
-        <div className="stat-card"><div className="text-2xl font-bold text-brand-navy">{certAlerts}</div><div className="text-sm text-muted">Certs due/expired</div></div>
+        <div className="stat-card"><div className="text-2xl font-bold text-heading">{certAlerts}</div><div className="text-sm text-muted">Certs due/expired</div></div>
         <div className="stat-card"><div className="text-2xl font-bold text-ink">{total}</div><div className="text-sm text-muted">Active headcount</div></div>
       </div>
 
       {/* Document expiry table */}
       <div className="card mb-5 overflow-hidden">
-        <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-brand-navy">Document expiry (soonest first)</h2></div>
+        <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-heading">Document expiry (soonest first)</h2></div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -101,7 +101,7 @@ export default async function HrReportsPage() {
                 return (
                   <tr key={i} className="hover:bg-brand-paper/60">
                     <td className="px-4 py-3"><span className="font-medium text-ink">{r.emp}</span> <span className="font-mono text-xs text-muted">{r.empNo}</span></td>
-                    <td className="px-4 py-3"><span className="rounded bg-brand-navy/5 px-2 py-0.5 text-xs font-medium text-brand-navy">{r.company}</span></td>
+                    <td className="px-4 py-3"><span className="rounded bg-brand-navy/5 px-2 py-0.5 text-xs font-medium text-heading">{r.company}</span></td>
                     <td className="px-4 py-3 text-ink">{r.docType}</td>
                     <td className="px-4 py-3 font-mono text-xs text-muted">{r.docNo}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-ink">{fmt(r.expiry)}</td>
@@ -117,7 +117,7 @@ export default async function HrReportsPage() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Certification expiry */}
         <div className="card overflow-hidden">
-          <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-brand-navy">Certification & medical expiry</h2></div>
+          <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-heading">Certification & medical expiry</h2></div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -150,7 +150,7 @@ export default async function HrReportsPage() {
 
         {/* Manpower summary */}
         <div className="card overflow-hidden">
-          <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-brand-navy">Manpower summary</h2></div>
+          <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-heading">Manpower summary</h2></div>
           <div className="grid grid-cols-2 gap-4 p-5">
             <div className="rounded-lg bg-brand-paper p-4"><div className="text-2xl font-bold text-ink">{own}</div><div className="text-sm text-muted">Own employees</div></div>
             <div className="rounded-lg bg-brand-paper p-4"><div className="text-2xl font-bold text-brand-gold">{supplied}</div><div className="text-sm text-muted">Supplied manpower</div></div>

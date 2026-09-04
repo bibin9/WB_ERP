@@ -27,7 +27,7 @@ export default async function MasterDataPage() {
         {MASTER_TYPES.map((type) => (
           <div key={type} className="card">
             <div className="flex items-center justify-between border-b border-line px-5 py-3">
-              <h2 className="font-semibold text-brand-navy">{type}</h2>
+              <h2 className="font-semibold text-heading">{type}</h2>
               <span className="text-xs text-muted">{byType(type).length}</span>
             </div>
             <div className="max-h-64 divide-y divide-line overflow-y-auto">

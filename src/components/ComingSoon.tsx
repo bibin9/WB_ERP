@@ -14,7 +14,7 @@ export default function ComingSoon({
     <div>
       <PageHeader title={title} subtitle={note ?? "Scheduled for a later delivery phase."} />
       <div className="card grid place-items-center gap-3 px-6 py-16 text-center">
-        <span className="grid h-12 w-12 place-items-center rounded-full bg-brand-navy/5 text-brand-navy">
+        <span className="grid h-12 w-12 place-items-center rounded-full bg-brand-navy/5 text-heading">
           <Lock className="h-6 w-6" />
         </span>
         <div className="text-lg font-semibold text-ink">Coming in Phase {phase}</div>

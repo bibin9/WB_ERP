@@ -21,7 +21,7 @@ function expiryState(d: Date | null): { label: string; cls: string } {
   return { label: "Valid", cls: "bg-brand-green/10 text-brand-green-700" };
 }
 const catCls: Record<string, string> = {
-  Competency: "bg-brand-navy/5 text-brand-navy",
+  Competency: "bg-brand-navy/5 text-heading",
   Safety: "bg-brand-blue/10 text-brand-blue-600",
   Medical: "bg-red-50 text-red-600",
 };

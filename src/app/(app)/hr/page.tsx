@@ -97,13 +97,13 @@ export default async function EmployeesPage() {
               )}
               {employees.map((e) => (
                 <tr key={e.id} className="hover:bg-brand-paper/60">
-                  <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-brand-navy">{e.empNo}</td>
+                  <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-heading">{e.empNo}</td>
                   <td className="px-4 py-3">
                     <Link href={`/hr/employees/${e.id}`} className="font-medium text-ink hover:text-brand-blue-600">{e.name}</Link>
                     {e.email && <div className="text-xs text-muted">{e.email}</div>}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
-                    <span className="rounded bg-brand-navy/5 px-2 py-0.5 text-xs font-medium text-brand-navy">{e.company.code}</span>
+                    <span className="rounded bg-brand-navy/5 px-2 py-0.5 text-xs font-medium text-heading">{e.company.code}</span>
                   </td>
                   <td className="px-4 py-3 text-ink">{e.department ?? "—"}</td>
                   <td className="px-4 py-3 text-ink">{e.designation ?? "—"}</td>

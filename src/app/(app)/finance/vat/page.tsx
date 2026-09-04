@@ -49,12 +49,12 @@ export default async function VatPage({ searchParams }: { searchParams: Promise<
       <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="stat-card">
           <div className="text-sm text-muted">Output VAT (on sales)</div>
-          <div className="mt-1 text-2xl font-bold text-brand-navy tabular-nums">{n(outputVat)}</div>
+          <div className="mt-1 text-2xl font-bold text-heading tabular-nums">{n(outputVat)}</div>
           <div className="mt-0.5 text-xs text-muted">Taxable value ≈ {n(outputVat / VAT_RATE)}</div>
         </div>
         <div className="stat-card">
           <div className="text-sm text-muted">Input VAT (on purchases)</div>
-          <div className="mt-1 text-2xl font-bold text-brand-navy tabular-nums">{n(inputVat)}</div>
+          <div className="mt-1 text-2xl font-bold text-heading tabular-nums">{n(inputVat)}</div>
           <div className="mt-0.5 text-xs text-muted">Recoverable · taxable value ≈ {n(inputVat / VAT_RATE)}</div>
         </div>
         <div className="stat-card">
@@ -66,7 +66,7 @@ export default async function VatPage({ searchParams }: { searchParams: Promise<
 
       {/* Detail */}
       <div className="card overflow-hidden">
-        <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-brand-navy">VAT transactions</h2></div>
+        <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-heading">VAT transactions</h2></div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -89,7 +89,7 @@ export default async function VatPage({ searchParams }: { searchParams: Promise<
                 return (
                   <tr key={e.id} className="hover:bg-brand-paper/60">
                     <td className="whitespace-nowrap px-4 py-3 text-muted">{fmtDate(e.date)}</td>
-                    <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-brand-navy">{e.reference}</td>
+                    <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-heading">{e.reference}</td>
                     <td className="px-4 py-3 text-ink">{e.voucherType}</td>
                     <td className="px-4 py-3 text-ink">{e.partyName ?? "—"}</td>
                     <td className="px-4 py-3 text-right tabular-nums text-muted">{n(e.vatAmount / VAT_RATE)}</td>

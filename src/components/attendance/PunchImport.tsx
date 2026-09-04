@@ -22,7 +22,7 @@ export default function PunchImport({ companyId }: { companyId: string }) {
 
   return (
     <div className="card p-4">
-      <div className="mb-1 flex items-center gap-2 text-brand-navy">
+      <div className="mb-1 flex items-center gap-2 text-heading">
         <Fingerprint className="h-5 w-5" />
         <h3 className="font-semibold">Import from punch machine</h3>
       </div>

@@ -69,7 +69,7 @@ export default function MusterBoard({
     <div className="card overflow-hidden">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-brand-paper px-4 py-3">
-        <div className="flex items-center gap-2 text-brand-navy">
+        <div className="flex items-center gap-2 text-heading">
           <Users className="h-5 w-5" />
           <span className="font-semibold">Daily Muster</span>
           <span className="text-sm text-muted">— tap only the exceptions, everyone else stays Present</span>
@@ -95,7 +95,7 @@ export default function MusterBoard({
           <span className="text-brand-green-700">Present {counts.Present}</span>
           <span className="text-red-600">Absent {counts.Absent}</span>
           <span className="text-brand-gold">Leave {counts.Leave}</span>
-          <button onClick={setAllPresent} className="rounded-md border border-line px-2.5 py-1 font-medium text-brand-navy hover:bg-brand-paper">
+          <button onClick={setAllPresent} className="rounded-md border border-line px-2.5 py-1 font-medium text-heading hover:bg-brand-paper">
             Mark all present
           </button>
         </div>

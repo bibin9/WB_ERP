@@ -50,7 +50,7 @@ export default async function ApprovalRoutesPage() {
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <GitBranch className="h-4 w-4 text-brand-blue-600" />
-                <h2 className="font-semibold text-brand-navy">{route.docType}</h2>
+                <h2 className="font-semibold text-heading">{route.docType}</h2>
                 <span className="text-xs text-muted">{route.steps.length} step(s)</span>
               </div>
               <DeleteRouteButton routeId={route.id} />

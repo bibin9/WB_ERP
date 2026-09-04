@@ -54,7 +54,7 @@ export default async function AuditPage() {
                   <td className="px-4 py-2.5">
                     <span className={clsx("rounded-full px-2 py-0.5 text-xs font-medium", actionColor[l.action] ?? "bg-line text-muted")}>{l.action}</span>
                   </td>
-                  <td className="px-4 py-2.5 text-xs text-brand-navy">{l.entity}</td>
+                  <td className="px-4 py-2.5 text-xs text-heading">{l.entity}</td>
                   <td className="px-4 py-2.5 text-ink">{l.summary}</td>
                 </tr>
               ))}

@@ -36,7 +36,7 @@ export default async function RolesPage() {
             <div key={r.id} className="card p-5">
               <div className="mb-3 flex flex-wrap items-center gap-3">
                 <ShieldCheck className="h-4 w-4 text-brand-blue-600" />
-                <h2 className="font-semibold text-brand-navy">{r.name}</h2>
+                <h2 className="font-semibold text-heading">{r.name}</h2>
                 <span className="rounded-full bg-brand-gold/15 px-2 py-0.5 text-xs font-semibold text-brand-gold">L{r.approvalLevel}</span>
                 <span className="text-xs text-muted">{r._count.memberships} user(s)</span>
                 {r._count.memberships === 0 && (
@@ -44,7 +44,7 @@ export default async function RolesPage() {
                 )}
               </div>
               {admin ? (
-                <div className="flex items-center gap-2 rounded-lg bg-brand-navy/5 px-4 py-3 text-sm text-brand-navy">
+                <div className="flex items-center gap-2 rounded-lg bg-brand-navy/5 px-4 py-3 text-sm text-heading">
                   <Crown className="h-4 w-4 text-brand-gold" /> Full access to all screens (administrator role — level ≥ 80).
                 </div>
               ) : (

@@ -70,7 +70,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
           {/* Trial balance */}
           <div className="card xl:col-span-2">
             <div className="flex items-center justify-between border-b border-line px-5 py-3">
-              <h2 className="font-semibold text-brand-navy">Trial Balance — {company?.code}</h2>
+              <h2 className="font-semibold text-heading">Trial Balance — {company?.code}</h2>
               <span className="text-xs text-muted">{accounts.length} accounts</span>
             </div>
             <div className="overflow-x-auto">
@@ -90,7 +90,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
                     .sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type) || a.code.localeCompare(b.code))
                     .map((a) => (
                       <tr key={a.id}>
-                        <td className="px-4 py-2 font-mono text-xs text-brand-navy">{a.code}</td>
+                        <td className="px-4 py-2 font-mono text-xs text-heading">{a.code}</td>
                         <td className="px-4 py-2 text-ink">{a.name}</td>
                         <td className="px-4 py-2 text-xs text-muted">{a.type}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{a.net > 0 ? n(a.net) : ""}</td>
@@ -117,7 +117,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
           {/* Chart of accounts */}
           <div className="card">
             <div className="flex items-center justify-between border-b border-line px-5 py-3">
-              <h2 className="font-semibold text-brand-navy">Chart of Accounts</h2>
+              <h2 className="font-semibold text-heading">Chart of Accounts</h2>
               <AccountForm companyId={companyId} />
             </div>
             <div className="max-h-[420px] divide-y divide-line overflow-y-auto">
@@ -125,7 +125,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
                 <div key={a.id} className="group flex items-center gap-2 px-5 py-1.5">
                   <span className="w-12 font-mono text-xs text-muted">{a.code}</span>
                   <span className="flex-1 truncate text-sm text-ink">{a.name}</span>
-                  <span className="rounded bg-brand-navy/5 px-1.5 py-0.5 text-[10px] font-medium text-brand-navy">{a.type}</span>
+                  <span className="rounded bg-brand-navy/5 px-1.5 py-0.5 text-[10px] font-medium text-heading">{a.type}</span>
                   <span className="flex items-center opacity-0 transition-opacity group-hover:opacity-100">
                     <AccountForm companyId={companyId} account={{ id: a.id, code: a.code, name: a.name, type: a.type }} />
                     <GuardedDelete screen="finance.ledgers" action={deleteAccount.bind(null, a.id)} label={`Delete account ${a.code}? (only if no postings)`} />
@@ -141,14 +141,14 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       {accounts.length > 0 && (
         <div className="card mt-5">
           <div className="border-b border-line px-5 py-3">
-            <h2 className="font-semibold text-brand-navy">Recent Journal Entries</h2>
+            <h2 className="font-semibold text-heading">Recent Journal Entries</h2>
           </div>
           <div className="divide-y divide-line">
             {entries.length === 0 && <p className="px-5 py-8 text-center text-sm text-muted">No journal entries yet.</p>}
             {entries.map((e) => (
               <div key={e.id} className="px-5 py-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs text-brand-navy">{e.reference}</span>
+                  <span className="font-mono text-xs text-heading">{e.reference}</span>
                   <span className="text-xs text-muted">by {e.postedBy}</span>
                 </div>
                 {e.memo && <div className="text-sm text-ink">{e.memo}</div>}

@@ -11,6 +11,7 @@ import type { Config } from "tailwindcss";
  */
 const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
@@ -26,9 +27,12 @@ const config: Config = {
           gold: "rgb(var(--brand-gold) / <alpha-value>)",
           paper: "rgb(var(--paper) / <alpha-value>)",
         },
-        ink: "#1E2A33",
-        muted: "#5B6B77",
-        line: "#E3E9EF",
+        // Surface + text tokens, so light and dark are one set of variables.
+        surface: "rgb(var(--surface) / <alpha-value>)",
+        heading: "rgb(var(--heading) / <alpha-value>)",
+        ink: "rgb(var(--ink) / <alpha-value>)",
+        muted: "rgb(var(--muted) / <alpha-value>)",
+        line: "rgb(var(--line) / <alpha-value>)",
       },
       fontFamily: {
         sans: ["var(--font-dm-sans)", "system-ui", "sans-serif"],

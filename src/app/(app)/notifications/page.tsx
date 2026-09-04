@@ -150,7 +150,7 @@ export default async function NotificationsPage() {
       {/* Inbox */}
       <div className="card">
         <div className="border-b border-line px-5 py-3">
-          <h2 className="font-semibold text-brand-navy">Inbox</h2>
+          <h2 className="font-semibold text-heading">Inbox</h2>
         </div>
         <div className="divide-y divide-line">
           {notifications.length === 0 && <p className="px-5 py-10 text-center text-sm text-muted">No notifications yet.</p>}

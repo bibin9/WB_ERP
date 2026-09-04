@@ -47,7 +47,7 @@ export default async function UsersPage() {
         {/* Users */}
         <div className="card lg:col-span-2">
           <div className="border-b border-line px-5 py-3">
-            <h2 className="font-semibold text-brand-navy">Users</h2>
+            <h2 className="font-semibold text-heading">Users</h2>
           </div>
           <div className="divide-y divide-line">
             {users.map((u) => (
@@ -68,7 +68,7 @@ export default async function UsersPage() {
                   <div className="text-xs text-muted">{u.email}</div>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {u.memberships.map((m) => (
-                      <span key={m.id} className="rounded bg-brand-navy/5 px-2 py-0.5 text-xs text-brand-navy">
+                      <span key={m.id} className="rounded bg-brand-navy/5 px-2 py-0.5 text-xs text-heading">
                         {m.company.code} · {m.role.name}
                       </span>
                     ))}
@@ -91,7 +91,7 @@ export default async function UsersPage() {
 
         {/* Roles */}
         <div className="card">
-          <div className="flex items-center gap-2 border-b border-line px-5 py-3 text-brand-navy">
+          <div className="flex items-center gap-2 border-b border-line px-5 py-3 text-heading">
             <ShieldCheck className="h-4 w-4" />
             <h2 className="font-semibold">Roles &amp; sign-off level</h2>
           </div>

@@ -33,7 +33,7 @@ export default function UserMenu({ name, email, role }: { name: string; email: s
       </button>
 
       {open && (
-        <div className="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-xl border border-line bg-white shadow-panel">
+        <div className="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-xl border border-line bg-surface shadow-panel">
           {/* Profile header */}
           <div className="flex items-center gap-3 border-b border-line px-4 py-3">
             <span className="grid h-10 w-10 place-items-center rounded-full bg-brand-navy text-sm font-semibold text-white">{initials}</span>

@@ -27,7 +27,7 @@ export default function UserForm({ companies, roles, user }: { companies: Opt[];
     <div className="fixed inset-0 z-30 flex items-start justify-center bg-black/30 p-4 pt-12">
       <div className="card w-full max-w-lg p-0">
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
-          <h2 className="font-semibold text-brand-navy">{editing ? "Edit User" : "Add User"}</h2>
+          <h2 className="font-semibold text-heading">{editing ? "Edit User" : "Add User"}</h2>
           <button onClick={() => setOpen(false)} className="text-muted hover:text-ink"><X className="h-5 w-5" /></button>
         </div>
         <form

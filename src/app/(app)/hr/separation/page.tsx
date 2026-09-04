@@ -75,7 +75,7 @@ export default async function SeparationPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <Link href={`/statement/${s.id}`} target="_blank" title="Open settlement statement"
-                        className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-brand-navy hover:bg-brand-paper">
+                        className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-heading hover:bg-brand-paper">
                         <FileText className="h-3.5 w-3.5" /> Statement
                       </Link>
                       <GuardedDelete screen="hr.separation" action={deleteSeparation.bind(null, s.id)} label={`Delete settlement for ${s.employee.name}? This reactivates the employee.`} />

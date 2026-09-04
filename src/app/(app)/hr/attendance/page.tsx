@@ -111,7 +111,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                 <tr key={t.id}>
                   <td className="whitespace-nowrap px-4 py-2 text-muted">{fmt(t.date)}</td>
                   <td className="px-4 py-2 text-ink">{t.employee.name}</td>
-                  <td className="px-4 py-2"><span className="rounded bg-brand-navy/5 px-2 py-0.5 font-mono text-xs text-brand-navy">{t.projectRef}</span></td>
+                  <td className="px-4 py-2"><span className="rounded bg-brand-navy/5 px-2 py-0.5 font-mono text-xs text-heading">{t.projectRef}</span></td>
                   <td className="px-4 py-2 text-center tabular-nums">{t.hours}</td>
                   <td className="px-4 py-2 text-muted">{t.notes ?? "—"}</td>
                   <td className="px-4 py-2 text-right"><GuardedDelete screen="hr.attendance" action={deleteTimesheet.bind(null, t.id)} label="Delete this time entry?" /></td>

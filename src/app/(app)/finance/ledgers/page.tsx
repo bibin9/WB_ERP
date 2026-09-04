@@ -39,7 +39,7 @@ export default async function LedgersPage({ searchParams }: { searchParams: Prom
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
         {/* Account list */}
         <div className="card lg:col-span-1">
-          <div className="border-b border-line px-4 py-3"><h2 className="font-semibold text-brand-navy">Accounts</h2></div>
+          <div className="border-b border-line px-4 py-3"><h2 className="font-semibold text-heading">Accounts</h2></div>
           <div className="max-h-[540px] overflow-y-auto">
             {accounts.map((a) => (
               <Link key={a.id} href={`/finance/ledgers?c=${companyId}&a=${a.id}`}
@@ -54,7 +54,7 @@ export default async function LedgersPage({ searchParams }: { searchParams: Prom
         {/* Statement */}
         <div className="card lg:col-span-3 overflow-hidden">
           <div className="border-b border-line px-5 py-3">
-            <h2 className="font-semibold text-brand-navy">{account ? `${account.code} · ${account.name}` : "Ledger"}</h2>
+            <h2 className="font-semibold text-heading">{account ? `${account.code} · ${account.name}` : "Ledger"}</h2>
             {account && <span className="text-xs text-muted">{account.type}{account.parentGroup ? ` · ${account.parentGroup}` : ""}</span>}
           </div>
           <div className="overflow-x-auto">
@@ -74,7 +74,7 @@ export default async function LedgersPage({ searchParams }: { searchParams: Prom
                 {rows.map(({ l, running }) => (
                   <tr key={l.id}>
                     <td className="whitespace-nowrap px-4 py-2 text-muted">{fmt(l.entry.date)}</td>
-                    <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-brand-navy">{l.entry.reference}</td>
+                    <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-heading">{l.entry.reference}</td>
                     <td className="px-4 py-2 text-ink">{l.entry.memo ?? l.entry.voucherType}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{l.debit > 0 ? n(l.debit) : ""}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{l.credit > 0 ? n(l.credit) : ""}</td>

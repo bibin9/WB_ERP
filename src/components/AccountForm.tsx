@@ -16,7 +16,7 @@ export default function AccountForm({ companyId, account }: { companyId: string;
       <Pencil className="h-3.5 w-3.5" />
     </button>
   ) : (
-    <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1 rounded-md border border-line px-2 py-1 text-xs font-medium text-brand-navy hover:border-brand-blue">
+    <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1 rounded-md border border-line px-2 py-1 text-xs font-medium text-heading hover:border-brand-blue">
       <Plus className="h-3.5 w-3.5" /> Add account
     </button>
   );
@@ -27,7 +27,7 @@ export default function AccountForm({ companyId, account }: { companyId: string;
     <div className="fixed inset-0 z-30 flex items-start justify-center bg-black/30 p-4 pt-20">
       <div className="card w-full max-w-sm p-0">
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
-          <h2 className="font-semibold text-brand-navy">{editing ? "Edit Account" : "Add Account"}</h2>
+          <h2 className="font-semibold text-heading">{editing ? "Edit Account" : "Add Account"}</h2>
           <button onClick={() => setOpen(false)} className="text-muted hover:text-ink"><X className="h-5 w-5" /></button>
         </div>
         <form

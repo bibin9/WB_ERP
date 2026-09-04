@@ -47,7 +47,7 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Requests */}
         <div className="card lg:col-span-2 overflow-hidden">
-          <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-brand-navy">Leave requests</h2></div>
+          <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-heading">Leave requests</h2></div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -84,7 +84,7 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
 
         {/* Balances */}
         <div className="card">
-          <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-brand-navy">Annual leave balances</h2></div>
+          <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-heading">Annual leave balances</h2></div>
           <div className="max-h-[420px] divide-y divide-line overflow-y-auto">
             {employees.length === 0 && <p className="px-5 py-6 text-sm text-muted">No employees.</p>}
             {employees.map((e) => (

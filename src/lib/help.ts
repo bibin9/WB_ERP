@@ -66,6 +66,18 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "This is deliberate, and it is what keeps payroll, settlements and journals trustworthy — the people allowed to look at a figure are not automatically the people allowed to change it.",
   },
   {
+    id: "day-night", category: "Getting Started", screens: [],
+    title: "Day mode and night mode",
+    summary: "Switch the whole app to a dark colour scheme, easier on the eyes in low light.",
+    body: "The sun/moon button in the top bar switches between the normal light appearance (day) and a dark one (night). Night mode is easier to look at in a dim office or late in the evening, and on a phone it uses less battery.",
+    steps: [
+      "Click the moon icon in the top bar to switch to night mode.",
+      "Click the sun icon to go back to day mode.",
+      "Your choice is remembered on that device and applies to every screen.",
+    ],
+    tip: "If you have never chosen, the app follows your computer or phone's own setting — so if your device switches to dark in the evening, the ERP follows. Printed documents, such as the settlement statement, always print on white paper whichever mode you are in.",
+  },
+  {
     id: "dashboard-adapts", category: "Getting Started", screens: ["/dashboard"],
     title: "Your dashboard fits your job",
     summary: "The dashboard shows only the areas you actually work in.",

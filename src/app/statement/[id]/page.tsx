@@ -35,7 +35,7 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
   const gross = sep.gratuityAmount + sep.leaveAmount + sep.pendingSalary + sep.noticePay + sep.airTicket + sep.otherAdditions;
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8 text-gray-900 print:bg-white print:py-0">
+    <div className="theme-light min-h-screen bg-gray-100 py-8 text-gray-900 print:bg-white print:py-0">
       {/* Toolbar (screen only) */}
       <div className="mx-auto mb-4 flex max-w-3xl items-center justify-between px-4 print:hidden">
         <Link href="/hr/separation" className="inline-flex items-center gap-1 text-sm text-brand-blue-600 hover:underline">

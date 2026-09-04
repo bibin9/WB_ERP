@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 const reqStatus: Record<string, string> = {
   Open: "bg-brand-blue/10 text-brand-blue-600",
   Interviewing: "bg-brand-gold/15 text-brand-gold",
-  Offered: "bg-brand-navy/10 text-brand-navy",
+  Offered: "bg-brand-navy/10 text-heading",
   Filled: "bg-brand-green/10 text-brand-green-700",
   Closed: "bg-line text-muted",
 };
@@ -82,7 +82,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
                   <div className="min-w-0 flex-1">
                     <span className="text-sm font-medium text-ink">{c.name}</span>
                     {c.email && <span className="ml-2 text-xs text-muted">{c.email}</span>}
-                    {c.visaType && <span className="ml-2 rounded bg-brand-navy/5 px-1.5 py-0.5 text-[10px] text-brand-navy">{c.visaType} visa</span>}
+                    {c.visaType && <span className="ml-2 rounded bg-brand-navy/5 px-1.5 py-0.5 text-[10px] text-heading">{c.visaType} visa</span>}
                   </div>
                   <CandidateStage id={c.id} stage={c.stage} />
                 </div>

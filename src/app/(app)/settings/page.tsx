@@ -33,7 +33,7 @@ export default async function SettingsPage() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="card p-5">
-          <div className="mb-4 flex items-center gap-2 text-brand-navy">
+          <div className="mb-4 flex items-center gap-2 text-heading">
             <Palette className="h-5 w-5" />
             <h2 className="font-semibold">Brand & Theme</h2>
           </div>
@@ -59,7 +59,7 @@ export default async function SettingsPage() {
 
         <div className="space-y-4">
           <div className="card flex items-center gap-3 p-5">
-            <span className="grid h-10 w-10 place-items-center rounded-lg bg-brand-navy/10 text-brand-navy">
+            <span className="grid h-10 w-10 place-items-center rounded-lg bg-brand-navy/10 text-heading">
               <Building2 className="h-5 w-5" />
             </span>
             <div>

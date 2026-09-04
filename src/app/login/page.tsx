@@ -30,7 +30,7 @@ export default function LoginPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={t.logo} alt={t.productName} className="h-12 w-auto max-w-[220px] object-contain" />
           </div>
-          <h2 className="text-2xl font-bold text-brand-navy">Sign in</h2>
+          <h2 className="text-2xl font-bold text-heading">Sign in</h2>
           <p className="mt-1 text-sm text-muted">Welcome back. Please enter your details.</p>
 
           <LoginForm />

@@ -50,7 +50,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Runs */}
         <div className="card">
-          <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-brand-navy">Payroll runs</h2></div>
+          <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-heading">Payroll runs</h2></div>
           <div className="divide-y divide-line">
             {runs.length === 0 && <p className="px-5 py-8 text-center text-sm text-muted">No payroll runs yet. Click “Run payroll”.</p>}
             {runs.map((r) => {
@@ -72,7 +72,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
         {/* Payslips */}
         <div className="card">
           <div className="flex items-center justify-between border-b border-line px-5 py-3">
-            <h2 className="font-semibold text-brand-navy">{selected ? `Payslips — ${fmtPeriod(selected.period)}` : "Payslips"}</h2>
+            <h2 className="font-semibold text-heading">{selected ? `Payslips — ${fmtPeriod(selected.period)}` : "Payslips"}</h2>
             {selected && <WpsDownload runId={selected.id} />}
           </div>
           {!selected ? (
@@ -94,7 +94,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
                 <tbody className="divide-y divide-line">
                   {selected.payslips.map((p) => (
                     <tr key={p.id}>
-                      <td className="px-3 py-2 font-mono text-xs text-brand-navy">{p.empNo}</td>
+                      <td className="px-3 py-2 font-mono text-xs text-heading">{p.empNo}</td>
                       <td className="px-3 py-2 text-ink">{p.employeeName}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{money(p.basic)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{money(p.allowances)}</td>
@@ -119,7 +119,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
       {/* Advances + WPS settings */}
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div className="card">
-          <div className="flex items-center gap-2 border-b border-line px-5 py-3 text-brand-navy">
+          <div className="flex items-center gap-2 border-b border-line px-5 py-3 text-heading">
             <HandCoins className="h-5 w-5" /><h2 className="font-semibold">Active salary advances</h2>
             <span className="ml-auto text-xs text-muted">{advances.length}</span>
           </div>
@@ -132,7 +132,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
                   <div className="text-xs text-muted">Advance AED {money(a.amount)} · recover AED {money(a.monthlyRecovery)}/mo{a.reason ? ` · ${a.reason}` : ""}</div>
                 </div>
                 <div className="text-right">
-                  <div className="font-semibold tabular-nums text-brand-navy">AED {money(a.balance)}</div>
+                  <div className="font-semibold tabular-nums text-heading">AED {money(a.balance)}</div>
                   <div className="text-[11px] text-muted">outstanding</div>
                 </div>
                 <GuardedDelete screen="hr.payroll" action={deleteAdvance.bind(null, a.id)} label={`Delete advance for ${a.employeeName}?`} />

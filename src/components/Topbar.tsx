@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Bell, Search } from "lucide-react";
 import CompanySwitcher from "./CompanySwitcher";
 import NavToggle from "./NavToggle";
+import ThemeToggle from "./ThemeToggle";
 import UserMenu from "./UserMenu";
 import HelpLauncher from "./help/HelpLauncher";
 import { getSession } from "@/lib/auth";
@@ -14,7 +15,7 @@ export default async function Topbar() {
   const unread = session ? await db.notification.count({ where: { userId: session.user.id, isRead: false } }) : 0;
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-line bg-white px-4 sm:gap-4 sm:px-6">
+    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-line bg-surface px-4 sm:gap-4 sm:px-6">
       <NavToggle />
       <CompanySwitcher companies={(session?.companies ?? []).map((c) => ({ id: c.id, code: c.code, name: c.name }))} />
 
@@ -24,6 +25,7 @@ export default async function Topbar() {
       </div>
 
       <div className="ml-auto flex items-center gap-3">
+        <ThemeToggle />
         <HelpLauncher />
         <Link href="/notifications" className="relative grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-line/60" title="Notifications">
           <Bell className="h-5 w-5" />

@@ -31,7 +31,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Profile */}
         <div className="card p-5">
-          <h2 className="mb-4 font-semibold text-brand-navy">Profile</h2>
+          <h2 className="mb-4 font-semibold text-heading">Profile</h2>
           <dl className="space-y-3 text-sm">
             <div className="flex justify-between"><dt className="text-muted">Name</dt><dd className="font-medium text-ink">{session.user.name}</dd></div>
             <div className="flex justify-between"><dt className="text-muted">Email</dt><dd className="text-ink">{session.user.email}</dd></div>
@@ -43,7 +43,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
 
         {/* Change password */}
         <div className="card p-5">
-          <div className="mb-4 flex items-center gap-2 text-brand-navy">
+          <div className="mb-4 flex items-center gap-2 text-heading">
             <ShieldCheck className="h-5 w-5" /><h2 className="font-semibold">Change password</h2>
           </div>
           <ChangePasswordForm />

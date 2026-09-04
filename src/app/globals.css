@@ -13,26 +13,84 @@
   --brand-green-700: 78 148 72;
   --brand-gold: 224 163 0;
   --paper: 250 252 250;
+
+  /* Surfaces and text — redefined under .dark below. */
+  --surface: 255 255 255;
+  --heading: 2 62 113;
+  --ink: 30 42 51;
+  --muted: 91 107 119;
+  --line: 227 233 239;
+  --scroll-thumb: 196 210 223;
+  color-scheme: light;
+}
+
+/* Night mode. Same brand hues, re-seated on dark surfaces so text keeps its
+   contrast: headings become light, the deep navy is reserved for backgrounds.
+   Written as html.dark so it outranks the tenant's inline :root block. */
+html.dark {
+  --brand-navy: 8 32 52;
+  --brand-navy-700: 11 42 67;
+  --brand-navy-900: 5 22 37;
+  --brand-blue: 77 190 238;
+  --brand-blue-600: 109 203 244;
+  --brand-green: 120 194 113;
+  --brand-green-700: 99 173 92;
+  --brand-gold: 240 187 47;
+  --paper: 13 20 28;
+
+  --surface: 22 32 43;
+  --heading: 224 235 245;
+  --ink: 226 236 244;
+  --muted: 147 165 180;
+  --line: 38 51 65;
+  --scroll-thumb: 55 71 88;
+  color-scheme: dark;
+}
+
+/* Forces light tokens regardless of the app theme. Used by the printable
+   settlement statement, which is a paper document in either mode. */
+.theme-light {
+  --surface: 255 255 255;
+  --heading: 2 62 113;
+  --ink: 30 42 51;
+  --muted: 91 107 119;
+  --line: 227 233 239;
+  --brand-blue: 41 171 226;
+  --brand-blue-600: 30 144 199;
+  --paper: 250 252 250;
+  color-scheme: light;
 }
 
 html,
 body {
   background: rgb(var(--paper));
-  color: #1e2a33;
+  color: rgb(var(--ink));
   -webkit-font-smoothing: antialiased;
+}
+
+/* Theme changes should feel like a dimmer, not a jump. */
+body,
+body * {
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  body,
+  body * {
+    transition: none;
+  }
 }
 
 /* Thin, brand-tinted scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #c4d2df transparent;
+  scrollbar-color: rgb(var(--scroll-thumb)) transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #c4d2df;
+  background: rgb(var(--scroll-thumb));
   border-radius: 8px;
 }
 
@@ -50,12 +108,12 @@ body {
     @apply btn text-muted hover:bg-line/60 hover:text-ink;
   }
   .card {
-    @apply rounded-xl border border-line bg-white shadow-card;
+    @apply rounded-xl border border-line bg-surface shadow-card;
   }
   .stat-card {
     @apply card p-5;
   }
   .input {
-    @apply w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20;
+    @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20;
   }
 }

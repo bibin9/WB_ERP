@@ -17,7 +17,7 @@ export default function LeaveForm({ employees, leaveTypes }: { employees: Emp[];
     <div className="fixed inset-0 z-30 flex items-start justify-center bg-black/30 p-4 pt-16">
       <div className="card w-full max-w-md p-0">
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
-          <h2 className="font-semibold text-brand-navy">Request Leave</h2>
+          <h2 className="font-semibold text-heading">Request Leave</h2>
           <button onClick={() => setOpen(false)} className="text-muted hover:text-ink"><X className="h-5 w-5" /></button>
         </div>
         <form action={async (fd) => { setError(""); const r = await createLeaveRequest(fd); if (r?.ok) setOpen(false); else setError(r?.error || "Failed"); }} className="space-y-4 p-5">
