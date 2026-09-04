@@ -5,7 +5,7 @@ Project and end-user documentation for the White & Bright Group ERP.
 | Document | Audience | Purpose |
 |---|---|---|
 | **White_and_Bright_ERP_User_Manual.docx** | End users | Step-by-step guide to every screen, with 25 embedded screenshots. Version 1.1. |
-| **White_and_Bright_ERP_Test_Cases.xlsx** | QA / testing team | 109 test cases across all modules, with a Status tracker and auto-counting Summary. |
+| **White_and_Bright_ERP_Test_Cases.xlsx** | QA / testing team | 114 test cases across all modules, with a Status tracker and auto-counting Summary. |
 | **White_and_Bright_ERP_BRD_v1.2_APPROVED.docx** | Client / stakeholders | Business Requirements Document (approved baseline). |
 | **White_and_Bright_ERP_FSD_v1.1.docx** | Developers / stakeholders | Functional Specification (aligned to BRD v1.2). |
 | **White_and_Bright_ERP_Technical_Proposal.docx** | Client | One-page technical proposal. |
@@ -27,6 +27,8 @@ functionality added after the first documentation pack:
 - **Per-action rights** — View, Create, Edit, Delete and Approve are granted separately
   per screen, enforced behind the screen as well as in the interface, so controls a role
   may not use are not displayed. Manual section 7.2; test cases TC-RBAC-008 to TC-RBAC-017.
+- **Phone and tablet layout** — the menu becomes a slide-over drawer below 1024px so the
+  content gets the full screen width. Desktop is unchanged. Test cases TC-GEN-003 to TC-GEN-007.
 
 In-app help (the **?** button in the top bar, and the Help Center) covers the same
 ground in plain English — 35 articles, including "Salary advances and loans",

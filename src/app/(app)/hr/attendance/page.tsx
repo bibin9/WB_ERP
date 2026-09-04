@@ -70,7 +70,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
       {/* Recent attendance */}
       <div className="mb-6">
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Recent attendance</h2>
-        <div className="card overflow-hidden">
+        <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="border-b border-line bg-brand-paper text-left text-xs uppercase text-muted">
               <th className="px-4 py-2 font-semibold">Date</th><th className="px-4 py-2 font-semibold">Employee</th>
@@ -98,7 +98,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
       <div>
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Project timesheets{totalHours > 0 && ` · ${totalHours}h logged`}</h2>
         <div className="mb-3"><TimesheetForm employees={empOpts} /></div>
-        <div className="card overflow-hidden">
+        <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="border-b border-line bg-brand-paper text-left text-xs uppercase text-muted">
               <th className="px-4 py-2 font-semibold">Date</th><th className="px-4 py-2 font-semibold">Employee</th>

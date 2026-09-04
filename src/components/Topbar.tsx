@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Bell, Search } from "lucide-react";
 import CompanySwitcher from "./CompanySwitcher";
+import NavToggle from "./NavToggle";
 import UserMenu from "./UserMenu";
 import HelpLauncher from "./help/HelpLauncher";
 import { getSession } from "@/lib/auth";
@@ -13,7 +14,8 @@ export default async function Topbar() {
   const unread = session ? await db.notification.count({ where: { userId: session.user.id, isRead: false } }) : 0;
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-4 border-b border-line bg-white px-6">
+    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-line bg-white px-4 sm:gap-4 sm:px-6">
+      <NavToggle />
       <CompanySwitcher companies={(session?.companies ?? []).map((c) => ({ id: c.id, code: c.code, name: c.name }))} />
 
       <div className="relative ml-2 hidden max-w-sm flex-1 md:block">

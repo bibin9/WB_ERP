@@ -74,7 +74,8 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
         </div>
 
         {/* Settlement table */}
-        <table className="mt-6 w-full border-collapse text-sm">
+        <div className="mt-6 overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-y border-gray-300 text-left text-xs uppercase tracking-wide text-gray-500">
               <th className="py-2 font-semibold">Description</th>
@@ -112,6 +113,7 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
             </tr>
           </tfoot>
         </table>
+        </div>
 
         {/* Basis */}
         <p className="mt-4 text-[11px] leading-relaxed text-gray-500">

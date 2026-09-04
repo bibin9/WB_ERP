@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import clsx from "clsx";
-import { PanelLeftClose, PanelLeftOpen, ChevronDown } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, ChevronDown, X } from "lucide-react";
 import { NAV, NAV_GROUPS } from "@/lib/data";
 import { SCREENS } from "@/lib/rbac";
 import { activeTenant } from "@/config/tenant";
@@ -28,6 +28,9 @@ export default function Sidebar({ allowedScreens }: { allowedScreens: string[] }
   const [collapsed, setCollapsed] = useState(false);
   const [closed, setClosed] = useState<Set<string>>(new Set());
   const [ready, setReady] = useState(false);
+  // Below lg the sidebar is a slide-over drawer, opened from the top bar.
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
     try {
@@ -39,6 +42,28 @@ export default function Sidebar({ allowedScreens }: { allowedScreens: string[] }
     }
     setReady(true);
   }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setIsDesktop(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    const open = () => setMobileOpen((v) => !v);
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setMobileOpen(false); };
+    window.addEventListener("wb-erp:toggle-nav", open);
+    window.addEventListener("keydown", esc);
+    return () => {
+      window.removeEventListener("wb-erp:toggle-nav", open);
+      window.removeEventListener("keydown", esc);
+    };
+  }, []);
+
+  // Following a link on a phone should close the drawer.
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
 
   function toggleCollapsed() {
     setCollapsed((v) => {
@@ -57,6 +82,9 @@ export default function Sidebar({ allowedScreens }: { allowedScreens: string[] }
   }
 
   const items = visibleNav;
+  // The icon-only rail is a desktop affordance; the mobile drawer always shows labels.
+  const rail = collapsed && isDesktop;
+
   const initials = activeTenant.productName
     .split(" ").filter((w) => /[A-Za-z]/.test(w)).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
@@ -72,17 +100,17 @@ export default function Sidebar({ allowedScreens }: { allowedScreens: string[] }
     return (
       <Link
         href={item.href}
-        title={collapsed ? item.label : undefined}
+        title={rail ? item.label : undefined}
         className={clsx(
           "group relative flex items-center rounded-lg text-sm transition-colors",
-          collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2",
+          rail ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2",
           active ? "bg-white/10 font-medium text-white" : "text-white/70 hover:bg-white/5 hover:text-white"
         )}
       >
         {active && <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r bg-brand-green" />}
         <Icon className={clsx("h-[18px] w-[18px] shrink-0", active ? "text-brand-blue" : "text-white/55 group-hover:text-brand-blue")} />
-        {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-        {!collapsed && locked && (
+        {!rail && <span className="flex-1 truncate">{item.label}</span>}
+        {!rail && locked && (
           <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-white/55">P{item.phase}</span>
         )}
       </Link>
@@ -90,27 +118,46 @@ export default function Sidebar({ allowedScreens }: { allowedScreens: string[] }
   }
 
   return (
-    <aside
-      className={clsx(
-        "flex h-full shrink-0 flex-col border-r border-white/5 bg-brand-navy text-white",
-        ready && "transition-[width] duration-200 ease-out",
-        collapsed ? "w-[4.75rem]" : "w-64"
-      )}
-    >
+    <>
+      {/* Drawer backdrop (small screens only) */}
+      <div
+        onClick={() => setMobileOpen(false)}
+        aria-hidden
+        className={clsx(
+          "fixed inset-0 z-30 bg-brand-navy/50 transition-opacity lg:hidden",
+          mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        )}
+      />
+      <aside
+        className={clsx(
+          "flex h-full shrink-0 flex-col border-r border-white/5 bg-brand-navy text-white",
+          // Phone/tablet: off-canvas drawer. lg and up: part of the layout, as before.
+          "fixed inset-y-0 left-0 z-40 transition-transform duration-200 ease-out lg:static lg:z-auto lg:translate-x-0",
+          mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full",
+          ready && "lg:transition-[width]",
+          rail ? "w-[4.75rem]" : "w-64"
+        )}
+      >
       {/* Brand header + collapse toggle */}
-      {collapsed ? (
+      {rail ? (
         <div className="flex flex-col items-center gap-2 py-4">
           <span className="grid h-9 w-9 place-items-center rounded-lg bg-white/10 text-sm font-bold tracking-tight">{initials}</span>
-          <button onClick={toggleCollapsed} title="Expand menu" className="grid h-8 w-8 place-items-center rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+          <button onClick={toggleCollapsed} title="Expand menu" className="hidden h-8 w-8 place-items-center rounded-lg text-white/60 hover:bg-white/10 hover:text-white lg:grid">
             <PanelLeftOpen className="h-[18px] w-[18px]" />
+          </button>
+          <button onClick={() => setMobileOpen(false)} title="Close menu" className="grid h-8 w-8 place-items-center rounded-lg text-white/60 hover:bg-white/10 hover:text-white lg:hidden">
+            <X className="h-[18px] w-[18px]" />
           </button>
         </div>
       ) : (
         <div className="flex items-center justify-between px-5 py-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={activeTenant.logoWhite} alt={activeTenant.productName} className="h-10 w-auto max-w-[70%] object-contain" />
-          <button onClick={toggleCollapsed} title="Collapse menu" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+          <button onClick={toggleCollapsed} title="Collapse menu" className="hidden h-8 w-8 shrink-0 place-items-center rounded-lg text-white/60 hover:bg-white/10 hover:text-white lg:grid">
             <PanelLeftClose className="h-[18px] w-[18px]" />
+          </button>
+          <button onClick={() => setMobileOpen(false)} title="Close menu" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white/60 hover:bg-white/10 hover:text-white lg:hidden">
+            <X className="h-[18px] w-[18px]" />
           </button>
         </div>
       )}
@@ -120,10 +167,10 @@ export default function Sidebar({ allowedScreens }: { allowedScreens: string[] }
           const gItems = items.filter((i) => i.group === g.key);
           if (gItems.length === 0) return null;
           const isWorkspace = g.label === "";
-          const isClosed = !isWorkspace && !collapsed && closed.has(g.key);
+          const isClosed = !isWorkspace && !rail && closed.has(g.key);
 
           // Collapsed rail: just icons with a divider between groups
-          if (collapsed) {
+          if (rail) {
             return (
               <div key={g.key} className="space-y-0.5">
                 {!isWorkspace && <div className="mx-2 my-2 border-t border-white/10" />}
@@ -149,9 +196,10 @@ export default function Sidebar({ allowedScreens }: { allowedScreens: string[] }
         })}
       </nav>
 
-      {!collapsed && (
+      {!rail && (
         <div className="border-t border-white/10 px-5 py-3 text-[11px] text-white/35">ERP v0.1 · Phase 1</div>
       )}
-    </aside>
+      </aside>
+    </>
   );
 }
