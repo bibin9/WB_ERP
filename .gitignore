@@ -10,3 +10,6 @@ uploads/
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Generated schema used only to query the hosted database
+/prisma/.prod.prisma

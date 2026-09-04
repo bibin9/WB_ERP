@@ -10,7 +10,9 @@
     "postinstall": "node scripts/set-db-provider.mjs && prisma generate",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "db:seed": "node prisma/seed.mjs"
+    "db:seed": "node prisma/seed.mjs",
+    "db:prod": "node scripts/prod-schema.mjs && prisma studio --schema prisma/.prod.prisma",
+    "db:prod:pull": "node scripts/prod-schema.mjs && prisma db pull --print --schema prisma/.prod.prisma"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

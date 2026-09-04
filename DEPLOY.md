@@ -98,6 +98,110 @@ Keep developing locally as before — SQLite, `npm run dev`. Do **not** run `bui
 locally (it would rewrite the schema to Postgres). The normal `npm run build` and
 `npm run dev` still use SQLite.
 
+## Querying the hosted database
+
+The pilot's data lives in the Railway PostgreSQL service. To read it from your own
+machine — for reports, checks, or answering "what did the client actually enter?" —
+you need the **public** connection string and a client.
+
+### Step A — Expose the database and copy the connection string
+
+By default Railway's database is only reachable from inside Railway. The hostname
+`postgres.railway.internal` will **not** resolve from your laptop.
+
+1. Railway → your project → the **Postgres** service.
+2. **Settings → Networking → Public Network → Enable TCP Proxy** (if it is not already on).
+   Railway gives you a host and port like `viaduct.proxy.rlwy.net:41234`.
+3. **Variables** tab → copy **`DATABASE_PUBLIC_URL`**. It looks like:
+
+   ```
+   postgresql://postgres:LONGPASSWORD@viaduct.proxy.rlwy.net:41234/railway
+   ```
+
+Treat that string like a password — it is full access to the client's live data.
+Do not paste it into chat, tickets or screenshots.
+
+### Step B — Create a read-only user (recommended)
+
+If you are querying rather than changing data, connect as a role that *cannot* write.
+It removes the possibility of a mistyped `UPDATE` damaging live records. Run this once,
+connected as the `postgres` user:
+
+```sql
+CREATE ROLE reporting WITH LOGIN PASSWORD 'choose-a-strong-password';
+GRANT CONNECT ON DATABASE railway TO reporting;
+GRANT USAGE ON SCHEMA public TO reporting;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO reporting;
+-- also cover tables created later
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO reporting;
+```
+
+Then use the same URL with `postgres:PASSWORD` swapped for `reporting:your-password`.
+
+### Step C — Pick a client
+
+**Option 1 — Prisma Studio (easiest, no install).** A browser table-browser that already
+understands the schema and shows relations by name rather than raw foreign keys.
+
+1. Add the connection string to your local `.env` (git-ignored):
+
+   ```
+   PROD_DATABASE_URL="postgresql://reporting:pass@viaduct.proxy.rlwy.net:41234/railway"
+   ```
+
+2. Run:
+
+   ```bash
+   npm run db:prod
+   ```
+
+Studio opens at http://localhost:5555. Your local `DATABASE_URL` and
+`prisma/schema.prisma` are untouched — the command generates a temporary
+`prisma/.prod.prisma` from the real schema each time, so it can never drift, and it
+refuses to run against Railway's internal hostname.
+
+Studio is for browsing and spot edits. It does not run SQL.
+
+**Option 2 — A SQL client (for real queries and reports).** Any Postgres client works;
+**DBeaver** is free and runs on Windows. New Connection → PostgreSQL, then either paste
+the URL or fill in host, port, database `railway`, and your user and password. Enable SSL
+if prompted — Railway accepts it.
+
+`psql` works too, if you have it:
+
+```bash
+psql "postgresql://reporting:pass@viaduct.proxy.rlwy.net:41234/railway"
+```
+
+### Table names
+
+Prisma maps models to tables of the same name, quoted and case-sensitive. So they must
+be double-quoted in SQL:
+
+```sql
+SELECT "empNo", name, "basicSalary" FROM "Employee" ORDER BY "empNo";
+```
+
+`SELECT * FROM employee` will fail with "relation does not exist" — the capital E matters.
+
+A useful starting query, employees with documents expiring in the next 60 days:
+
+```sql
+SELECT c.code AS company, e."empNo", e.name, e."visaExpiry", e."passportExpiry"
+FROM "Employee" e
+JOIN "Company" c ON c.id = e."companyId"
+WHERE e."visaExpiry" < now() + interval '60 days'
+   OR e."passportExpiry" < now() + interval '60 days'
+ORDER BY e."visaExpiry";
+```
+
+### Running the app itself against Postgres locally
+
+Rarely needed, but if you want local parity with production, set a Postgres
+`DATABASE_URL` in `.env` and run `npm run dev`. `scripts/set-db-provider.mjs` switches
+the datasource automatically. Remember to set it back to
+`DATABASE_URL="file:./dev.db"` afterwards, or the schema file stays on Postgres.
+
 ## Troubleshooting
 
 - **Build fails on Prisma / database** → confirm `DATABASE_URL` is set to
