@@ -79,6 +79,20 @@ for (const [sql, expected, label] of cases) {
   ok(`${expected ? "warns about" : "stays quiet for"} ${label}`, detector.test(sql) === expected);
 }
 
+/* ------------------------------------------------- rehearsing a deploy --- */
+// Every outage here has been a PostgreSQL-specific failure at boot, invisible
+// on SQLite. The rehearsal runs the real sequence against a real PostgreSQL.
+const rehearse = read("scripts/rehearse-deploy.mjs");
+ok("a deploy can be rehearsed", typeof pkg.scripts["db:rehearse"] === "string");
+ok("it runs the real boot sequence", rehearse.includes("scripts/db-release.mjs") && rehearse.includes("prisma/seed.mjs"));
+ok("it covers a fresh database and one built by push",
+  rehearse.includes("a new, empty database") && rehearse.includes("a database built by db push"));
+ok("it checks a redeploy is a no-op", rehearse.includes("deploying again"));
+ok("it insists on PostgreSQL", rehearse.includes("must be PostgreSQL"));
+ok("it refuses the production database", rehearse.includes("That is the production database"));
+ok("it refuses an unnamed live Railway database", rehearse.includes("not named as a scratch one"));
+ok("it restores the schema afterwards", /finally[\s\S]*?writeFileSync\(schemaPath, original\)/.test(rehearse));
+
 /* ---------------------------------------------------------- the docs ---- */
 const deploy = read("DEPLOY.md");
 ok("the deploy guide explains migrations", /migrat/i.test(deploy));

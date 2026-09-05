@@ -251,6 +251,49 @@ constraint — the shapes that can fail or lose data on a live table.
 Commit the SQL together with the schema change. The two belong in the same commit:
 the schema says what the code expects, the migration says how the database gets there.
 
+### Rehearsing a deploy
+
+Every outage this project has had was a PostgreSQL-specific failure at boot — a
+refused schema change, then a query returning a type Prisma could not read.
+Neither can happen on SQLite, so neither showed up in local testing.
+
+```bash
+npm run db:rehearse
+```
+
+That runs the real boot sequence — the same scripts, in the same order — against a
+scratch PostgreSQL, in both situations that occur in the wild: a brand-new empty
+database, and a database built by `db push` the way production was before
+migrations. Then it deploys a second time to confirm a redeploy is a no-op.
+
+It wipes the database it is given, so it refuses to run against production, against
+anything sharing production's host, and against a live-looking Railway database not
+named as scratch.
+
+**Run it before every deploy that touches the schema.**
+
+#### Getting a PostgreSQL to rehearse against
+
+Either works. The second is closer to production.
+
+**On this machine** — free, and the client tools come with it:
+
+```bash
+winget install PostgreSQL.PostgreSQL.17
+createdb wberp_rehearsal
+```
+
+Then in `.env`:
+
+```
+REHEARSAL_DATABASE_URL="postgresql://postgres:yourpassword@localhost:5432/wberp_rehearsal"
+```
+
+**A second Railway database** — a couple of dirhams a month, same engine and version
+as production, and it works from any machine. Add a second PostgreSQL service to the
+project, name it something with `rehearsal` in it, and copy its `DATABASE_PUBLIC_URL`
+into `REHEARSAL_DATABASE_URL`.
+
 ### Auto-deploy
 
 Now that a schema change is reviewed before it ships and applied by
