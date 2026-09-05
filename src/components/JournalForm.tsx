@@ -5,18 +5,19 @@ import { Plus, X, Trash2 } from "lucide-react";
 import { createJournalEntry } from "@/app/(app)/finance/actions";
 
 type Account = { id: string; code: string; name: string };
+type PartyOption = { id: string; code: string; name: string };
 type Line = { accountId: string; debit: string; credit: string };
 
 const empty = (): Line => ({ accountId: "", debit: "", credit: "" });
 
-export default function JournalForm({ companyId, accounts }: { companyId: string; accounts: Account[] }) {
+export default function JournalForm({ companyId, accounts, parties = [] }: { companyId: string; accounts: Account[]; parties?: PartyOption[] }) {
   const [open, setOpen] = useState(false);
   const [lines, setLines] = useState<Line[]>([empty(), empty()]);
   const [memo, setMemo] = useState("");
   const [voucherType, setVoucherType] = useState("Journal");
   // Accountants post yesterday's invoice today, so the date must be theirs to set.
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [party, setParty] = useState("");
+  const [partyId, setPartyId] = useState("");
   const [vat, setVat] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -32,7 +33,7 @@ export default function JournalForm({ companyId, accounts }: { companyId: string
   function reset() {
     setLines([empty(), empty()]);
     setMemo("");
-    setParty("");
+    setPartyId("");
     setVat("");
     setVoucherType("Journal");
     setDate(new Date().toISOString().slice(0, 10));
@@ -47,7 +48,7 @@ export default function JournalForm({ companyId, accounts }: { companyId: string
     fd.set("memo", memo);
     fd.set("voucherType", voucherType);
     fd.set("date", date);
-    fd.set("partyName", party);
+    fd.set("partyId", partyId);
     fd.set("vatAmount", vat);
     fd.set("lines", JSON.stringify(lines.map((l) => ({ accountId: l.accountId, debit: Number(l.debit) || 0, credit: Number(l.credit) || 0 }))));
     const res = await createJournalEntry(fd);
@@ -86,7 +87,12 @@ export default function JournalForm({ companyId, accounts }: { companyId: string
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-ink">Party (optional)</label>
-              <input value={party} onChange={(e) => setParty(e.target.value)} className="input" placeholder="Customer / supplier" />
+              <select value={partyId} onChange={(e) => setPartyId(e.target.value)} className="input">
+                <option value="">— none —</option>
+                {parties.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-ink">Date</label>

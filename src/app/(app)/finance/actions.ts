@@ -22,7 +22,7 @@ export async function createJournalEntry(formData: FormData) {
   const companyId = String(formData.get("companyId") || "");
   const memo = String(formData.get("memo") || "").trim();
   const voucherType = String(formData.get("voucherType") || "Journal");
-  const partyName = String(formData.get("partyName") || "").trim();
+  const partyId = String(formData.get("partyId") || "").trim() || null;
   const vatAmount = Number(formData.get("vatAmount")) || 0;
   if (!session.companies.some((c) => c.id === companyId)) return { ok: false, error: "No access" };
 
@@ -40,6 +40,15 @@ export async function createJournalEntry(formData: FormData) {
   if (company.booksLockedTo && date <= company.booksLockedTo) {
     const upto = company.booksLockedTo.toISOString().slice(0, 10);
     return { ok: false, error: `The books are closed up to ${upto}. Post this on a later date, or ask an administrator to change the lock.` };
+  }
+
+  // The party is a master record now, so outstanding can actually be totalled.
+  // Its name is snapshotted on the voucher for the printed document.
+  let partyName: string | null = null;
+  if (partyId) {
+    const party = await db.party.findFirst({ where: { id: partyId, companyId } });
+    if (!party) return { ok: false, error: "That customer or supplier is not on this company" };
+    partyName = party.name;
   }
 
   // A date far in the future is nearly always a typo in the year.
@@ -79,7 +88,8 @@ export async function createJournalEntry(formData: FormData) {
       reference,
       date,
       voucherType,
-      partyName: partyName || null,
+      partyId,
+      partyName,
       vatAmount,
       memo: memo || null,
       postedBy: session.user.name,
@@ -98,6 +108,11 @@ const ACCOUNT_TYPES = ["Asset", "Liability", "Equity", "Income", "Expense"];
  * Opening balance from the form: an amount plus a Dr/Cr side, stored signed
  * (debit positive) so it adds straight into the ledger arithmetic.
  */
+function controlFrom(formData: FormData): string | null {
+  const v = String(formData.get("controlType") || "").trim();
+  return v === "Receivable" || v === "Payable" ? v : null;
+}
+
 function openingFrom(formData: FormData): number {
   const amount = Math.abs(Number(formData.get("openingAmount")) || 0);
   const side = String(formData.get("openingSide") || "Dr");
@@ -115,7 +130,7 @@ export async function createAccount(formData: FormData) {
   if (!session.companies.some((c) => c.id === companyId) || !code || !name || !ACCOUNT_TYPES.includes(type)) return;
   const exists = await db.chartOfAccount.findUnique({ where: { companyId_code: { companyId, code } } });
   if (exists) return;
-  const created = await db.chartOfAccount.create({ data: { companyId, code, name, type, openingBalance: openingFrom(formData) } });
+  const created = await db.chartOfAccount.create({ data: { companyId, code, name, type, openingBalance: openingFrom(formData), controlType: controlFrom(formData) } });
   await audit({ action: "Created", entity: "ChartOfAccount", entityId: created.id, summary: `Added account ${code} — ${name}` });
   revalidatePath("/finance");
 }
@@ -130,7 +145,7 @@ export async function updateAccount(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const type = String(formData.get("type") || "");
   if (!name || !ACCOUNT_TYPES.includes(type)) return;
-  await db.chartOfAccount.update({ where: { id }, data: { name, type, openingBalance: openingFrom(formData) } });
+  await db.chartOfAccount.update({ where: { id }, data: { name, type, openingBalance: openingFrom(formData), controlType: controlFrom(formData) } });
   await audit({ action: "Updated", entity: "ChartOfAccount", entityId: id, summary: `Updated account ${acc.code} — ${name}` });
   revalidatePath("/finance");
 }

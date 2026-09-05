@@ -151,10 +151,10 @@ async function main() {
   // positive, credit negative, and the set balances to zero.
   const COA = [
     ["1000", "Cash at Bank", "Asset", 150000],
-    ["1100", "Accounts Receivable", "Asset"],
+    ["1100", "Accounts Receivable", "Asset", 0, "Receivable"],
     ["1200", "Inventory", "Asset"],
     ["1500", "Plant & Equipment", "Asset"],
-    ["2000", "Accounts Payable", "Liability", -50000],
+    ["2000", "Accounts Payable", "Liability", -50000, "Payable"],
     ["2100", "Accruals & Provisions", "Liability"],
     ["2200", "Retention Payable", "Liability"],
     ["3000", "Share Capital", "Equity", -100000],
@@ -167,12 +167,12 @@ async function main() {
     ["6200", "Utilities", "Expense"],
   ];
   for (const company of companies) {
-    for (const [code, name, type, opening] of COA) {
+    for (const [code, name, type, opening, controlType] of COA) {
       const openingBalance = opening ?? 0;
       await db.chartOfAccount.upsert({
         where: { companyId_code: { companyId: company.id, code } },
-        update: { name, type },
-        create: { companyId: company.id, code, name, type, openingBalance },
+        update: { name, type, controlType: controlType ?? null },
+        create: { companyId: company.id, code, name, type, openingBalance, controlType: controlType ?? null },
       });
     }
   }
@@ -330,6 +330,33 @@ async function main() {
       memo: "Monthly salaries", date: d(-3),
       lines: [["6000", 50000, 0], ["1000", 0, 50000]],
     });
+  }
+
+  // Customers and suppliers, so the outstanding report has real parties behind it.
+  const PARTIES = [
+    ["C0001", "Al Habtoor Construction LLC", "Customer", "100123456700003", 30],
+    ["C0002", "Emaar Properties PJSC", "Customer", "100987654300003", 60],
+    ["S0001", "Emirates Steel Industries", "Supplier", "100555666700003", 45],
+    ["S0002", "Gulf Manpower Supply LLC", "Supplier", null, 30],
+  ];
+  for (const company of companies) {
+    for (const [code, name, type, trn, creditDays] of PARTIES) {
+      await db.party.upsert({
+        where: { companyId_code: { companyId: company.id, code } },
+        update: { name, type, trn, creditDays },
+        create: { companyId: company.id, code, name, type, trn, creditDays },
+      });
+    }
+  }
+  // Point the sample vouchers at those parties, so ageing has something to age.
+  for (const company of companies) {
+    const ps = await db.party.findMany({ where: { companyId: company.id } });
+    for (const p of ps) {
+      await db.journalEntry.updateMany({
+        where: { companyId: company.id, partyName: p.name, partyId: null },
+        data: { partyId: p.id },
+      });
+    }
   }
 
   console.log("Seeded tenant, companies, roles, admin, tasks, chart of accounts, approval routes, employees, certs, supplied worker, sample vouchers.");

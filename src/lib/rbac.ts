@@ -36,6 +36,8 @@ export const SCREENS: ScreenDef[] = [
   { key: "finance.daybook", module: "finance", label: "Day Book", href: "/finance/daybook" },
   { key: "finance.ledgers", module: "finance", label: "Ledgers", href: "/finance/ledgers" },
   { key: "finance.reports", module: "finance", label: "Reports (P&L / Balance Sheet)", href: "/finance/reports" },
+  { key: "finance.parties", module: "finance", label: "Customers & Suppliers", href: "/finance/parties" },
+  { key: "finance.outstanding", module: "finance", label: "Outstanding & Ageing", href: "/finance/outstanding" },
   { key: "finance.vat", module: "finance", label: "VAT Report", href: "/finance/vat" },
   { key: "finance.tally", module: "finance", label: "Tally Sync", href: "/finance/tally" },
 

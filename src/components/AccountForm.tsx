@@ -5,7 +5,7 @@ import { Plus, X, Pencil } from "lucide-react";
 import { createAccount, updateAccount } from "@/app/(app)/finance/actions";
 
 const TYPES = ["Asset", "Liability", "Equity", "Income", "Expense"];
-export type EditingAccount = { id: string; code: string; name: string; type: string; openingBalance: number };
+export type EditingAccount = { id: string; code: string; name: string; type: string; openingBalance: number; controlType: string | null };
 
 export default function AccountForm({ companyId, account }: { companyId: string; account?: EditingAccount }) {
   const [open, setOpen] = useState(false);
@@ -50,6 +50,18 @@ export default function AccountForm({ companyId, account }: { companyId: string;
             <select name="type" className="input" defaultValue={account?.type ?? "Asset"}>
               {TYPES.map((t) => <option key={t}>{t}</option>)}
             </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-ink">Control account</label>
+            <select name="controlType" className="input" defaultValue={account?.controlType ?? ""}>
+              <option value="">Not a control account</option>
+              <option value="Receivable">Receivable — money customers owe us</option>
+              <option value="Payable">Payable — money we owe suppliers</option>
+            </select>
+            <p className="mt-1 text-xs text-muted">
+              Marking Accounts Receivable and Accounts Payable here is what lets the Outstanding &amp; Ageing
+              report work out who owes what.
+            </p>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">Opening balance</label>

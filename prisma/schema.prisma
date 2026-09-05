@@ -48,6 +48,7 @@ model Company {
   booksLockedTo  DateTime?
   /// Date the opening balances are stated as at — normally the FY start.
   openingAsOf    DateTime?
+  parties        Party[]
   wpsBankRouting String? // employer bank routing code (agent ID)
   isActive     Boolean           @default(true)
   memberships  CompanyMembership[]
@@ -185,6 +186,9 @@ model ChartOfAccount {
   /// Balance carried in when the books were migrated. Debit positive,
   /// credit negative — the sign convention the ledgers already use.
   openingBalance Float @default(0)
+  /// "Receivable" or "Payable" marks this as a control account, which is what
+  /// the outstanding and ageing report measures against.
+  controlType String?
   tallyGuid   String? // mapping key when synced from Tally
   isActive    Boolean       @default(true)
   lines       JournalLine[]
@@ -203,7 +207,9 @@ model JournalEntry {
   voucherType String        @default("Journal") // Journal | Payment | Receipt | Contra | Sales | Purchase
   date        DateTime      @default(now())
   memo        String?
-  partyName   String? // party ledger (customer/supplier) for the voucher
+  partyName   String?
+  partyId     String?
+  party       Party?        @relation(fields: [partyId], references: [id]) // party ledger (customer/supplier) for the voucher
   vatAmount   Float         @default(0) // UAE VAT (5%) portion, if any
   source      String        @default("manual") // manual | tally
   /// A reversal points back at the voucher it cancels, so both sides of the
@@ -643,4 +649,29 @@ model TallyConfig {
   lastSyncInfo String?
   updatedAt    DateTime  @updatedAt
   createdAt    DateTime  @default(now())
+}
+
+/// A customer or supplier. Free-typed names produced duplicates and made
+/// outstanding impossible to total, so parties are a master record.
+model Party {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code          String
+  name          String
+  type          String   @default("Customer") // Customer | Supplier | Both
+  /// UAE Tax Registration Number — required on a tax invoice.
+  trn           String?
+  contactPerson String?
+  email         String?
+  phone         String?
+  address       String?
+  /// Payment terms in days, used to flag an invoice as overdue.
+  creditDays    Int      @default(0)
+  isActive      Boolean  @default(true)
+  entries       JournalEntry[]
+  createdAt     DateTime @default(now())
+
+  @@unique([companyId, code])
+  @@index([companyId])
 }

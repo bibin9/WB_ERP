@@ -39,6 +39,10 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       })
     : [];
 
+  const parties = companyId
+    ? await db.party.findMany({ where: { companyId, isActive: true }, orderBy: { name: "asc" }, select: { id: true, code: true, name: true } })
+    : [];
+
   const entries = companyId
     ? await db.journalEntry.findMany({
         where: { companyId },
@@ -59,7 +63,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       <PageHeader title="Finance & Accounting" subtitle="Each company keeps its own books. Chart of accounts, journal entries and trial balance.">
         <div className="flex flex-wrap items-center gap-2">
           {companyId && <ExportButton dataset="journals" companyId={companyId} label="Export journals" />}
-          {companyId && <JournalForm companyId={companyId} accounts={accounts.map((a) => ({ id: a.id, code: a.code, name: a.name }))} />}
+          {companyId && <JournalForm companyId={companyId} accounts={accounts.map((a) => ({ id: a.id, code: a.code, name: a.name }))} parties={parties.map((p) => ({ id: p.id, code: p.code, name: p.name }))} />}
         </div>
       </PageHeader>
 
@@ -134,7 +138,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
                   <span className="flex-1 truncate text-sm text-ink">{a.name}</span>
                   <span className="rounded bg-brand-navy/5 px-1.5 py-0.5 text-[10px] font-medium text-heading">{a.type}</span>
                   <span className="flex items-center opacity-0 transition-opacity group-hover:opacity-100">
-                    <AccountForm companyId={companyId} account={{ id: a.id, code: a.code, name: a.name, type: a.type, openingBalance: a.openingBalance }} />
+                    <AccountForm companyId={companyId} account={{ id: a.id, code: a.code, name: a.name, type: a.type, openingBalance: a.openingBalance, controlType: a.controlType }} />
                     <GuardedDelete screen="finance.ledgers" action={deleteAccount.bind(null, a.id)} label={`Delete account ${a.code}? (only if no postings)`} />
                   </span>
                 </div>
