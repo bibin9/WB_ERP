@@ -125,9 +125,9 @@ Worth fixing before this stops being a pilot:
    `npm run db:backup` does not — it backs up the database only. The proper fix is
    moving uploads to object storage (Cloudflare R2 / AWS S3), which brings its own
    versioning and replication. This is already noted in DEPLOY.md.
-2. **The schema is deployed with `prisma db push`, not migrations.** That is fine for a
-   pilot but means there is no migration history to roll forward or back. Switch to
-   `prisma migrate` before real production.
+2. ~~The schema is deployed with `prisma db push`, not migrations.~~ **Closed.**
+   Schema changes now go through reviewed migrations applied by `prisma migrate
+   deploy` — see DEPLOY.md, "Schema changes".
 3. **Backups are manual.** Layer 2 depends on someone remembering. Once the client is
    live, run it from a scheduled task (Windows Task Scheduler) or a small cron job on a
    machine that is always on.

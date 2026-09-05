@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "node scripts/set-db-provider.mjs && prisma generate && next build",
-    "start": "node scripts/set-db-provider.mjs && prisma db push --skip-generate && node prisma/seed.mjs && next start",
+    "start": "node scripts/set-db-provider.mjs && node scripts/db-release.mjs && node prisma/seed.mjs && next start",
     "lint": "next lint",
     "postinstall": "node scripts/set-db-provider.mjs && prisma generate",
     "db:generate": "prisma generate",
@@ -13,7 +13,8 @@
     "db:seed": "node prisma/seed.mjs",
     "db:prod": "node scripts/prod-schema.mjs && prisma studio --schema prisma/.prod.prisma",
     "db:prod:pull": "node scripts/prod-schema.mjs && prisma db pull --print --schema prisma/.prod.prisma",
-    "db:backup": "node scripts/backup-db.mjs"
+    "db:backup": "node scripts/backup-db.mjs",
+    "db:migration": "node scripts/migration.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

@@ -17,3 +17,7 @@ uploads/
 # Database backups - contain live employee data, never commit
 backups/
 *.dump
+
+# Generated while authoring a migration
+/prisma/.pg.prisma
+/prisma/.empty.prisma

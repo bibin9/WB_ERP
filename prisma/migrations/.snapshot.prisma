@@ -1,0 +1,692 @@
+// White & Bright Group ERP — Phase 1 foundation schema
+// Product-ready: every row is scoped to a Tenant (customer) and, where
+// relevant, a Company (legal entity within the customer's group).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // SQLite for zero-install local dev. Switch to "postgresql" for production
+  // (change provider + DATABASE_URL; JSON-in-String fields stay compatible).
+  provider = "postgresql"
+  url      = env("MIGRATION_DATABASE_URL")
+}
+
+/// A customer of the product (white-label). White & Bright is one tenant.
+model Tenant {
+  id        String    @id @default(cuid())
+  key       String    @unique // e.g. "wandb"
+  name      String
+  // Branding (mirrors src/config/tenant.ts so it can move to the DB later)
+  logoUrl   String?
+  theme     String? // JSON string: { navy, blue, green, gold, paper } as RGB triplets
+  companies Company[]
+  users     User[]
+  roles     Role[]
+  approvalRoutes ApprovalRoute[]
+  customFields CustomFieldDef[]
+  masterItems MasterItem[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+/// A legal company within a tenant's group (multi-company).
+model Company {
+  id           String            @id @default(cuid())
+  tenantId     String
+  tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code         String
+  name         String
+  baseCurrency String            @default("AED")
+  // UAE WPS (Wage Protection System) employer details, used to generate the bank SIF file
+  wpsEmployerId  String? // MOL establishment / employer unique ID
+  /// Month the financial year starts (1 = January).
+  fyStartMonth   Int     @default(1)
+  /// Nothing may be posted on or before this date. Set after a VAT return is
+  /// filed or a period is closed, so the figures behind it cannot move.
+  booksLockedTo  DateTime?
+  /// Date the opening balances are stated as at — normally the FY start.
+  openingAsOf    DateTime?
+  parties        Party[]
+  wpsBankRouting String? // employer bank routing code (agent ID)
+  isActive     Boolean           @default(true)
+  memberships  CompanyMembership[]
+  jobAssignments JobAssignment[]
+  approvalRequests ApprovalRequest[]
+  accounts     ChartOfAccount[]
+  journalEntries JournalEntry[]
+  employees    Employee[]
+  requisitions Requisition[]
+  payrollRuns  PayrollRun[]
+  leaveRequests LeaveRequest[]
+  createdAt    DateTime          @default(now())
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model User {
+  id          String              @id @default(cuid())
+  tenantId    String
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email       String
+  name        String
+  passwordHash String?
+  isActive    Boolean             @default(true)
+  // Account security
+  failedAttempts    Int       @default(0) // consecutive wrong-password count
+  lockedUntil       DateTime? // account is locked while this is in the future
+  mustReset         Boolean   @default(false) // force a password change on next sign-in
+  passwordChangedAt DateTime?
+  memberships CompanyMembership[]
+  notifications Notification[]
+  createdAt   DateTime            @default(now())
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+/// Which companies a user can access, and with what role (RBAC + company scope).
+model CompanyMembership {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  roleId    String
+  role      Role    @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+}
+
+model Role {
+  id          String              @id @default(cuid())
+  tenantId    String
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String // e.g. "Group Admin", "Project Manager", "Director"
+  // Permissions as JSON string: { "module": ["create","read","update","delete","approve"] }
+  permissions String              @default("{}")
+  approvalLevel Int               @default(0) // sign-off rank (higher = more authority)
+  memberships CompanyMembership[]
+
+  @@unique([tenantId, name])
+}
+
+/// HR & Admin — Job Assignments / task tickets (FSD HR-18…23).
+model JobAssignment {
+  id             String    @id @default(cuid())
+  companyId      String
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  ticketNo       String
+  title          String
+  description    String?
+  priority       String    @default("Normal") // Low | Normal | High | Urgent
+  assignedToType String    @default("person") // "person" | "department"
+  assignedTo     String // person name or department
+  assignedBy     String
+  dueDate        DateTime?
+  timeAllocation String? // e.g. "4h", "2d"
+  status         String    @default("Open") // Open | In Progress | Completed | Closed
+  remarks        String?
+  closedBy       String?
+  closedAt       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([companyId, ticketNo])
+  @@index([companyId])
+}
+
+/// Approval Engine (FSD FS-PLT-02) — one configurable sign-off workflow reused
+/// by any document type (PO, expense, company onboarding, etc.).
+model ApprovalRequest {
+  id          String         @id @default(cuid())
+  companyId   String
+  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  docType     String // e.g. "Purchase Order", "Expense", "Company Onboarding"
+  title       String
+  amount      Float?
+  currency    String         @default("AED")
+  requestedBy String
+  status      String         @default("Pending") // Pending | Approved | Rejected
+  currentStep Int            @default(1)
+  steps       ApprovalStep[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([companyId])
+}
+
+model ApprovalStep {
+  id            String          @id @default(cuid())
+  requestId     String
+  request       ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  order         Int // 1-based position in the route
+  roleName      String // approver role for this level
+  requiredLevel Int // minimum approval level required to act
+  status        String          @default("Pending") // Pending | Approved | Rejected
+  decidedBy     String?
+  decidedAt     DateTime?
+  comment       String?
+
+  @@index([requestId])
+}
+
+/// Finance — Chart of Accounts (per company; each company keeps its own books).
+model ChartOfAccount {
+  id        String        @id @default(cuid())
+  companyId String
+  company   Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code        String // e.g. "1000"
+  name        String // e.g. "Cash at Bank"
+  type        String // Asset | Liability | Equity | Income | Expense
+  parentGroup String? // Tally-style group, e.g. "Current Assets", "Sundry Debtors"
+  /// Balance carried in when the books were migrated. Debit positive,
+  /// credit negative — the sign convention the ledgers already use.
+  openingBalance Float @default(0)
+  /// "Receivable" or "Payable" marks this as a control account, which is what
+  /// the outstanding and ageing report measures against.
+  controlType String?
+  tallyGuid   String? // mapping key when synced from Tally
+  isActive    Boolean       @default(true)
+  lines       JournalLine[]
+  createdAt   DateTime      @default(now())
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+/// Finance — double-entry journal entry (header + balanced lines).
+model JournalEntry {
+  id          String        @id @default(cuid())
+  companyId   String
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  reference   String
+  voucherType String        @default("Journal") // Journal | Payment | Receipt | Contra | Sales | Purchase
+  date        DateTime      @default(now())
+  memo        String?
+  partyName   String?
+  partyId     String?
+  party       Party?        @relation(fields: [partyId], references: [id]) // party ledger (customer/supplier) for the voucher
+  vatAmount   Float         @default(0) // UAE VAT (5%) portion, if any
+  source      String        @default("manual") // manual | tally
+  /// A reversal points back at the voucher it cancels, so both sides of the
+  /// correction stay visible in the audit trail.
+  ///
+  /// Modelled one-to-many rather than one-to-one on purpose: a one-to-one would
+  /// need a unique constraint, and adding one to a live table makes `db push`
+  /// refuse without --accept-data-loss, which is not a flag to leave pointed at
+  /// a client's database. "Reverse only once" is enforced in the action, and the
+  /// constraint can be restored properly once this moves to migrations.
+  reversalOfId String?
+  reversalOf   JournalEntry?  @relation("Reversal", fields: [reversalOfId], references: [id])
+  reversedBy   JournalEntry[] @relation("Reversal")
+  postedBy    String
+  lines       JournalLine[]
+  createdAt   DateTime      @default(now())
+
+  @@unique([companyId, reference])
+  @@index([companyId])
+}
+
+model JournalLine {
+  id        String         @id @default(cuid())
+  entryId   String
+  entry     JournalEntry   @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountId String
+  account   ChartOfAccount @relation(fields: [accountId], references: [id])
+  debit     Float          @default(0)
+  credit    Float          @default(0)
+
+  /// How this line is treated for UAE VAT. A single invoice often mixes them —
+  /// standard-rated work alongside a zero-rated export or a designated-zone
+  /// supply — so the treatment belongs on the line, not on the voucher.
+  ///
+  /// Standard | Zero-rated | Exempt | Out of scope | Reverse charge
+  /// Null means the line is not a supply or expense at all: the receivable, the
+  /// bank, the VAT control account itself.
+  vatTreatment String?
+
+  @@index([entryId])
+  @@index([accountId])
+}
+
+/// Admin-configurable approval routes (per tenant). Replaces the code config:
+/// each customer configures their own sign-off chains via the UI, no code changes.
+model ApprovalRoute {
+  id        String              @id @default(cuid())
+  tenantId  String
+  tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  docType   String // e.g. "Purchase Order"
+  isActive  Boolean             @default(true)
+  steps     ApprovalRouteStep[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@unique([tenantId, docType])
+  @@index([tenantId])
+}
+
+model ApprovalRouteStep {
+  id            String        @id @default(cuid())
+  routeId       String
+  route         ApprovalRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  order         Int
+  roleName      String
+  requiredLevel Int
+  minAmount     Float? // step applies only when amount >= minAmount (null = always)
+
+  @@index([routeId])
+}
+
+/// HR & Admin — Employee master data (Phase 1). Includes basic payroll master
+/// data (salary structure); payroll processing itself is Phase 3.
+model Employee {
+  id             String    @id @default(cuid())
+  companyId      String
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  empNo          String
+  name           String
+  email          String?
+  phone          String?
+  biometricId    String? // enrolment/user ID on the punch machine (maps device logs to this employee)
+  department     String?
+  designation    String?
+  grade          String?
+  employmentType String    @default("Full-time") // Full-time | Part-time | Contract | Supplied
+  joinDate       DateTime?
+  status         String    @default("Active") // Active | On Leave | Inactive
+  // Payroll master data (structure only — processing is Phase 3)
+  basicSalary    Float     @default(0)
+  allowances     Float     @default(0)
+  currency       String    @default("AED")
+  annualLeaveBalance Int   @default(30)
+  supplier       String? // agency/sponsor for supplied manpower (HR-15)
+  // Personal
+  dateOfBirth    DateTime?
+  gender         String?
+  nationality    String?
+  maritalStatus  String?
+  bloodGroup     String?
+  personalEmail  String?
+  address        String?
+  emergencyName  String?
+  emergencyPhone String?
+  // Employment / contract
+  contractType   String? // Limited | Unlimited
+  contractEndDate DateTime?
+  // UAE documents
+  emiratesIdNo      String?
+  emiratesIdExpiry  DateTime?
+  passportNo        String?
+  passportExpiry    DateTime?
+  visaNo            String?
+  visaType          String?
+  visaExpiry        DateTime?
+  labourCardNo      String?
+  labourCardExpiry  DateTime?
+  // Banking (WPS)
+  bankName        String?
+  iban            String?
+  bankRoutingCode String? // employee bank routing code (agent ID) for the WPS SIF
+  onboarding     OnboardingItem[]
+  leaveRequests  LeaveRequest[]
+  attendance     Attendance[]
+  certifications Certification[]
+  timesheets     Timesheet[]
+  appraisals     Appraisal[]
+  documents      EmployeeDocument[]
+  customValues   CustomFieldValue[]
+  separations    Separation[]
+  advances       Advance[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([companyId, empNo])
+  @@index([companyId])
+}
+
+/// Notifications / Alerts engine (FSD FS-PLT-03) — in-app notifications per user.
+model Notification {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   @default("info") // approval | task | info
+  title     String
+  body      String?
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+/// Audit Trail (FSD FS-PLT-05) — who did what and when on key transactions.
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String?
+  userName  String
+  action    String // Created | Updated | Approved | Rejected | Deleted | Posted
+  entity    String // Company | User | JournalEntry | ApprovalRequest | Employee | JobAssignment | ApprovalRoute
+  entityId  String?
+  summary   String
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+/// HR — Recruitment & Onboarding (FSD HR-09…11)
+model Requisition {
+  id         String      @id @default(cuid())
+  companyId  String
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  position   String
+  department String?
+  headcount  Int         @default(1)
+  status     String      @default("Open") // Open | Interviewing | Offered | Filled | Closed
+  raisedBy   String
+  candidates Candidate[]
+  createdAt  DateTime    @default(now())
+
+  @@index([companyId])
+}
+
+model Candidate {
+  id            String      @id @default(cuid())
+  requisitionId String
+  requisition   Requisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  name          String
+  email         String?
+  phone         String?
+  stage         String      @default("Applied") // Applied | Interview | Offer | Hired | Rejected
+  visaType      String? // Employment | Mission | Local | ...
+  notes         String?
+  createdAt     DateTime    @default(now())
+
+  @@index([requisitionId])
+}
+
+/// Onboarding checklist items per employee (HR-11)
+model OnboardingItem {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  label      String
+  done       Boolean  @default(false)
+  order      Int
+
+  @@index([employeeId])
+}
+
+/// HR — Payroll processing (FSD HR-07…08)
+model PayrollRun {
+  id        String    @id @default(cuid())
+  companyId String
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  period    String // "2026-08"
+  status    String    @default("Draft") // Draft | Approved | Paid
+  runBy     String
+  payslips  Payslip[]
+  createdAt DateTime  @default(now())
+
+  @@unique([companyId, period])
+  @@index([companyId])
+}
+
+model Payslip {
+  id           String     @id @default(cuid())
+  runId        String
+  run          PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employeeId   String
+  empNo        String
+  employeeName String
+  basic           Float
+  allowances      Float
+  deductions      Float      @default(0) // other deductions (fines, unpaid leave, etc.)
+  advanceRecovery Float      @default(0) // salary-advance / loan installment recovered this run
+  netPay          Float
+
+  @@index([runId])
+}
+
+/// HR — Salary advances / loans, recovered through payroll
+model Advance {
+  id              String   @id @default(cuid())
+  companyId       String
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeName    String
+  amount          Float // original amount advanced
+  monthlyRecovery Float // installment recovered each payroll run
+  balance         Float // outstanding balance
+  reason          String?
+  status          String   @default("Active") // Active | Cleared
+  createdAt       DateTime @default(now())
+
+  @@index([companyId])
+  @@index([employeeId])
+}
+
+/// HR — Leave management (FSD HR-03…06)
+model LeaveRequest {
+  id         String    @id @default(cuid())
+  companyId  String
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type       String // Annual | Sick | Unpaid | Comp-Off
+  fromDate   DateTime
+  toDate     DateTime
+  days       Int
+  reason     String?
+  status     String    @default("Pending") // Pending | Approved | Rejected
+  decidedBy  String?
+  createdAt  DateTime  @default(now())
+
+  @@index([companyId])
+  @@index([employeeId])
+}
+
+/// HR — Time & Attendance (FSD HR-02)
+model Attendance {
+  id         String   @id @default(cuid())
+  companyId  String
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       DateTime
+  status     String   @default("Present") // Present | Absent | Leave | Off | Half-day
+  hours      Float    @default(8)
+  remarks    String?
+  createdAt  DateTime @default(now())
+
+  @@unique([employeeId, date])
+  @@index([companyId])
+}
+
+/// HR — Employee separation (resignation / termination) + UAE end-of-service settlement
+model Separation {
+  id             String   @id @default(cuid())
+  companyId      String
+  employeeId     String
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type           String // Resignation | Termination | Termination (Misconduct)
+  lastWorkingDay DateTime
+  reason         String?
+  // Settlement snapshot (UAE Labour Law) — stored so the record is a fixed statement
+  basicSalary    Float
+  serviceText    String // e.g. "3y 2m 10d"
+  serviceYears   Float
+  gratuityDays   Float   @default(0)
+  gratuityAmount Float   @default(0)
+  leaveDays      Float   @default(0)
+  leaveAmount    Float   @default(0)
+  pendingSalary  Float   @default(0)
+  noticePay      Float   @default(0)
+  airTicket      Float   @default(0)
+  otherAdditions Float   @default(0)
+  deductions     Float   @default(0)
+  adjustment     Float   @default(0) // HR manual +/- tweak
+  adjustmentNote String?
+  netSettlement  Float   @default(0)
+  status         String   @default("Draft") // Draft | Approved | Settled
+  processedBy    String?
+  createdAt      DateTime @default(now())
+
+  @@index([companyId])
+  @@index([employeeId])
+}
+
+/// HR — Competency certifications & medical clearances (FSD HR-12,13,16)
+model Certification {
+  id         String    @id @default(cuid())
+  companyId  String
+  employeeId String
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name       String
+  category   String    @default("Competency") // Competency | Safety | Medical
+  issuedBy   String?
+  issueDate  DateTime?
+  expiryDate DateTime?
+  notes      String?
+  createdAt  DateTime  @default(now())
+
+  @@index([companyId])
+  @@index([employeeId])
+}
+
+/// HR — Project timesheets (FSD HR-17). projectRef is free text until Projects (P3) links it.
+model Timesheet {
+  id         String   @id @default(cuid())
+  companyId  String
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       DateTime
+  projectRef String
+  hours      Float
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@index([companyId])
+  @@index([employeeId])
+}
+
+/// HR — Performance appraisal (FSD HR-14)
+model Appraisal {
+  id         String   @id @default(cuid())
+  companyId  String
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  period     String // e.g. "2026 H1"
+  rating     Int // 1..5
+  goals      String?
+  feedback   String?
+  reviewedBy String
+  createdAt  DateTime @default(now())
+
+  @@index([companyId])
+  @@index([employeeId])
+}
+
+/// Uploaded employee documents (Emirates ID copy, passport, visa, photo, etc.)
+model EmployeeDocument {
+  id         String   @id @default(cuid())
+  companyId  String
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  category   String // Photo | Emirates ID | Passport | Visa | Labour Card | Certificate | Contract | Other
+  fileName   String // original name
+  storedName String // name on disk
+  mimeType   String
+  size       Int
+  uploadedBy String
+  createdAt  DateTime @default(now())
+
+  @@index([employeeId])
+}
+
+/// Admin-definable custom fields for employees (per tenant).
+model CustomFieldDef {
+  id        String             @id @default(cuid())
+  tenantId  String
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entity    String             @default("Employee")
+  label     String
+  fieldKey  String
+  type      String             @default("text") // text | number | date | select
+  options   String? // comma-separated for select
+  order     Int                @default(0)
+  values    CustomFieldValue[]
+  createdAt DateTime           @default(now())
+
+  @@unique([tenantId, entity, fieldKey])
+  @@index([tenantId])
+}
+
+model CustomFieldValue {
+  id         String         @id @default(cuid())
+  employeeId String
+  employee   Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  fieldDefId String
+  fieldDef   CustomFieldDef @relation(fields: [fieldDefId], references: [id], onDelete: Cascade)
+  value      String
+
+  @@unique([employeeId, fieldDefId])
+  @@index([fieldDefId])
+}
+
+/// Generic master data lists (Departments, Designations, Grades, etc.), per tenant.
+model MasterItem {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type      String // Department | Designation | Grade | Nationality | ...
+  value     String
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, type, value])
+  @@index([tenantId, type])
+}
+
+/// Connection settings to an on-prem Tally (TallyPrime / Tally.ERP 9) HTTP gateway, per company.
+model TallyConfig {
+  id           String    @id @default(cuid())
+  companyId    String    @unique
+  host         String    @default("localhost")
+  port         Int       @default(9000)
+  tallyCompany String? // the company name inside Tally
+  lastSyncAt   DateTime?
+  lastSyncInfo String?
+  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime  @default(now())
+}
+
+/// A customer or supplier. Free-typed names produced duplicates and made
+/// outstanding impossible to total, so parties are a master record.
+model Party {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code          String
+  name          String
+  type          String   @default("Customer") // Customer | Supplier | Both
+  /// UAE Tax Registration Number — required on a tax invoice.
+  trn           String?
+  contactPerson String?
+  email         String?
+  phone         String?
+  address       String?
+  /// Payment terms in days, used to flag an invoice as overdue.
+  creditDays    Int      @default(0)
+  isActive      Boolean  @default(true)
+  entries       JournalEntry[]
+  createdAt     DateTime @default(now())
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}

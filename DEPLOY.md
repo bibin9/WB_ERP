@@ -212,6 +212,51 @@ the datasource automatically. Remember to set it back to
   (Step 4).
 - **Node version errors** → `.nvmrc` pins Node 20; make sure Railway isn't overriding it.
 
+## Schema changes
+
+The database is brought up to date at boot by `scripts/db-release.mjs`, which
+decides what to do from what it finds:
+
+| Situation | What happens |
+|---|---|
+| Local SQLite | `prisma db push`. Migration SQL is PostgreSQL-specific and the local database is disposable. |
+| PostgreSQL, no migration history | The first release onto an existing database: push once so the schema is current, then record the migrations as already applied. This is baselining, and it happens by itself. |
+| PostgreSQL, history present | `prisma migrate deploy` — apply exactly the migrations that were written and reviewed, and nothing else. |
+
+### Why this replaced `db push` on boot
+
+`prisma db push` used to run on every start. It decides for itself what to do to
+a live database, and it refuses outright when it dislikes a change. Because it sat
+in an `&&` chain ahead of `next start`, a refusal meant the server never started —
+twice in one day, with a 502 for as long as it took to notice.
+
+The refusal that caused it was a false alarm: Prisma warns about **any** new unique
+constraint in case the column already holds duplicates, and the only way past it is
+`--accept-data-loss`, which waves through genuinely destructive changes too. That
+flag does not belong in the start script of a system holding a client's books.
+
+### Writing a migration
+
+After changing `prisma/schema.prisma`:
+
+```bash
+npm run db:migration -- add-cost-centres
+```
+
+That writes `prisma/migrations/<timestamp>_add-cost-centres/migration.sql`, holding
+exactly the difference since the last migration. **Read it before committing.** It
+warns when a migration drops something, makes a column required, or adds a unique
+constraint — the shapes that can fail or lose data on a live table.
+
+Commit the SQL together with the schema change. The two belong in the same commit:
+the schema says what the code expects, the migration says how the database gets there.
+
+### Auto-deploy
+
+Now that a schema change is reviewed before it ships and applied by
+`migrate deploy`, auto-deploy is safe to turn back on (Settings → Source). A bad
+migration fails on its own rather than stopping the server from starting.
+
 ## Backups
 
 Railway's volume snapshots are **not enabled by default** and must be turned on for
