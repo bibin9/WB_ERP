@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, X, Trash2 } from "lucide-react";
 import { createJournalEntry } from "@/app/(app)/finance/actions";
+import AccountPicker from "@/components/finance/AccountPicker";
 
 type Account = { id: string; code: string; name: string };
 type PartyOption = { id: string; code: string; name: string };
@@ -82,7 +83,7 @@ export default function JournalForm({ companyId, accounts, parties = [] }: { com
             <div>
               <label className="mb-1 block text-sm font-medium text-ink">Voucher type</label>
               <select value={voucherType} onChange={(e) => setVoucherType(e.target.value)} className="input">
-                <option>Journal</option><option>Payment</option><option>Receipt</option><option>Contra</option><option>Sales</option><option>Purchase</option>
+                <option>Journal</option><option>Payment</option><option>Receipt</option><option>Contra</option><option>Sales</option><option>Purchase</option><option>Credit Note</option><option>Debit Note</option>
               </select>
             </div>
             <div>
@@ -114,10 +115,11 @@ export default function JournalForm({ companyId, accounts, parties = [] }: { com
             </div>
             {lines.map((l, i) => (
               <div key={i} className="grid grid-cols-[1fr,120px,120px,36px] items-center gap-2 border-t border-line px-3 py-2">
-                <select value={l.accountId} onChange={(e) => update(i, { accountId: e.target.value })} className="input h-9 py-1.5 text-sm">
-                  <option value="">Select account…</option>
-                  {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} · {a.name}</option>)}
-                </select>
+                <AccountPicker
+                  accounts={accounts}
+                  value={l.accountId}
+                  onChange={(id) => update(i, { accountId: id })}
+                />
                 <input type="number" value={l.debit} onChange={(e) => update(i, { debit: e.target.value, credit: "" })} className="input h-9 py-1.5 text-right text-sm" placeholder="0.00" />
                 <input type="number" value={l.credit} onChange={(e) => update(i, { credit: e.target.value, debit: "" })} className="input h-9 py-1.5 text-right text-sm" placeholder="0.00" />
                 <button onClick={() => setLines((ls) => ls.length > 2 ? ls.filter((_, idx) => idx !== i) : ls)} className="grid h-8 w-8 place-items-center rounded text-muted hover:text-red-600">

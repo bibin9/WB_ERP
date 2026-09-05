@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import PeriodPicker from "@/components/PeriodPicker";
 import { resolvePeriod, quarters } from "@/lib/period";
+import PrintReport from "@/components/finance/PrintReport";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +14,15 @@ const VAT_RATE = 0.05; // UAE standard rate
 const n = (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDate = (d: Date) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
-// Output VAT = VAT charged on sales/receipts; Input VAT = VAT paid on purchases/payments.
-const OUTPUT_TYPES = new Set(["Sales", "Receipt"]);
-const INPUT_TYPES = new Set(["Purchase", "Payment"]);
+// Output VAT = tax charged on sales; Input VAT = tax paid on purchases.
+// A credit note reduces what was charged, a debit note what was reclaimed, so
+// both belong on their side of the return with the sign reversed.
+const OUTPUT_TYPES = new Set(["Sales", "Receipt", "Credit Note"]);
+const INPUT_TYPES = new Set(["Purchase", "Payment", "Debit Note"]);
+const CREDIT_TYPES = new Set(["Credit Note", "Debit Note"]);
+/** A note carries the tax with the opposite sign to the invoice it adjusts. */
+const vatOf = (e: { voucherType: string; vatAmount: number }) =>
+  CREDIT_TYPES.has(e.voucherType) ? -Math.abs(e.vatAmount) : e.vatAmount;
 
 export default async function VatPage({ searchParams }: { searchParams: Promise<{ c?: string; from?: string; to?: string }> }) {
   await requireAccess("finance.vat");
@@ -23,6 +30,7 @@ export default async function VatPage({ searchParams }: { searchParams: Promise<
   const sp = await searchParams;
   const accessible = session?.companies ?? [];
   const companyId = accessible.find((c) => c.id === sp.c)?.id ?? accessible[0]?.id ?? "";
+  const companyName = accessible.find((c) => c.id === companyId)?.name ?? "";
 
   const company = companyId ? await db.company.findUnique({ where: { id: companyId } }) : null;
   const period = resolvePeriod(sp, company?.fyStartMonth ?? 1);
@@ -39,14 +47,21 @@ export default async function VatPage({ searchParams }: { searchParams: Promise<
   const input = entries.filter((e) => INPUT_TYPES.has(e.voucherType));
   const other = entries.filter((e) => !OUTPUT_TYPES.has(e.voucherType) && !INPUT_TYPES.has(e.voucherType));
 
-  const sum = (rows: typeof entries) => rows.reduce((s, e) => s + e.vatAmount, 0);
+  const sum = (rows: typeof entries) => rows.reduce((s, e) => s + vatOf(e), 0);
   const outputVat = sum(output);
   const inputVat = sum(input);
   const netVat = outputVat - inputVat;
 
   return (
     <div>
-      <PageHeader title="Finance — VAT Report" subtitle="UAE FTA VAT summary (standard rate 5%), current year — from posted vouchers." />
+      <div className="print-header mb-4 border-b border-line pb-3">
+        <div className="text-lg font-bold text-heading">{companyName}</div>
+        <div className="text-sm text-ink">VAT Return Summary</div>
+        <div className="text-xs text-muted">{period.label}</div>
+      </div>
+      <PageHeader title="Finance — VAT Report" subtitle="UAE FTA VAT summary at the standard 5% rate, for the selected period. Credit and debit notes reduce the tax already declared." >
+        <PrintReport />
+      </PageHeader>
       <FinanceTabs companyId={companyId} />
       <div className="mb-5"><CompanyPicker companies={accessible.map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={companyId} /></div>
       <div className="mb-5">
@@ -90,7 +105,7 @@ export default async function VatPage({ searchParams }: { searchParams: Promise<
             </thead>
             <tbody className="divide-y divide-line">
               {entries.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-10 text-center text-muted">No VAT recorded this year. Add the VAT amount when posting Sales / Purchase vouchers.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-10 text-center text-muted">No VAT in this period. Enter the VAT amount when posting a Sales, Purchase, Credit Note or Debit Note voucher.</td></tr>
               )}
               {entries.map((e) => {
                 const cat = OUTPUT_TYPES.has(e.voucherType) ? "Output" : INPUT_TYPES.has(e.voucherType) ? "Input" : "Unclassified";
@@ -100,8 +115,8 @@ export default async function VatPage({ searchParams }: { searchParams: Promise<
                     <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-heading">{e.reference}</td>
                     <td className="px-4 py-3 text-ink">{e.voucherType}</td>
                     <td className="px-4 py-3 text-ink">{e.partyName ?? "—"}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-muted">{n(e.vatAmount / VAT_RATE)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-ink">{n(e.vatAmount)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-muted">{n(vatOf(e) / VAT_RATE)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-ink">{n(vatOf(e))}</td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                         cat === "Output" ? "bg-brand-blue/10 text-brand-blue-600"

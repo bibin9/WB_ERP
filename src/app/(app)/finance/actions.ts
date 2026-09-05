@@ -12,6 +12,10 @@ type LineInput = { accountId: string; debit: number; credit: number };
 /** Reference prefixes, matching the voucher types offered on the form. */
 const VOUCHER_PREFIX: Record<string, string> = {
   Journal: "JV", Payment: "PV", Receipt: "RV", Contra: "CV", Sales: "SI", Purchase: "PI",
+  // A credit note goes to a customer (sales return, rate variation, retention
+  // release); a debit note goes to a supplier. Both are everyday documents on a
+  // contract and reduce the VAT already declared.
+  "Credit Note": "CN", "Debit Note": "DN",
 };
 
 export async function createJournalEntry(formData: FormData) {

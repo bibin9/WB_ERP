@@ -9,6 +9,7 @@ import { getSession } from "@/lib/auth";
 import PeriodPicker from "@/components/PeriodPicker";
 import { resolvePeriod } from "@/lib/period";
 import { openingInBalance } from "@/lib/ledger";
+import PrintReport from "@/components/finance/PrintReport";
 
 export const dynamic = "force-dynamic";
 const n = (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -20,6 +21,7 @@ export default async function LedgersPage({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   const accessible = session?.companies ?? [];
   const companyId = accessible.find((c) => c.id === sp.c)?.id ?? accessible[0]?.id ?? "";
+  const companyName = accessible.find((c) => c.id === companyId)?.name ?? "";
 
   const company = companyId ? await db.company.findUnique({ where: { id: companyId } }) : null;
   const period = resolvePeriod(sp, company?.fyStartMonth ?? 1);
@@ -52,7 +54,14 @@ export default async function LedgersPage({ searchParams }: { searchParams: Prom
 
   return (
     <div>
-      <PageHeader title="Finance — Ledgers" subtitle="Statement of account for the period, with balance brought forward and carried down — Tally's Ledger view." />
+      <div className="print-header mb-4 border-b border-line pb-3">
+        <div className="text-lg font-bold text-heading">{companyName}</div>
+        <div className="text-sm text-ink">Ledger</div>
+        <div className="text-xs text-muted">{period.label}</div>
+      </div>
+      <PageHeader title="Finance — Ledgers" subtitle="Statement of account for the period, with balance brought forward and carried down — Tally's Ledger view." >
+        <PrintReport />
+      </PageHeader>
       <FinanceTabs companyId={companyId} />
       <div className="mb-5"><CompanyPicker companies={accessible.map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={companyId} /></div>
       <div className="mb-5">
@@ -107,7 +116,15 @@ export default async function LedgersPage({ searchParams }: { searchParams: Prom
                 {rows.map(({ l, running }) => (
                   <tr key={l.id}>
                     <td className="whitespace-nowrap px-4 py-2 text-muted">{fmt(l.entry.date)}</td>
-                    <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-heading">{l.entry.reference}</td>
+                    <td className="whitespace-nowrap px-4 py-2 font-mono text-xs">
+                      <Link
+                        href={`/finance/daybook?c=${companyId}&from=${l.entry.date.toISOString().slice(0, 10)}&to=${l.entry.date.toISOString().slice(0, 10)}&v=${encodeURIComponent(l.entry.reference)}`}
+                        className="text-heading hover:text-brand-blue-600 hover:underline print:no-underline"
+                        title="Show this voucher in the Day Book"
+                      >
+                        {l.entry.reference}
+                      </Link>
+                    </td>
                     <td className="px-4 py-2 text-ink">{l.entry.memo ?? l.entry.voucherType}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{l.debit > 0 ? n(l.debit) : ""}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{l.credit > 0 ? n(l.credit) : ""}</td>

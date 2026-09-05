@@ -117,3 +117,69 @@ body * {
     @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20;
   }
 }
+
+/* Printed reports: what goes in the auditor's file.
+   The chrome comes off, the page is forced light whatever the screen theme,
+   and tables are told not to break a row across two pages. */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+
+  :root {
+    --surface: 255 255 255;
+    --paper: 255 255 255;
+    --heading: 2 62 113;
+    --ink: 30 42 51;
+    --muted: 91 107 119;
+    --line: 210 219 228;
+    color-scheme: light;
+  }
+
+  /* Navigation, buttons and pickers are not part of a printed report. */
+  aside,
+  header,
+  nav,
+  button,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  main {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  .card {
+    border-color: #d2dbe4 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+
+  table {
+    width: 100% !important;
+  }
+
+  thead {
+    display: table-header-group; /* repeat headings on every page */
+  }
+
+  tr {
+    break-inside: avoid;
+  }
+
+  /* Give the reader the context a screenshot would have had. */
+  .print-header {
+    display: block !important;
+  }
+}
+
+/* Only shown on paper. */
+.print-header {
+  display: none;
+}

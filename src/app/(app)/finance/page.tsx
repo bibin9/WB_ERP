@@ -1,3 +1,4 @@
+import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import CompanyPicker from "@/components/CompanyPicker";
 import FinanceTabs from "@/components/FinanceTabs";
@@ -12,6 +13,7 @@ import ExportButton from "@/components/ExportButton";
 import PeriodPicker from "@/components/PeriodPicker";
 import { resolvePeriod } from "@/lib/period";
 import { balanceAsAt } from "@/lib/ledger";
+import PrintReport from "@/components/finance/PrintReport";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +28,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
 
   const companyId = accessible.find((c) => c.id === sp.c)?.id ?? accessible[0]?.id ?? "";
   const company = accessible.find((c) => c.id === companyId);
+  const companyName = accessible.find((c) => c.id === companyId)?.name ?? "";
 
   const companyRow = companyId ? await db.company.findUnique({ where: { id: companyId } }) : null;
   const period = resolvePeriod(sp, companyRow?.fyStartMonth ?? 1);
@@ -60,7 +63,13 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
 
   return (
     <div>
+      <div className="print-header mb-4 border-b border-line pb-3">
+        <div className="text-lg font-bold text-heading">{companyName}</div>
+        <div className="text-sm text-ink">Trial Balance</div>
+        <div className="text-xs text-muted">{period.label}</div>
+      </div>
       <PageHeader title="Finance & Accounting" subtitle="Each company keeps its own books. Chart of accounts, journal entries and trial balance.">
+        <PrintReport />
         <div className="flex flex-wrap items-center gap-2">
           {companyId && <ExportButton dataset="journals" companyId={companyId} label="Export journals" />}
           {companyId && <JournalForm companyId={companyId} accounts={accounts.map((a) => ({ id: a.id, code: a.code, name: a.name }))} parties={parties.map((p) => ({ id: p.id, code: p.code, name: p.name }))} />}
@@ -102,7 +111,15 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
                     .map((a) => (
                       <tr key={a.id}>
                         <td className="px-4 py-2 font-mono text-xs text-heading">{a.code}</td>
-                        <td className="px-4 py-2 text-ink">{a.name}</td>
+                        <td className="px-4 py-2 text-ink">
+                          <Link
+                            href={`/finance/ledgers?c=${companyId}&a=${a.id}&from=${period.fromStr}&to=${period.toStr}`}
+                            className="hover:text-brand-blue-600 hover:underline print:no-underline"
+                            title="Open this ledger"
+                          >
+                            {a.name}
+                          </Link>
+                        </td>
                         <td className="px-4 py-2 text-xs text-muted">{a.type}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{a.net > 0 ? n(a.net) : ""}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{a.net < 0 ? n(-a.net) : ""}</td>
