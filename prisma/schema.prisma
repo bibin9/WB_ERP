@@ -214,9 +214,15 @@ model JournalEntry {
   source      String        @default("manual") // manual | tally
   /// A reversal points back at the voucher it cancels, so both sides of the
   /// correction stay visible in the audit trail.
-  reversalOfId String?       @unique
+  ///
+  /// Modelled one-to-many rather than one-to-one on purpose: a one-to-one would
+  /// need a unique constraint, and adding one to a live table makes `db push`
+  /// refuse without --accept-data-loss, which is not a flag to leave pointed at
+  /// a client's database. "Reverse only once" is enforced in the action, and the
+  /// constraint can be restored properly once this moves to migrations.
+  reversalOfId String?
   reversalOf   JournalEntry?  @relation("Reversal", fields: [reversalOfId], references: [id])
-  reversedBy   JournalEntry?  @relation("Reversal")
+  reversedBy   JournalEntry[] @relation("Reversal")
   postedBy    String
   lines       JournalLine[]
   createdAt   DateTime      @default(now())

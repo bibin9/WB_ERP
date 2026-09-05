@@ -30,7 +30,7 @@ export default async function DayBookPage({ searchParams }: { searchParams: Prom
   const entries = companyId
     ? await db.journalEntry.findMany({
         where: { companyId, date: { gte: period.from, lte: period.to } },
-        include: { lines: { include: { account: true } }, reversedBy: { select: { reference: true } } },
+        include: { lines: { include: { account: true } }, reversedBy: { select: { reference: true }, take: 1 } },
         orderBy: [{ date: "desc" }, { createdAt: "desc" }],
         take: 500,
       })
@@ -81,7 +81,7 @@ export default async function DayBookPage({ searchParams }: { searchParams: Prom
                       <ReverseVoucher
                         entryId={e.id}
                         reference={e.reference}
-                        reversedBy={e.reversedBy?.reference ?? null}
+                        reversedBy={e.reversedBy[0]?.reference ?? null}
                         minDate={e.date.toISOString().slice(0, 10)}
                       />
                     </td>

@@ -187,7 +187,11 @@ export async function reverseJournalEntry(
   if (!original || !session.companies.some((c) => c.id === original.companyId)) {
     return { ok: false, error: "Not found" };
   }
-  if (original.reversedBy) return { ok: false, error: `Already reversed by ${original.reversedBy.reference}` };
+  // One reversal per voucher. Enforced here rather than by a unique constraint
+  // — see the note on the schema field.
+  if (original.reversedBy.length > 0) {
+    return { ok: false, error: `Already reversed by ${original.reversedBy[0].reference}` };
+  }
   if (original.reversalOfId) return { ok: false, error: "This voucher is itself a reversal" };
 
   if (onDate && !/^\d{4}-\d{2}-\d{2}$/.test(onDate)) return { ok: false, error: "Enter a valid date" };

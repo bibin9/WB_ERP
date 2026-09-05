@@ -7,6 +7,7 @@
  * real database rather than being asserted from the source.
  */
 import { PrismaClient } from "@prisma/client";
+import fs from "node:fs";
 import { financialYear } from "../src/lib/period.ts";
 
 const db = new PrismaClient();
@@ -111,26 +112,25 @@ ok("each account is left exactly where it started",
 ok("the reversal points back at the original", reversal.reversalOfId === original.id);
 
 const linked = await db.journalEntry.findUnique({ where: { id: original.id }, include: { reversedBy: true } });
-ok("the original knows it has been reversed", linked.reversedBy?.reference === reversal.reference);
+ok("the original knows it has been reversed", linked.reversedBy[0]?.reference === reversal.reference,
+  linked.reversedBy.map((r) => r.reference).join(",") || "none");
 
-let secondBlocked = false;
-try {
-  await db.journalEntry.create({
-    data: {
-      companyId: company.id, reference: `${TAG}/3`, date: D("2026-09-05"), voucherType: "Sales",
-      memo: `${TAG} second reversal`, postedBy: "test", reversalOfId: original.id,
-      lines: { create: [{ accountId: cash.id, debit: 0, credit: 1000 }, { accountId: sales.id, debit: 1000, credit: 0 }] },
-    },
-  });
-} catch {
-  secondBlocked = true;
-}
-ok("a voucher cannot be reversed twice", secondBlocked, "unique constraint on reversalOfId");
+// "Reverse only once" is enforced in the action rather than by a unique
+// constraint — adding one to a live table makes `db push` refuse, and that flag
+// does not belong pointed at a client's database. So assert the rule the action
+// applies: a voucher that already has a reversal must be refused.
+const already = await db.journalEntry.findUnique({ where: { id: original.id }, include: { reversedBy: true } });
+ok("a voucher that is already reversed is detectable", already.reversedBy.length === 1,
+  `${already.reversedBy.length} reversal(s)`);
+ok("the action refuses a second reversal",
+  fs.readFileSync("src/app/(app)/finance/actions.ts", "utf8").includes("original.reversedBy.length > 0"));
+
+const isReversal = await db.journalEntry.findUnique({ where: { id: reversal.id } });
+ok("a reversal is itself marked, so it cannot be reversed again", isReversal.reversalOfId !== null);
 
 ok("the original is never edited or deleted", (await db.journalEntry.findUnique({ where: { id: original.id } })) !== null);
 
 /* ------------------------------------------------------------ wiring ----- */
-import fs from "node:fs";
 const actions = fs.readFileSync("src/app/(app)/finance/actions.ts", "utf8");
 ok("posting reads the date from the form", actions.includes('formData.get("date")'));
 ok("posting refuses a locked period", actions.includes("booksLockedTo") && actions.includes("The books are closed up to"));
