@@ -14,6 +14,8 @@ export default function JournalForm({ companyId, accounts }: { companyId: string
   const [lines, setLines] = useState<Line[]>([empty(), empty()]);
   const [memo, setMemo] = useState("");
   const [voucherType, setVoucherType] = useState("Journal");
+  // Accountants post yesterday's invoice today, so the date must be theirs to set.
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [party, setParty] = useState("");
   const [vat, setVat] = useState("");
   const [error, setError] = useState("");
@@ -33,6 +35,7 @@ export default function JournalForm({ companyId, accounts }: { companyId: string
     setParty("");
     setVat("");
     setVoucherType("Journal");
+    setDate(new Date().toISOString().slice(0, 10));
     setError("");
   }
 
@@ -43,6 +46,7 @@ export default function JournalForm({ companyId, accounts }: { companyId: string
     fd.set("companyId", companyId);
     fd.set("memo", memo);
     fd.set("voucherType", voucherType);
+    fd.set("date", date);
     fd.set("partyName", party);
     fd.set("vatAmount", vat);
     fd.set("lines", JSON.stringify(lines.map((l) => ({ accountId: l.accountId, debit: Number(l.debit) || 0, credit: Number(l.credit) || 0 }))));
@@ -83,6 +87,10 @@ export default function JournalForm({ companyId, accounts }: { companyId: string
             <div>
               <label className="mb-1 block text-sm font-medium text-ink">Party (optional)</label>
               <input value={party} onChange={(e) => setParty(e.target.value)} className="input" placeholder="Customer / supplier" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-ink">Date</label>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input" required />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-ink">VAT amount (optional)</label>

@@ -41,12 +41,14 @@ export async function toggleCompanyActive(id: string, next: boolean) {
 }
 
 /** Financial-year start and the date opening balances are stated as at. */
-function financialYearFrom(formData: FormData): { fyStartMonth: number; openingAsOf: Date | null } {
+function financialYearFrom(formData: FormData): { fyStartMonth: number; openingAsOf: Date | null; booksLockedTo: Date | null } {
   const month = Number(formData.get("fyStartMonth"));
   const asOf = String(formData.get("openingAsOf") || "").trim();
+  const locked = String(formData.get("booksLockedTo") || "").trim();
   return {
     fyStartMonth: month >= 1 && month <= 12 ? month : 1,
     openingAsOf: /^\d{4}-\d{2}-\d{2}$/.test(asOf) ? new Date(asOf + "T00:00:00.000Z") : null,
+    booksLockedTo: /^\d{4}-\d{2}-\d{2}$/.test(locked) ? new Date(locked + "T23:59:59.999Z") : null,
   };
 }
 

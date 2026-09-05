@@ -43,6 +43,9 @@ model Company {
   wpsEmployerId  String? // MOL establishment / employer unique ID
   /// Month the financial year starts (1 = January).
   fyStartMonth   Int     @default(1)
+  /// Nothing may be posted on or before this date. Set after a VAT return is
+  /// filed or a period is closed, so the figures behind it cannot move.
+  booksLockedTo  DateTime?
   /// Date the opening balances are stated as at — normally the FY start.
   openingAsOf    DateTime?
   wpsBankRouting String? // employer bank routing code (agent ID)
@@ -203,6 +206,11 @@ model JournalEntry {
   partyName   String? // party ledger (customer/supplier) for the voucher
   vatAmount   Float         @default(0) // UAE VAT (5%) portion, if any
   source      String        @default("manual") // manual | tally
+  /// A reversal points back at the voucher it cancels, so both sides of the
+  /// correction stay visible in the audit trail.
+  reversalOfId String?       @unique
+  reversalOf   JournalEntry?  @relation("Reversal", fields: [reversalOfId], references: [id])
+  reversedBy   JournalEntry?  @relation("Reversal")
   postedBy    String
   lines       JournalLine[]
   createdAt   DateTime      @default(now())

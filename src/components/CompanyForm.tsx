@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Plus, X, Pencil } from "lucide-react";
 import { createCompany, updateCompany } from "@/app/(app)/companies/actions";
 
-export type EditingCompany = { id: string; name: string; baseCurrency: string; fyStartMonth: number; openingAsOf: string | null };
+export type EditingCompany = { id: string; name: string; baseCurrency: string; fyStartMonth: number; openingAsOf: string | null; booksLockedTo: string | null };
 
 export default function CompanyForm({ company }: { company?: EditingCompany }) {
   const [open, setOpen] = useState(false);
@@ -63,6 +63,14 @@ export default function CompanyForm({ company }: { company?: EditingCompany }) {
               <input name="openingAsOf" type="date" className="input" defaultValue={company?.openingAsOf ?? ""} />
               <p className="mt-1 text-xs text-muted">The date you moved onto this system. Leave blank if the balances are brought forward from before.</p>
             </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-ink">Books closed up to</label>
+            <input name="booksLockedTo" type="date" className="input" defaultValue={company?.booksLockedTo ?? ""} />
+            <p className="mt-1 text-xs text-muted">
+              Nothing can be posted on or before this date. Set it once a VAT return is filed or a month is
+              closed, so the figures behind it cannot change. Leave blank while the books are open.
+            </p>
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={() => setOpen(false)} className="btn-ghost">Cancel</button>

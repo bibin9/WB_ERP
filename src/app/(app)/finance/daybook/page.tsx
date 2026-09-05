@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import PeriodPicker from "@/components/PeriodPicker";
 import { resolvePeriod } from "@/lib/period";
+import ReverseVoucher from "@/components/finance/ReverseVoucher";
 
 export const dynamic = "force-dynamic";
 const n = (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -29,7 +30,7 @@ export default async function DayBookPage({ searchParams }: { searchParams: Prom
   const entries = companyId
     ? await db.journalEntry.findMany({
         where: { companyId, date: { gte: period.from, lte: period.to } },
-        include: { lines: { include: { account: true } } },
+        include: { lines: { include: { account: true } }, reversedBy: { select: { reference: true } } },
         orderBy: [{ date: "desc" }, { createdAt: "desc" }],
         take: 500,
       })
@@ -55,10 +56,11 @@ export default async function DayBookPage({ searchParams }: { searchParams: Prom
                 <th className="px-4 py-2 font-semibold">Particulars</th>
                 <th className="px-4 py-2 font-semibold">Party</th>
                 <th className="px-4 py-2 text-right font-semibold">Amount</th>
+                  <th className="px-4 py-2 font-semibold" />
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {entries.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-muted">No vouchers yet.</td></tr>}
+              {entries.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-muted">No vouchers in this period.</td></tr>}
               {entries.map((e) => {
                 const amount = e.lines.reduce((s, l) => s + l.debit, 0);
                 const dr = e.lines.filter((l) => l.debit > 0).map((l) => l.account.name);
@@ -75,6 +77,14 @@ export default async function DayBookPage({ searchParams }: { searchParams: Prom
                     </td>
                     <td className="px-4 py-2.5 text-muted">{e.partyName ?? "—"}</td>
                     <td className="px-4 py-2.5 text-right font-medium tabular-nums text-ink">{n(amount)}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      <ReverseVoucher
+                        entryId={e.id}
+                        reference={e.reference}
+                        reversedBy={e.reversedBy?.reference ?? null}
+                        minDate={e.date.toISOString().slice(0, 10)}
+                      />
+                    </td>
                   </tr>
                 );
               })}
