@@ -4,8 +4,8 @@ Project and end-user documentation for the White & Bright Group ERP.
 
 | Document | Audience | Purpose |
 |---|---|---|
-| **White_and_Bright_ERP_User_Manual.docx** | End users | Step-by-step guide to every screen, with 25 embedded screenshots. Version 1.3. |
-| **White_and_Bright_ERP_Test_Cases.xlsx** | QA / testing team | 141 test cases across all modules, with a Status tracker and auto-counting Summary. |
+| **White_and_Bright_ERP_User_Manual.docx** | End users | Step-by-step guide to every screen, with 25 embedded screenshots. Version 1.4. |
+| **White_and_Bright_ERP_Test_Cases.xlsx** | QA / testing team | 186 test cases across all modules, with a Status tracker and auto-counting Summary. |
 | **White_and_Bright_ERP_BRD_v1.2_APPROVED.docx** | Client / stakeholders | Business Requirements Document (approved baseline). |
 | **White_and_Bright_ERP_FSD_v1.1.docx** | Developers / stakeholders | Functional Specification (aligned to BRD v1.2). |
 | **White_and_Bright_ERP_Technical_Proposal.docx** | Client | One-page technical proposal. |
@@ -33,10 +33,15 @@ functionality added after the first documentation pack:
 - **Day and night mode** — a sun/moon switch in the top bar, remembered per device and
   defaulting to the device's own setting. Manual section 2.5; test cases TC-GEN-011 to
   TC-GEN-016.
+- **Accounts module, rebuilt against an accountant's review** — voucher dating and a
+  period lock, correction by reversal rather than editing history, customer and
+  supplier masters with TRN, outstanding with ageing, credit and debit notes,
+  drill-down from any report line to the ledger and the voucher, printable reports,
+  and a UAE VAT 201 return with per-line treatment and reverse charge.
+  Manual chapter 4 (rewritten); test cases TC-FIN-001 to TC-FIN-070.
 - **Opening balances & reporting periods** — carry balances in from the old system, and
   run every finance report for any date range. Profit & Loss covers the period; the
-  Balance Sheet is a snapshot at its end date. Manual sections 4.2 and 4.3;
-  test cases TC-FIN-013 to TC-FIN-025.
+  Balance Sheet is a snapshot at its end date. Manual sections 4.2 and 4.3.
 - **Data export** — an Export button on every list screen, plus an administrator-only
   "Export all data" producing a ZIP of spreadsheets. Scoped to the user's companies and
   permissions, and audit-logged. Test cases TC-GEN-003 to TC-GEN-010.
