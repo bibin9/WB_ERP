@@ -49,15 +49,18 @@ ok("the engine is pinned for deploy", read(path.join(MIG, "migration_lock.toml")
 ok("a schema snapshot drives the next diff", fs.existsSync(path.join(MIG, ".snapshot.prisma")));
 
 const initSql = read(path.join(MIG, dirs[0], "migration.sql"));
+// Every model must be created by some migration — not necessarily the first,
+// once later ones add tables of their own.
+const allSql = dirs.map((d) => read(path.join(MIG, d, "migration.sql"))).join("\n");
 const models = (read("prisma/schema.prisma").match(/^model /gm) || []).length;
-const tables = (initSql.match(/CREATE TABLE/g) || []).length;
-ok("the first migration creates every model", tables === models, `${tables} tables for ${models} models`);
+const tables = (allSql.match(/CREATE TABLE/g) || []).length;
+ok("the migrations create every model", tables === models, `${tables} tables for ${models} models across ${dirs.length} migration(s)`);
 ok("it is PostgreSQL, not SQLite", !/AUTOINCREMENT|PRAGMA/i.test(initSql) && initSql.includes("TIMESTAMP(3)"));
 ok("foreign keys are included", /ADD CONSTRAINT[^;]*FOREIGN KEY/.test(initSql));
 
 // The columns added since the pilot went live must be in it.
-const recent = ["vatTreatment", "booksLockedTo", "openingBalance", "controlType", "reversalOfId", "partyId"];
-const missing = recent.filter((c) => !initSql.includes(`"${c}"`));
+const recent = ["vatTreatment", "booksLockedTo", "openingBalance", "controlType", "reversalOfId", "partyId", "jobId"];
+const missing = recent.filter((c) => !allSql.includes(`"${c}"`));
 ok("recent schema work is captured", missing.length === 0, missing.join(", ") || recent.join(", "));
 
 /* ------------------------------------------- the destructive warning ----- */

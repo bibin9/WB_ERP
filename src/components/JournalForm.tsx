@@ -8,11 +8,23 @@ import { VAT_TREATMENTS, TREATMENT_HELP, type VatTreatment } from "@/lib/vat";
 
 type Account = { id: string; code: string; name: string };
 type PartyOption = { id: string; code: string; name: string };
-type Line = { accountId: string; debit: string; credit: string; vatTreatment: string };
+type Line = { accountId: string; debit: string; credit: string; vatTreatment: string; jobId: string };
 
-const empty = (): Line => ({ accountId: "", debit: "", credit: "", vatTreatment: "" });
+const empty = (): Line => ({ accountId: "", debit: "", credit: "", vatTreatment: "", jobId: "" });
 
-export default function JournalForm({ companyId, accounts, parties = [] }: { companyId: string; accounts: Account[]; parties?: PartyOption[] }) {
+type JobOption = { id: string; code: string; name: string };
+
+export default function JournalForm({
+  companyId,
+  accounts,
+  parties = [],
+  jobs = [],
+}: {
+  companyId: string;
+  accounts: Account[];
+  parties?: PartyOption[];
+  jobs?: JobOption[];
+}) {
   const [open, setOpen] = useState(false);
   const [lines, setLines] = useState<Line[]>([empty(), empty()]);
   const [memo, setMemo] = useState("");
@@ -60,6 +72,7 @@ export default function JournalForm({ companyId, accounts, parties = [] }: { com
           debit: Number(l.debit) || 0,
           credit: Number(l.credit) || 0,
           vatTreatment: l.vatTreatment || null,
+          jobId: l.jobId || null,
         }))
       )
     );
@@ -121,11 +134,11 @@ export default function JournalForm({ companyId, accounts, parties = [] }: { com
           </div>
 
           <div className="overflow-hidden rounded-lg border border-line">
-            <div className="grid grid-cols-[1fr,130px,110px,110px,36px] gap-2 bg-brand-paper px-3 py-2 text-xs font-semibold uppercase text-muted">
-              <span>Account</span><span>VAT</span><span className="text-right">Debit</span><span className="text-right">Credit</span><span />
+            <div className="grid grid-cols-[1fr,120px,120px,105px,105px,36px] gap-2 bg-brand-paper px-3 py-2 text-xs font-semibold uppercase text-muted">
+              <span>Account</span><span>VAT</span><span>Job</span><span className="text-right">Debit</span><span className="text-right">Credit</span><span />
             </div>
             {lines.map((l, i) => (
-              <div key={i} className="grid grid-cols-[1fr,130px,110px,110px,36px] items-center gap-2 border-t border-line px-3 py-2">
+              <div key={i} className="grid grid-cols-[1fr,120px,120px,105px,105px,36px] items-center gap-2 border-t border-line px-3 py-2">
                 <AccountPicker
                   accounts={accounts}
                   value={l.accountId}
@@ -140,6 +153,15 @@ export default function JournalForm({ companyId, accounts, parties = [] }: { com
                   <option value="">—</option>
                   {VAT_TREATMENTS.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
+                <select
+                  value={l.jobId}
+                  onChange={(e) => update(i, { jobId: e.target.value })}
+                  className="input h-9 py-1.5 text-xs"
+                  title="Tag this cost or revenue to a job, so job costing can answer for it. Leave blank for overheads that belong to no single job."
+                >
+                  <option value="">—</option>
+                  {jobs.map((j) => <option key={j.id} value={j.id}>{j.code} · {j.name}</option>)}
+                </select>
                 <input type="number" value={l.debit} onChange={(e) => update(i, { debit: e.target.value, credit: "" })} className="input h-9 py-1.5 text-right text-sm" placeholder="0.00" />
                 <input type="number" value={l.credit} onChange={(e) => update(i, { credit: e.target.value, debit: "" })} className="input h-9 py-1.5 text-right text-sm" placeholder="0.00" />
                 <button onClick={() => setLines((ls) => ls.length > 2 ? ls.filter((_, idx) => idx !== i) : ls)} className="grid h-8 w-8 place-items-center rounded text-muted hover:text-red-600">
@@ -147,8 +169,9 @@ export default function JournalForm({ companyId, accounts, parties = [] }: { com
                 </button>
               </div>
             ))}
-            <div className="grid grid-cols-[1fr,130px,110px,110px,36px] gap-2 border-t border-line bg-brand-paper px-3 py-2 text-sm font-semibold">
+            <div className="grid grid-cols-[1fr,120px,120px,105px,105px,36px] gap-2 border-t border-line bg-brand-paper px-3 py-2 text-sm font-semibold">
               <button onClick={() => setLines((ls) => [...ls, empty()])} className="justify-self-start text-xs font-medium text-brand-blue-600 hover:underline">+ Add line</button>
+              <span />
               <span />
               <span className="text-right text-ink">{totalDebit.toLocaleString()}</span>
               <span className="text-right text-ink">{totalCredit.toLocaleString()}</span>

@@ -49,6 +49,7 @@ model Company {
   /// Date the opening balances are stated as at — normally the FY start.
   openingAsOf    DateTime?
   parties        Party[]
+  jobs           Job[]
   wpsBankRouting String? // employer bank routing code (agent ID)
   isActive     Boolean           @default(true)
   memberships  CompanyMembership[]
@@ -248,6 +249,11 @@ model JournalLine {
   /// Null means the line is not a supply or expense at all: the receivable, the
   /// bank, the VAT control account itself.
   vatTreatment String?
+  /// The job this line belongs to. Costs and revenue are tagged on the line,
+  /// not the voucher, because one supplier invoice often covers two jobs.
+  jobId String?
+  job   Job?    @relation(fields: [jobId], references: [id])
+
 
   @@index([entryId])
   @@index([accountId])
@@ -685,7 +691,35 @@ model Party {
   creditDays    Int      @default(0)
   isActive      Boolean  @default(true)
   entries       JournalEntry[]
+  jobs          Job[]
   createdAt     DateTime @default(now())
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+/// A job, contract or project — the thing the MD asks about by name.
+/// Costs and revenue are tagged to it so 'did we make money on the ADNOC job?'
+/// has an answer. BRD FIN-06.
+model Job {
+  id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code         String   // e.g. J-2601
+  name         String
+  /// The customer this job is for, so a job report can name them.
+  partyId      String?
+  party        Party?   @relation(fields: [partyId], references: [id])
+  /// What the job was sold for, and what it was expected to cost.
+  contractValue Float   @default(0)
+  budgetCost    Float   @default(0)
+  startDate    DateTime?
+  endDate      DateTime?
+  status       String   @default("Open") // Open | On hold | Completed | Closed
+  notes        String?
+  lines        JournalLine[]
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
 
   @@unique([companyId, code])
   @@index([companyId])

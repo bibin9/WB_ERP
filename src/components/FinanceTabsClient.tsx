@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { LayoutGrid, BookOpen, ScrollText, FileBarChart, Receipt, RefreshCw, Users, Clock } from "lucide-react";
+import { LayoutGrid, BookOpen, ScrollText, FileBarChart, Receipt, RefreshCw, Users, Clock, HardHat } from "lucide-react";
 
 const TABS = [
   { href: "/finance", label: "Overview", icon: LayoutGrid, screen: "finance.overview" },
@@ -12,6 +12,7 @@ const TABS = [
   { href: "/finance/reports", label: "Reports", icon: FileBarChart, screen: "finance.reports" },
   { href: "/finance/parties", label: "Parties", icon: Users, screen: "finance.parties" },
   { href: "/finance/outstanding", label: "Outstanding", icon: Clock, screen: "finance.outstanding" },
+  { href: "/finance/jobs", label: "Job Costing", icon: HardHat, screen: "finance.jobs" },
   { href: "/finance/vat", label: "VAT", icon: Receipt, screen: "finance.vat" },
   { href: "/finance/tally", label: "Tally Sync", icon: RefreshCw, screen: "finance.tally" },
 ];

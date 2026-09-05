@@ -8,7 +8,7 @@ import { financialYear } from "@/lib/period";
 import { VAT_TREATMENTS } from "@/lib/vat";
 import { allow } from "@/lib/guard";
 
-type LineInput = { accountId: string; debit: number; credit: number; vatTreatment?: string | null };
+type LineInput = { accountId: string; debit: number; credit: number; vatTreatment?: string | null; jobId?: string | null };
 
 /** Reference prefixes, matching the voucher types offered on the form. */
 const VOUCHER_PREFIX: Record<string, string> = {
@@ -73,6 +73,7 @@ export async function createJournalEntry(formData: FormData) {
       credit: Number(l.credit) || 0,
       // Only a treatment the return knows about is stored.
       vatTreatment: VAT_TREATMENTS.includes(l.vatTreatment as never) ? l.vatTreatment : null,
+      jobId: l.jobId || null,
     }))
     .filter((l) => l.accountId && (l.debit > 0 || l.credit > 0));
 
@@ -106,7 +107,7 @@ export async function createJournalEntry(formData: FormData) {
       postedBy: session.user.name,
       lines: {
         create: lines.map((l) => ({
-          accountId: l.accountId, debit: l.debit, credit: l.credit, vatTreatment: l.vatTreatment,
+          accountId: l.accountId, debit: l.debit, credit: l.credit, vatTreatment: l.vatTreatment, jobId: l.jobId,
         })),
       },
     },
@@ -239,7 +240,14 @@ export async function reverseJournalEntry(
       postedBy: session.user.name,
       reversalOfId: original.id,
       // Debit and credit swap: that is the whole of a reversal.
-      lines: { create: original.lines.map((l) => ({ accountId: l.accountId, debit: l.credit, credit: l.debit })) },
+      // Carry the job and VAT treatment through, or the correction would
+      // vanish from job costing and the VAT return.
+      lines: {
+        create: original.lines.map((l) => ({
+          accountId: l.accountId, debit: l.credit, credit: l.debit,
+          vatTreatment: l.vatTreatment, jobId: l.jobId,
+        })),
+      },
     },
   });
 

@@ -374,6 +374,42 @@ async function main() {
       });
     }
   }
+  // Jobs, so job costing has something to cost. Two open contracts, with the
+  // sample vouchers tagged to the first one.
+  const JOBS = [
+    ["J-0001", "ADNOC pipeline fabrication", "C0001", 450000, 300000],
+    ["J-0002", "Emaar tower MEP fit-out", "C0002", 280000, 210000],
+  ];
+  for (const company of companies) {
+    for (const [code, name, partyCode, contractValue, budgetCost] of JOBS) {
+      const party = await db.party.findFirst({ where: { companyId: company.id, code: partyCode } });
+      await db.job.upsert({
+        where: { companyId_code: { companyId: company.id, code } },
+        update: { name, contractValue, budgetCost },
+        create: {
+          companyId: company.id, code, name, contractValue, budgetCost,
+          partyId: party?.id ?? null, status: "Open",
+          startDate: new Date(Date.UTC(new Date().getUTCFullYear(), 0, 15)),
+        },
+      });
+    }
+  }
+  // Tag the seeded revenue and cost lines to the first job, so the report opens
+  // with real figures rather than zeroes.
+  for (const company of companies) {
+    const job = await db.job.findFirst({ where: { companyId: company.id, code: "J-0001" } });
+    if (!job) continue;
+    const lines = await db.journalLine.findMany({
+      where: { entry: { companyId: company.id, source: "seed" }, jobId: null },
+      include: { account: { select: { type: true } } },
+    });
+    for (const l of lines) {
+      if (l.account.type === "Income" || l.account.type === "Expense") {
+        await db.journalLine.update({ where: { id: l.id }, data: { jobId: job.id } });
+      }
+    }
+  }
+
   // Point the sample vouchers at those parties, so ageing has something to age.
   for (const company of companies) {
     const ps = await db.party.findMany({ where: { companyId: company.id } });
@@ -385,7 +421,7 @@ async function main() {
     }
   }
 
-  console.log("Seeded tenant, companies, roles, admin, tasks, chart of accounts, approval routes, employees, certs, supplied worker, sample vouchers.");
+  console.log("Seeded tenant, companies, roles, admin, tasks, chart of accounts, approval routes, employees, certs, supplied worker, sample vouchers, jobs.");
   console.log("Login:  admin@wandb.ae  /  " + ADMIN_PASSWORD);
 }
 

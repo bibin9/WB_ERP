@@ -17,8 +17,12 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // suppressHydrationWarning on <html>: the script below adds the "dark" class
+  // to it before React hydrates. That is deliberate — it is what stops the page
+  // flashing the wrong theme — so server and client markup are expected to
+  // differ on this one element.
   return (
-    <html lang="en" className={dmSans.variable}>
+    <html lang="en" className={dmSans.variable} suppressHydrationWarning>
       {/* Tenant theme — re-skins the whole app from one config, no rebuild */}
       <head>
         <style>{`:root{${themeToCssVars(activeTenant)}}`}</style>

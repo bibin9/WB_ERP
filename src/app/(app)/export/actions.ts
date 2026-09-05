@@ -265,6 +265,42 @@ const accounts: Dataset = {
   },
 };
 
+const jobs: Dataset = {
+  screen: "finance.jobs",
+  label: "jobs",
+  async build(companyId) {
+    const rows = await db.job.findMany({
+      where: { companyId },
+      include: { party: { select: { name: true } }, lines: { include: { account: { select: { type: true } } } } },
+      orderBy: { code: "asc" },
+    });
+    const figures = (j: (typeof rows)[number]) => {
+      let revenue = 0, cost = 0;
+      for (const l of j.lines) {
+        const net = l.debit - l.credit;
+        if (l.account.type === "Income") revenue += -net;
+        else if (l.account.type === "Expense") cost += net;
+      }
+      return { revenue, cost, margin: revenue - cost };
+    };
+    const columns: Column<(typeof rows)[number]>[] = [
+      { header: "Code", value: (j) => j.code },
+      { header: "Job", value: (j) => j.name },
+      { header: "Customer", value: (j) => j.party?.name },
+      { header: "Status", value: (j) => j.status },
+      { header: "Start", value: (j) => j.startDate },
+      { header: "End", value: (j) => j.endDate },
+      { header: "Contract Value", value: (j) => money(j.contractValue) },
+      { header: "Budget Cost", value: (j) => money(j.budgetCost) },
+      { header: "Revenue", value: (j) => money(figures(j).revenue) },
+      { header: "Cost", value: (j) => money(figures(j).cost) },
+      { header: "Margin", value: (j) => money(figures(j).margin) },
+      { header: "Notes", value: (j) => j.notes },
+    ];
+    return { rows, columns: columns as Column<never>[] };
+  },
+};
+
 /** Every dataset the app can export, keyed by the name used in the UI.
  *  Not exported: a "use server" module may only export async functions. */
 const DATASETS: Record<string, Dataset> = {
@@ -277,6 +313,7 @@ const DATASETS: Record<string, Dataset> = {
   separations,
   journals,
   accounts,
+  jobs,
 };
 
 /* ------------------------------------------------------------- single export */

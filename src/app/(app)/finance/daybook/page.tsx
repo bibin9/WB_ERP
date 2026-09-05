@@ -23,7 +23,7 @@ const vColor: Record<string, string> = {
   "Debit Note": "bg-brand-gold/10 text-brand-gold",
 };
 
-export default async function DayBookPage({ searchParams }: { searchParams: Promise<{ c?: string; from?: string; to?: string; t?: string; v?: string }> }) {
+export default async function DayBookPage({ searchParams }: { searchParams: Promise<{ c?: string; from?: string; to?: string; t?: string; v?: string; j?: string }> }) {
   await requireAccess("finance.daybook");
   const session = await getSession();
   const sp = await searchParams;
@@ -44,6 +44,8 @@ export default async function DayBookPage({ searchParams }: { searchParams: Prom
           companyId,
           date: { gte: period.from, lte: period.to },
           ...(type ? { voucherType: type } : {}),
+          // Arrived at from job costing: show only that job's vouchers.
+          ...(sp.j ? { lines: { some: { jobId: sp.j } } } : {}),
         },
         include: { lines: { include: { account: true } }, reversedBy: { select: { reference: true }, take: 1 } },
         orderBy: [{ date: "desc" }, { createdAt: "desc" }],

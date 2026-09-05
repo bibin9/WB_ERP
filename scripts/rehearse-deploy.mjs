@@ -27,7 +27,7 @@
  * regenerate that client as it switches provider.
  */
 import { execFileSync } from "node:child_process";
-import { readFileSync, existsSync, writeFileSync, readdirSync } from "node:fs";
+import { readFileSync, existsSync, writeFileSync, readdirSync, renameSync } from "node:fs";
 
 function loadEnvFile(file) {
   if (!existsSync(file)) return {};
@@ -187,6 +187,50 @@ try {
     console.error("  FAIL — a repeat deploy did not leave the database intact.");
     failed = true;
   }
+
+  // The path every deploy takes from now on: the database is already under
+  // migration control, and a newly written migration has to be applied.
+  // Rehearse it by forgetting the most recent one, so there is something pending.
+  const written = readdirSync("prisma/migrations").filter((d) => /^\d+_/.test(d)).sort();
+  if (written.length > 1) {
+    const newest = written[written.length - 1];
+    console.log(`\n${"=".repeat(66)}\n  an established database receiving a new migration\n${"=".repeat(66)}`);
+
+    // Build the database at the *previous* migration, so the new one has real
+    // work to do. Simply forgetting the history row would leave the schema
+    // already changed, and the migration would fail on its own success.
+    wipe();
+    const live = `prisma/migrations/${newest}`;
+    const parked = `prisma/.parked-${newest}`;
+    renameSync(live, parked);
+    try {
+      console.log(`  (building the database without ${newest})\n`);
+      quiet("npx", ["prisma", "migrate", "deploy"]);
+    } finally {
+      renameSync(parked, live);
+    }
+    const before = state();
+    console.log(`  before: ${before.tables} tables, history: ${before.history}\n`);
+
+    step("node", ["scripts/db-release.mjs"]);
+
+    const applied =
+      Number(
+        sql(
+          `SELECT COUNT(*) FROM _prisma_migrations WHERE migration_name = '${newest}' AND finished_at IS NOT NULL`
+        )
+      ) > 0;
+    const end = state();
+    console.log(`\n  after: ${end.tables} tables, ${newest} applied: ${applied}`);
+    if (!applied) {
+      console.error("  FAIL — the pending migration was not applied.");
+      failed = true;
+    }
+    if (end.tables < 30) {
+      console.error(`  FAIL — only ${end.tables} tables after applying it.`);
+      failed = true;
+    }
+  }
 } catch (err) {
   console.error("\nThe rehearsal failed — this is what would have happened on the live site.\n");
   console.error(redact(err.stdout));
@@ -204,6 +248,6 @@ try {
 console.log(
   failed
     ? "\nREHEARSAL FAILED — do not deploy.\n"
-    : "\nRehearsal passed: a fresh database, a pushed database, and a repeat deploy all came up.\n"
+    : "\nRehearsal passed: fresh, pushed, redeployed, and a new migration applied.\n"
 );
 process.exit(failed ? 1 : 0);
