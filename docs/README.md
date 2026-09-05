@@ -47,8 +47,8 @@ functionality added after the first documentation pack:
   permissions, and audit-logged. Test cases TC-GEN-003 to TC-GEN-010.
 
 In-app help (the **?** button in the top bar, and the Help Center) covers the same
-ground in plain English — 39 articles, including "Salary advances and loans",
-"The WPS file for the bank", "Your dashboard fits your job", "Why a button is missing", "Day mode and night mode" "Getting your data out", "Opening balances" and "Choosing the dates a report covers".
+ground in plain English — 47 articles, including "Salary advances and loans",
+"The WPS file for the bank", "Your dashboard fits your job", "Why a button is missing", "Day mode and night mode" "Getting your data out", "Opening balances", "Correcting a mistake", "Who owes us, and what we owe", "The VAT return (VAT 201)" and "Reverse charge — buying services from abroad".
 
 ## Screenshots
 

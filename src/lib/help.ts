@@ -114,20 +114,24 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     id: "finance-journal", category: "Finance & Accounting", screens: ["/finance"],
     title: "Recording a transaction",
-    summary: "How to add a voucher (journal entry).",
+    summary: "How to add a voucher — the date, the accounts, the amounts and the VAT.",
     steps: [
       "On Finance → Overview, click 'New journal entry'.",
-      "Choose the voucher type (Payment, Receipt, Sales, Purchase, Contra or Journal).",
-      "Pick the accounts and enter the amounts — the debit and credit totals must match.",
-      "Add the party (customer/supplier) and VAT amount if relevant, then save.",
+      "Choose the voucher type — there are eight, listed in the next article.",
+      "Set the date. It starts on today, but you can change it: an invoice dated last month will land in last month on every report.",
+      "Choose the customer or supplier if there is one, and write a narration saying what the transaction was.",
+      "On each line, start typing an account name or code and pick it from the list that appears.",
+      "Set the VAT treatment on lines that are a supply or an expense; leave it blank on the others.",
+      "Enter the debits and credits. The totals must match — the Post button stays disabled until they do.",
     ],
-    tip: "The reference number is created for you with a prefix that matches the type (PAY, RCP, SAL, PUR…).",
+    tip: "You do not need the mouse. Type a few letters of an account name, use the arrow keys, press Enter, then Tab to the amount. The reference number is created for you and restarts each financial year — WBE/SI/26-27/0001 is company, type, year, sequence.",
   },
   {
     id: "voucher-types", category: "Finance & Accounting", screens: ["/finance"],
     title: "Which voucher type should I use?",
-    summary: "A quick guide to the six types.",
-    body: "Payment = money going out (you paid someone). Receipt = money coming in (someone paid you). Sales = an invoice raised to a customer. Purchase = a bill received from a supplier. Contra = moving money between your own cash and bank. Journal = adjustments and anything that doesn't fit the others.",
+    summary: "A quick guide to the eight types.",
+    body: "Payment = money going out, you paid someone. Receipt = money coming in, someone paid you. Sales = an invoice raised to a customer. Purchase = a bill received from a supplier. Credit Note = reduces an invoice you raised. Debit Note = reduces a bill from a supplier. Contra = moving money between your own cash and bank. Journal = adjustments and anything that doesn't fit the others.",
+    tip: "Credit notes come up constantly on a contract — an agreed rate variation, work returned, a retention release. Raise one rather than editing the original invoice: the invoice has already been sent and already counted towards your VAT return.",
   },
   {
     id: "opening-balances", category: "Finance & Accounting", screens: ["/finance"],
@@ -178,10 +182,118 @@ export const HELP_ARTICLES: HelpArticle[] = [
   },
   {
     id: "vat", category: "Finance & Accounting", screens: ["/finance/vat"],
-    title: "VAT report (UAE 5%)",
-    summary: "Output vs input VAT and what you owe the FTA.",
-    body: "Output VAT is the 5% you charge customers on sales. Input VAT is the 5% you pay suppliers on purchases (which you can reclaim). Net VAT payable = output minus input. The figures come from the VAT amount you enter on each Sales or Purchase voucher.",
-    tip: "To make the VAT report accurate, always fill the VAT amount when posting a Sales or Purchase voucher.",
+    title: "The VAT return (VAT 201)",
+    summary: "The figures for your FTA return, box by box, for whichever period you choose.",
+    body: "This screen is the return itself. Each box is numbered the way the FTA numbers it, so you can read the figures straight onto form VAT 201 instead of working them out.",
+    steps: [
+      "Pick the period — the quarter buttons match the FTA return periods.",
+      "Box 1 is your standard-rated sales, with the 5% on them. Box 4 is zero-rated, box 5 exempt.",
+      "Box 9 is standard-rated purchases, and the tax there is what you can reclaim.",
+      "Box 14 is the answer: what you pay the FTA, or what they owe you.",
+    ],
+    tip: "If the screen says an amount is not on the return, some voucher lines have no VAT treatment set. Fix those before you file — a supply missing from a filed return is a much bigger problem than a warning on screen.",
+  },
+  {
+    id: "vat-treatment", category: "Finance & Accounting", screens: ["/finance", "/finance/vat"],
+    title: "Choosing the VAT treatment on a line",
+    summary: "Why VAT sits on each line of a voucher rather than on the voucher as a whole.",
+    body: "One invoice often mixes them. You might bill 200,000 of work in Dubai at the standard 5%, and 60,000 exported outside the GCC at 0%, on the same invoice. A single VAT box on the voucher could not describe that, so the treatment goes on each line.",
+    steps: [
+      "Standard — the normal 5%. Most work billed inside the UAE.",
+      "Zero-rated — 0%, but still a taxable supply you must declare: exports outside the GCC, international transport.",
+      "Exempt — no VAT and none to reclaim: some financial services, bare land, local passenger transport.",
+      "Out of scope — nothing to do with UAE VAT at all.",
+      "Reverse charge — you account for the tax yourself on something bought from abroad.",
+    ],
+    tip: "Only tag the lines that are a sale or a cost. Leave it blank on the bank line, the customer line and the VAT account itself — those are not supplies, they are just the other side of the entry.",
+  },
+  {
+    id: "reverse-charge", category: "Finance & Accounting", screens: ["/finance", "/finance/vat"],
+    title: "Reverse charge — buying services from abroad",
+    summary: "When you import a service, you account for the UAE VAT yourself.",
+    body: "If you buy design or engineering services from a company outside the UAE, they do not charge you UAE VAT — so the FTA asks you to charge it to yourself and reclaim it in the same breath. It costs you nothing, but it must be declared.",
+    steps: [
+      "Post the purchase as normal and set the cost line's VAT treatment to 'Reverse charge'.",
+      "On the return it appears twice: in box 3 as a supply, and in box 10 as an expense.",
+      "The two cancel out, so your net payable does not change.",
+    ],
+    tip: "Worked example: 40,000 of imported design work. Box 3 shows 40,000 with 2,000 of tax, box 10 shows the same, and box 14 is exactly what it would have been without the import. That is correct — the point is that it is declared, not that you pay more.",
+  },
+  {
+    id: "parties", category: "Finance & Accounting", screens: ["/finance/parties", "/finance"],
+    title: "Customers and suppliers",
+    summary: "Record each one once, then pick them from a list when you post.",
+    body: "Every customer and supplier is set up once on Finance → Parties. If people type the name freehand on each invoice you end up with 'Al Habtoor Construction LLC' and 'Al Habtoor Const. LLC' as two different customers, and then nobody can tell you what they actually owe.",
+    steps: [
+      "Finance → Parties → Add party.",
+      "Give it a code — C0001 for a customer, S0001 for a supplier — and the name.",
+      "Say whether it is a customer, a supplier, or both.",
+      "Enter the TRN, their Tax Registration Number. A UAE tax invoice has to show it, and it appears on your VAT return.",
+      "Set the credit days you agreed, so the system knows when an invoice becomes overdue.",
+    ],
+    tip: "Credit days are what turns 'unpaid' into 'overdue'. With 30 days agreed, an invoice from 45 days ago is chased; one from last week is not.",
+  },
+  {
+    id: "outstanding", category: "Finance & Accounting", screens: ["/finance/outstanding"],
+    title: "Who owes us, and what we owe",
+    summary: "Every customer and supplier balance, sorted by how old it is.",
+    body: "Finance → Outstanding answers the two questions you are asked most: how much is owed to us, and how much do we owe. Each balance is split by age — not yet due, 1–30 days, 31–60, 61–90, and over 90 — so you can see at a glance which debts are going stale.",
+    steps: [
+      "Open Finance → Outstanding.",
+      "Customers are listed first, then suppliers. They are kept apart and never netted off against each other.",
+      "The ageing comes from each invoice's date and the credit days on that party.",
+    ],
+    tip: "This is the report to run before a payment run or before you start chasing money. It is built from the ledgers, so it always agrees with the accounts — if it did not, one of them would be wrong.",
+  },
+  {
+    id: "reversal", category: "Finance & Accounting", screens: ["/finance/daybook", "/finance"],
+    title: "Correcting a mistake",
+    summary: "Posted vouchers are never edited or deleted — you post the opposite entry instead.",
+    body: "Once a voucher is posted it stays exactly as it is. That is deliberate: a record anyone can quietly rewrite is not worth having, and an auditor will ask. A mistake is corrected the way an accountant corrects one — by posting the reverse.",
+    steps: [
+      "Find the voucher in the Day Book.",
+      "Click the reverse icon at the end of its row.",
+      "Choose the date for the correction — usually today, or the month you are putting right.",
+      "Post it. Every debit becomes a credit and every credit a debit, so the two cancel out.",
+      "Then post the correct voucher.",
+    ],
+    tip: "The original and the reversal are linked, and the original row then reads 'Reversed' so nobody does it twice. Both stay visible, which is exactly what you want when someone asks what happened.",
+  },
+  {
+    id: "period-lock", category: "Finance & Accounting", screens: ["/finance", "/companies"],
+    title: "Closing a period",
+    summary: "Stop anyone posting into a month you have already filed.",
+    body: "Once you have filed a VAT return or closed a month, the figures behind it must not move — otherwise the return you filed no longer matches your books. An administrator sets a date, and nothing can be posted on or before it.",
+    steps: [
+      "Companies & Group → click the pencil on the company.",
+      "Set 'Books closed up to' — usually the last day of the month you have finished with.",
+      "Save. Anyone who tries to post into that period is told why, and which date to use instead.",
+    ],
+    tip: "Leave it blank while a month is still open. Set it as soon as you have filed, and move it forward each month.",
+  },
+  {
+    id: "drill-down", category: "Finance & Accounting", screens: ["/finance/reports", "/finance", "/finance/ledgers"],
+    title: "Following a figure back to its source",
+    summary: "Click any number on a report to see what it is made of.",
+    body: "No figure on a report is a dead end. If the Profit & Loss shows 130,000 of expenses and you want to know why, you click it.",
+    steps: [
+      "On the Profit & Loss, Balance Sheet or trial balance, click any account line.",
+      "Its ledger opens, showing the same dates as the report you came from.",
+      "In the ledger, click a voucher reference to see that entry in the Day Book.",
+    ],
+    tip: "Totals are not clickable, because there is no single ledger behind them — click the lines that make up the total instead.",
+  },
+  {
+    id: "printing", category: "Finance & Accounting", screens: ["/finance/reports", "/finance", "/finance/ledgers", "/finance/vat"],
+    title: "Printing a report",
+    summary: "The version that goes in the file, signed.",
+    body: "Every finance report has a Print button. It produces a clean A4 page with the company name, the report and the period at the top, and without the menus and buttons.",
+    steps: [
+      "Open the report and set the period you want.",
+      "Click Print.",
+      "Choose your printer, or 'Save as PDF' if you want a file.",
+    ],
+    tip: "Print and Export do different jobs. Export gives you the figures as a spreadsheet to work on. Print gives you the document to sign and hand to the auditor. It prints on white paper even if you are using night mode.",
   },
   {
     id: "tally", category: "Finance & Accounting", screens: ["/finance/tally"],
@@ -409,18 +521,62 @@ export const HELP_ARTICLES: HelpArticle[] = [
 /** Articles most relevant to a given route, best match first. */
 export function articlesForPath(pathname: string): HelpArticle[] {
   const scored = HELP_ARTICLES.map((a) => {
-    const best = a.screens.reduce((m, s) => (pathname === s || pathname.startsWith(s + "/") || pathname.startsWith(s) ? Math.max(m, s.length) : m), 0);
+    // An exact match beats a parent screen: on /finance/vat, an article about
+    // the VAT return should come before one about Finance generally.
+    const best = a.screens.reduce((m, s) => {
+      if (pathname === s) return Math.max(m, 1000 + s.length);
+      if (pathname.startsWith(s + "/") || pathname.startsWith(s)) return Math.max(m, s.length);
+      return m;
+    }, 0);
     return { a, score: best };
   }).filter((x) => x.score > 0);
-  scored.sort((x, y) => y.score - x.score);
+
+  // Where two articles match equally well, the one written about fewer screens
+  // is the more specific: "The Day Book" lists only the Day Book, while
+  // "Choosing the dates" lists every report, so the first is what the reader
+  // standing on the Day Book wants.
+  scored.sort((x, y) => y.score - x.score || x.a.screens.length - y.a.screens.length);
   return scored.map((x) => x.a);
 }
 
-/** Simple full-text search across articles. */
+/**
+ * Search across articles.
+ *
+ * Matches on each word rather than the whole phrase, and on word stems, so
+ * someone typing "correct a mistake" finds "Correcting a mistake" and "closed
+ * period" finds "Closing a period". People search for what they want to do, not
+ * for the title someone chose.
+ */
 export function searchArticles(q: string): HelpArticle[] {
-  const t = q.trim().toLowerCase();
-  if (!t) return [];
-  return HELP_ARTICLES.filter((a) =>
-    [a.title, a.summary, a.body ?? "", (a.steps ?? []).join(" "), a.tip ?? "", a.category].join(" ").toLowerCase().includes(t)
-  );
+  const words = q.trim().toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+  if (words.length === 0) return [];
+
+  /** "correcting" and "corrected" both reduce to "correct". */
+  const stem = (w: string) => w.replace(/(ing|ed|es|s)$/, "");
+  const stems = words.map(stem);
+
+  const scored = HELP_ARTICLES.map((a) => {
+    const title = a.title.toLowerCase();
+    const haystack = [a.title, a.summary, a.body ?? "", (a.steps ?? []).join(" "), a.tip ?? "", a.category]
+      .join(" ")
+      .toLowerCase();
+    // Compare word by word. Matching on the raw string would let a short stem
+    // like "age" hit inside "manage" and "page", which is how a search for
+    // "ageing" ended up offering an article about the sidebar.
+    const bag = haystack.split(/[^a-z0-9]+/).filter(Boolean).map(stem);
+    const titleBag = title.split(/[^a-z0-9]+/).filter(Boolean).map(stem);
+    const hits = (w: string) => bag.some((t) => t === w || t.startsWith(w));
+
+    let score = 0;
+    for (const w of stems) {
+      if (titleBag.some((t) => t === w || t.startsWith(w))) score += 10;
+      else if (hits(w)) score += 3;
+    }
+    // Every word matching somewhere beats one strong hit on a single word.
+    const allMatch = stems.every(hits);
+    return { a, score: score + (allMatch ? 5 : 0) };
+  }).filter((x) => x.score > 0);
+
+  scored.sort((x, y) => y.score - x.score);
+  return scored.map((x) => x.a);
 }
