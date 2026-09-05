@@ -240,6 +240,15 @@ model JournalLine {
   debit     Float          @default(0)
   credit    Float          @default(0)
 
+  /// How this line is treated for UAE VAT. A single invoice often mixes them —
+  /// standard-rated work alongside a zero-rated export or a designated-zone
+  /// supply — so the treatment belongs on the line, not on the voucher.
+  ///
+  /// Standard | Zero-rated | Exempt | Out of scope | Reverse charge
+  /// Null means the line is not a supply or expense at all: the receivable, the
+  /// bank, the VAT control account itself.
+  vatTreatment String?
+
   @@index([entryId])
   @@index([accountId])
 }

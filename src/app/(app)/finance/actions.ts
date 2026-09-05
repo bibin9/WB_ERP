@@ -5,9 +5,10 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { financialYear } from "@/lib/period";
+import { VAT_TREATMENTS } from "@/lib/vat";
 import { allow } from "@/lib/guard";
 
-type LineInput = { accountId: string; debit: number; credit: number };
+type LineInput = { accountId: string; debit: number; credit: number; vatTreatment?: string | null };
 
 /** Reference prefixes, matching the voucher types offered on the form. */
 const VOUCHER_PREFIX: Record<string, string> = {
@@ -66,7 +67,13 @@ export async function createJournalEntry(formData: FormData) {
     return { ok: false, error: "Invalid lines" };
   }
   lines = lines
-    .map((l) => ({ accountId: l.accountId, debit: Number(l.debit) || 0, credit: Number(l.credit) || 0 }))
+    .map((l) => ({
+      accountId: l.accountId,
+      debit: Number(l.debit) || 0,
+      credit: Number(l.credit) || 0,
+      // Only a treatment the return knows about is stored.
+      vatTreatment: VAT_TREATMENTS.includes(l.vatTreatment as never) ? l.vatTreatment : null,
+    }))
     .filter((l) => l.accountId && (l.debit > 0 || l.credit > 0));
 
   if (lines.length < 2) return { ok: false, error: "At least two lines are required" };
@@ -97,7 +104,11 @@ export async function createJournalEntry(formData: FormData) {
       vatAmount,
       memo: memo || null,
       postedBy: session.user.name,
-      lines: { create: lines.map((l) => ({ accountId: l.accountId, debit: l.debit, credit: l.credit })) },
+      lines: {
+        create: lines.map((l) => ({
+          accountId: l.accountId, debit: l.debit, credit: l.credit, vatTreatment: l.vatTreatment,
+        })),
+      },
     },
   });
   await audit({ action: "Posted", entity: "JournalEntry", entityId: created.id, summary: `Posted ${voucherType} ${reference} (${totalDebit.toLocaleString()})` });

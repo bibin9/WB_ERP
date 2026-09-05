@@ -63,10 +63,13 @@ const vatEntries = await db.journalEntry.findMany({ where: { memo: { contains: T
 const netVat = vatEntries.reduce((s, e) => s + vatOf(e), 0);
 ok("the credit note reduces output VAT rather than adding to it", netVat === 4000, `5,000 − 1,000 = ${netVat}`);
 
-const vatPage = read("src/app/(app)/finance/vat/page.tsx");
-ok("the VAT report applies that same rule", vatPage.includes("CREDIT_TYPES") && vatPage.includes("s + vatOf(e)"));
+// The VAT rules now live in src/lib/vat.ts, exercised in detail by test-vat.mjs.
+const vatLib = read("src/lib/vat.ts");
+ok("the VAT return applies that same rule", vatLib.includes("ADJUSTMENT_VOUCHERS") && vatLib.includes("sign"));
 ok("credit notes count against output, debit notes against input",
-  /OUTPUT_TYPES = new Set\(\[[^\]]*"Credit Note"/.test(vatPage) && /INPUT_TYPES = new Set\(\[[^\]]*"Debit Note"/.test(vatPage));
+  /OUTPUT_VOUCHERS = new Set\(\[[^\]]*"Credit Note"/.test(vatLib) && /INPUT_VOUCHERS = new Set\(\[[^\]]*"Debit Note"/.test(vatLib));
+ok("the VAT report is built from that library",
+  read("src/app/(app)/finance/vat/page.tsx").includes("buildVat201"));
 
 const actions = read("src/app/(app)/finance/actions.ts");
 ok("both note types have their own reference prefix", actions.includes('"Credit Note": "CN"') && actions.includes('"Debit Note": "DN"'));

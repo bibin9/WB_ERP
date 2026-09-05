@@ -308,7 +308,11 @@ async function main() {
         data: {
           companyId: wbeCo.id, reference, voucherType, partyName, vatAmount: vatAmount ?? 0,
           memo, date, source: "seed", postedBy: admin.id,
-          lines: { create: lines.map(([code, debit, credit]) => ({ accountId: acct(code), debit, credit })) },
+          lines: {
+            create: lines.map(([code, debit, credit, vatTreatment]) => ({
+              accountId: acct(code), debit, credit, vatTreatment: vatTreatment ?? null,
+            })),
+          },
         },
       });
     };
@@ -316,13 +320,35 @@ async function main() {
     await postVoucher({
       reference: "SAL/WBE/0001", voucherType: "Sales", partyName: "Al Habtoor Construction LLC", vatAmount: 10000,
       memo: "Fabrication & erection — progress invoice #1", date: d(-25),
-      lines: [["1100", 210000, 0], ["4000", 0, 200000], ["2100", 0, 10000]],
+      lines: [["1100", 210000, 0], ["4000", 0, 200000, "Standard"], ["2100", 0, 10000]],
     });
     // Purchase: cost of sales 80,000 + 5% input VAT 4,000 → payable 84,000
     await postVoucher({
       reference: "PUR/WBE/0001", voucherType: "Purchase", partyName: "Emirates Steel Industries", vatAmount: 4000,
       memo: "Structural steel supply", date: d(-20),
-      lines: [["5000", 80000, 0], ["2100", 4000, 0], ["2000", 0, 84000]],
+      lines: [["5000", 80000, 0, "Standard"], ["2100", 4000, 0], ["2000", 0, 84000]],
+    });
+    // Zero-rated export — work billed to a client outside the GCC. A taxable
+    // supply, declared in box 4, but no tax charged.
+    await postVoucher({
+      reference: "SAL/WBE/0002", voucherType: "Sales", partyName: "Emaar Properties PJSC", vatAmount: 0,
+      memo: "Offshore fabrication — export, zero-rated", date: d(-18),
+      lines: [["1100", 60000, 0], ["4000", 0, 60000, "Zero-rated"]],
+    });
+    // Reverse charge — design services bought from abroad. The company
+    // accounts for the tax itself: declared in box 3 and reclaimed in box 10,
+    // so it nets to nil.
+    await postVoucher({
+      reference: "PUR/WBE/0002", voucherType: "Purchase", partyName: "Overseas Design Consultants", vatAmount: 0,
+      memo: "Imported design services — reverse charge", date: d(-12),
+      lines: [["5000", 40000, 0, "Reverse charge"], ["2000", 0, 40000]],
+    });
+    // Credit note — a rate variation agreed after invoicing. Reduces the
+    // supply already declared rather than adding to it.
+    await postVoucher({
+      reference: "CN/WBE/0001", voucherType: "Credit Note", partyName: "Al Habtoor Construction LLC", vatAmount: 500,
+      memo: "Rate variation on progress invoice #1", date: d(-8),
+      lines: [["4000", 10000, 0, "Standard"], ["2100", 500, 0], ["1100", 0, 10500]],
     });
     // Salary payment (no VAT)
     await postVoucher({
