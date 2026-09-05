@@ -28,6 +28,16 @@ ok("a database with no history is baselined, not replayed", release.includes('"m
 ok("baselining brings the schema current first", /baselining[\s\S]*?db", "push"/.test(release));
 ok("local SQLite still just pushes", release.includes("Local database") && release.includes('db", "push"'));
 ok("it decides from the actual database, not a guess", release.includes("_prisma_migrations"));
+// regclass is a PostgreSQL-internal type Prisma's raw-query deserializer cannot
+// read. Asking for it took the site down; information_schema returns a plain
+// integer and is portable.
+// Check the code, not the comments — the comment explaining why regclass was
+// abandoned naturally mentions it.
+const releaseCode = release.replace(/^\s*\/\/.*$/gm, "");
+ok("the history check avoids PostgreSQL-internal types",
+  releaseCode.includes("information_schema.tables") && !releaseCode.includes("to_regclass"));
+ok("a failed check falls back rather than killing the boot",
+  /catch[\s\S]*?Falling back[\s\S]*?db", "push"/.test(release) && !/catch[\s\S]*?process\.exit\(1\)/.test(release));
 
 /* ------------------------------------------------------ the migrations -- */
 const MIG = "prisma/migrations";

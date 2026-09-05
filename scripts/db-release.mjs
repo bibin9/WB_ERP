@@ -57,11 +57,25 @@ if (names.length === 0) {
 const db = new PrismaClient();
 let hasHistory = false;
 try {
-  const rows = await db.$queryRawUnsafe(`SELECT to_regclass('public._prisma_migrations') AS t`);
-  hasHistory = rows?.[0]?.t !== null && rows?.[0]?.t !== undefined;
+  // information_schema, not to_regclass: regclass is a PostgreSQL-internal type
+  // that Prisma's raw-query deserializer cannot read, and the failure took the
+  // site down. This returns a plain integer.
+  const rows = await db.$queryRawUnsafe(
+    `SELECT COUNT(*)::int AS n
+       FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = '_prisma_migrations'`
+  );
+  hasHistory = Number(rows?.[0]?.n ?? 0) > 0;
 } catch (err) {
-  console.error("Could not inspect the database:", err.message);
-  process.exit(1);
+  // Never let a question about the database stop the application starting.
+  // That was the whole failure this work set out to remove, and exiting here
+  // reproduced it exactly. Fall back to the behaviour that was in place before
+  // migrations, which is known to work, and say so loudly.
+  console.error("Could not inspect the migration history:", err.message);
+  console.error("Falling back to a schema push so the application still starts.");
+  await db.$disconnect();
+  run(["db", "push", "--skip-generate"]);
+  process.exit(0);
 } finally {
   await db.$disconnect();
 }
