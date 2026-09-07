@@ -38,6 +38,7 @@ export type PostingLine = {
   credit: number;
   vatTreatment?: string | null;
   jobId?: string | null;
+  costCentreId?: string | null;
 };
 
 export type PostingInput = {
@@ -120,6 +121,7 @@ export async function postVoucher(input: PostingInput): Promise<PostingResult> {
       // Only a treatment the VAT return knows about is stored.
       vatTreatment: VAT_TREATMENTS.includes(l.vatTreatment as never) ? l.vatTreatment ?? null : null,
       jobId: l.jobId || null,
+      costCentreId: l.costCentreId || null,
     }))
     .filter((l) => l.accountId && (l.debit > 0 || l.credit > 0));
 
@@ -143,6 +145,19 @@ export async function postVoucher(input: PostingInput): Promise<PostingResult> {
     const jobs = await db.job.count({ where: { id: { in: jobIds }, companyId: input.companyId } });
     if (jobs !== jobIds.length) return { ok: false, error: "A job does not belong to this company" };
   }
+
+  // And the same for the other dimension.
+  const centreIds = [...new Set(lines.map((l) => l.costCentreId).filter(Boolean))] as string[];
+  if (centreIds.length) {
+    const centres = await db.costCentre.count({ where: { id: { in: centreIds }, companyId: input.companyId } });
+    if (centres !== centreIds.length) return { ok: false, error: "A cost centre does not belong to this company" };
+  }
+
+  // A line is either a customer's job or the business's own overhead, never
+  // both — otherwise the same cost is counted twice when the two reports are
+  // read side by side.
+  const both = lines.find((l) => l.jobId && l.costCentreId);
+  if (both) return { ok: false, error: "A line can carry a job or a cost centre, not both" };
 
   // One voucher per source document. The unique index enforces it too; this
   // gives the caller a sentence rather than a constraint violation.
@@ -186,6 +201,7 @@ export async function postVoucher(input: PostingInput): Promise<PostingResult> {
           credit: l.credit,
           vatTreatment: l.vatTreatment,
           jobId: l.jobId,
+          costCentreId: l.costCentreId,
         })),
       },
     },

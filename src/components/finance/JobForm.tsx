@@ -3,14 +3,15 @@
 import { useState } from "react";
 import { Plus, X, Pencil } from "lucide-react";
 import { createJob, updateJobRecord } from "@/app/(app)/finance/jobs/actions";
-
-const STATUSES = ["Open", "On hold", "Completed", "Closed"];
+import { JOB_TYPES, JOB_TYPE_HELP, JOB_STATUSES } from "@/lib/costing";
 
 export type EditingJob = {
   id: string;
   code: string;
   name: string;
   partyId: string | null;
+  type: string;
+  parentId: string | null;
   contractValue: number;
   budgetCost: number;
   startDate: string | null;
@@ -22,10 +23,13 @@ export type EditingJob = {
 export default function JobForm({
   companyId,
   parties,
+  jobs = [],
   job,
 }: {
   companyId: string;
   parties: { id: string; code: string; name: string }[];
+  /** Possible parents. The caller filters out the job being edited. */
+  jobs?: { id: string; code: string; name: string }[];
   job?: EditingJob;
 }) {
   const [open, setOpen] = useState(false);
@@ -77,6 +81,31 @@ export default function JobForm({
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-ink">Kind of work</label>
+              <select name="type" className="input" defaultValue={job?.type ?? "Contract"}>
+                {JOB_TYPES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted">{JOB_TYPE_HELP[job?.type ?? "Contract"]}</p>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-ink">Part of</label>
+              <select name="parentId" className="input" defaultValue={job?.parentId ?? ""}>
+                <option value="">&mdash; a job in its own right &mdash;</option>
+                {jobs.map((j) => (
+                  <option key={j.id} value={j.id}>{j.code} · {j.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted">
+                For a package or a variation under a bigger contract. Costs stay where you post them; the parent
+                just adds them up.
+              </p>
+            </div>
+          </div>
+
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">Customer</label>
             <select name="partyId" className="input" defaultValue={job?.partyId ?? ""}>
@@ -110,7 +139,7 @@ export default function JobForm({
             <div>
               <label className="mb-1 block text-sm font-medium text-ink">Status</label>
               <select name="status" className="input" defaultValue={job?.status ?? "Open"}>
-                {STATUSES.map((s) => <option key={s}>{s}</option>)}
+                {JOB_STATUSES.map((s) => <option key={s}>{s}</option>)}
               </select>
             </div>
           </div>

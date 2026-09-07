@@ -15,74 +15,75 @@ datasource db {
 
 /// A customer of the product (white-label). White & Bright is one tenant.
 model Tenant {
-  id        String    @id @default(cuid())
-  key       String    @unique // e.g. "wandb"
-  name      String
+  id             String           @id @default(cuid())
+  key            String           @unique // e.g. "wandb"
+  name           String
   // Branding (mirrors src/config/tenant.ts so it can move to the DB later)
-  logoUrl   String?
-  theme     String? // JSON string: { navy, blue, green, gold, paper } as RGB triplets
-  companies Company[]
-  users     User[]
-  roles     Role[]
+  logoUrl        String?
+  theme          String? // JSON string: { navy, blue, green, gold, paper } as RGB triplets
+  companies      Company[]
+  users          User[]
+  roles          Role[]
   approvalRoutes ApprovalRoute[]
-  customFields CustomFieldDef[]
-  masterItems MasterItem[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  customFields   CustomFieldDef[]
+  masterItems    MasterItem[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 }
 
 /// A legal company within a tenant's group (multi-company).
 model Company {
-  id           String            @id @default(cuid())
-  tenantId     String
-  tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  code         String
-  name         String
-  baseCurrency String            @default("AED")
+  id               String              @id @default(cuid())
+  tenantId         String
+  tenant           Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code             String
+  name             String
+  baseCurrency     String              @default("AED")
   // UAE WPS (Wage Protection System) employer details, used to generate the bank SIF file
-  wpsEmployerId  String? // MOL establishment / employer unique ID
+  wpsEmployerId    String? // MOL establishment / employer unique ID
   /// Month the financial year starts (1 = January).
-  fyStartMonth   Int     @default(1)
+  fyStartMonth     Int                 @default(1)
   /// Nothing may be posted on or before this date. Set after a VAT return is
   /// filed or a period is closed, so the figures behind it cannot move.
-  booksLockedTo  DateTime?
+  booksLockedTo    DateTime?
   /// Date the opening balances are stated as at — normally the FY start.
-  openingAsOf    DateTime?
-  parties        Party[]
-  jobs           Job[]
-  wpsBankRouting String? // employer bank routing code (agent ID)
-  isActive     Boolean           @default(true)
-  memberships  CompanyMembership[]
-  jobAssignments JobAssignment[]
+  openingAsOf      DateTime?
+  parties          Party[]
+  jobs             Job[]
+  costCentres      CostCentre[]
+  wpsBankRouting   String? // employer bank routing code (agent ID)
+  isActive         Boolean             @default(true)
+  memberships      CompanyMembership[]
+  jobAssignments   JobAssignment[]
   approvalRequests ApprovalRequest[]
-  accounts     ChartOfAccount[]
-  journalEntries JournalEntry[]
-  employees    Employee[]
-  requisitions Requisition[]
-  payrollRuns  PayrollRun[]
-  leaveRequests LeaveRequest[]
-  createdAt    DateTime          @default(now())
+  accounts         ChartOfAccount[]
+  journalEntries   JournalEntry[]
+  employees        Employee[]
+  requisitions     Requisition[]
+  payrollRuns      PayrollRun[]
+  leaveRequests    LeaveRequest[]
+  createdAt        DateTime            @default(now())
 
   @@unique([tenantId, code])
   @@index([tenantId])
 }
 
 model User {
-  id          String              @id @default(cuid())
-  tenantId    String
-  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  email       String
-  name        String
-  passwordHash String?
-  isActive    Boolean             @default(true)
+  id                String              @id @default(cuid())
+  tenantId          String
+  tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email             String
+  name              String
+  passwordHash      String?
+  isActive          Boolean             @default(true)
   // Account security
-  failedAttempts    Int       @default(0) // consecutive wrong-password count
+  failedAttempts    Int                 @default(0) // consecutive wrong-password count
   lockedUntil       DateTime? // account is locked while this is in the future
-  mustReset         Boolean   @default(false) // force a password change on next sign-in
+  mustReset         Boolean             @default(false) // force a password change on next sign-in
   passwordChangedAt DateTime?
-  memberships CompanyMembership[]
-  notifications Notification[]
-  createdAt   DateTime            @default(now())
+  memberships       CompanyMembership[]
+  notifications     Notification[]
+  createdAt         DateTime            @default(now())
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -103,14 +104,14 @@ model CompanyMembership {
 }
 
 model Role {
-  id          String              @id @default(cuid())
-  tenantId    String
-  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name        String // e.g. "Group Admin", "Project Manager", "Director"
+  id            String              @id @default(cuid())
+  tenantId      String
+  tenant        Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name          String // e.g. "Group Admin", "Project Manager", "Director"
   // Permissions as JSON string: { "module": ["create","read","update","delete","approve"] }
-  permissions String              @default("{}")
-  approvalLevel Int               @default(0) // sign-off rank (higher = more authority)
-  memberships CompanyMembership[]
+  permissions   String              @default("{}")
+  approvalLevel Int                 @default(0) // sign-off rank (higher = more authority)
+  memberships   CompanyMembership[]
 
   @@unique([tenantId, name])
 }
@@ -177,23 +178,23 @@ model ApprovalStep {
 
 /// Finance — Chart of Accounts (per company; each company keeps its own books).
 model ChartOfAccount {
-  id        String        @id @default(cuid())
-  companyId String
-  company   Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  code        String // e.g. "1000"
-  name        String // e.g. "Cash at Bank"
-  type        String // Asset | Liability | Equity | Income | Expense
-  parentGroup String? // Tally-style group, e.g. "Current Assets", "Sundry Debtors"
+  id             String        @id @default(cuid())
+  companyId      String
+  company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code           String // e.g. "1000"
+  name           String // e.g. "Cash at Bank"
+  type           String // Asset | Liability | Equity | Income | Expense
+  parentGroup    String? // Tally-style group, e.g. "Current Assets", "Sundry Debtors"
   /// Balance carried in when the books were migrated. Debit positive,
   /// credit negative — the sign convention the ledgers already use.
-  openingBalance Float @default(0)
+  openingBalance Float         @default(0)
   /// "Receivable" or "Payable" marks this as a control account, which is what
   /// the outstanding and ageing report measures against.
-  controlType String?
-  tallyGuid   String? // mapping key when synced from Tally
-  isActive    Boolean       @default(true)
-  lines       JournalLine[]
-  createdAt   DateTime      @default(now())
+  controlType    String?
+  tallyGuid      String? // mapping key when synced from Tally
+  isActive       Boolean       @default(true)
+  lines          JournalLine[]
+  createdAt      DateTime      @default(now())
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -201,26 +202,26 @@ model ChartOfAccount {
 
 /// Finance — double-entry journal entry (header + balanced lines).
 model JournalEntry {
-  id          String        @id @default(cuid())
-  companyId   String
-  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  reference   String
-  voucherType String        @default("Journal") // Journal | Payment | Receipt | Contra | Sales | Purchase
-  date        DateTime      @default(now())
-  memo        String?
-  partyName   String?
-  partyId     String?
-  party       Party?        @relation(fields: [partyId], references: [id]) // party ledger (customer/supplier) for the voucher
-  vatAmount   Float         @default(0) // UAE VAT (5%) portion, if any
-  source      String        @default("manual") // manual | tally
+  id           String         @id @default(cuid())
+  companyId    String
+  company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  reference    String
+  voucherType  String         @default("Journal") // Journal | Payment | Receipt | Contra | Sales | Purchase
+  date         DateTime       @default(now())
+  memo         String?
+  partyName    String?
+  partyId      String?
+  party        Party?         @relation(fields: [partyId], references: [id]) // party ledger (customer/supplier) for the voucher
+  vatAmount    Float          @default(0) // UAE VAT (5%) portion, if any
+  source       String         @default("manual") // manual | tally
   /// What produced this voucher, when it was not typed by hand: the module
   /// and the document inside it. Lets a voucher be traced back to the goods
   /// receipt or payroll run behind it, and stops the same document posting
   /// twice — the unique index below is the guard.
   ///
   /// e.g. sourceType "grn", sourceId the receipt's id.
-  sourceType  String?
-  sourceId    String?
+  sourceType   String?
+  sourceId     String?
   /// A reversal points back at the voucher it cancels, so both sides of the
   /// correction stay visible in the audit trail.
   ///
@@ -232,9 +233,9 @@ model JournalEntry {
   reversalOfId String?
   reversalOf   JournalEntry?  @relation("Reversal", fields: [reversalOfId], references: [id])
   reversedBy   JournalEntry[] @relation("Reversal")
-  postedBy    String
-  lines       JournalLine[]
-  createdAt   DateTime      @default(now())
+  postedBy     String
+  lines        JournalLine[]
+  createdAt    DateTime       @default(now())
 
   @@unique([companyId, reference])
   @@unique([companyId, sourceType, sourceId])
@@ -260,12 +261,19 @@ model JournalLine {
   vatTreatment String?
   /// The job this line belongs to. Costs and revenue are tagged on the line,
   /// not the voucher, because one supplier invoice often covers two jobs.
-  jobId String?
-  job   Job?    @relation(fields: [jobId], references: [id])
-
+  jobId        String?
+  job          Job?        @relation(fields: [jobId], references: [id])
+  /// The part of the business that carried this line when no single job did —
+  /// the workshop, the vehicles, admin. Without it, "not yet tagged to a job"
+  /// and "a genuine overhead" are the same empty field, and neither departmental
+  /// P&L nor a trustworthy untagged-cost figure is possible.
+  costCentreId String?
+  costCentre   CostCentre? @relation(fields: [costCentreId], references: [id])
 
   @@index([entryId])
   @@index([accountId])
+  @@index([jobId])
+  @@index([costCentreId])
 }
 
 /// Admin-configurable approval routes (per tenant). Replaces the code config:
@@ -299,65 +307,65 @@ model ApprovalRouteStep {
 /// HR & Admin — Employee master data (Phase 1). Includes basic payroll master
 /// data (salary structure); payroll processing itself is Phase 3.
 model Employee {
-  id             String    @id @default(cuid())
-  companyId      String
-  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  empNo          String
-  name           String
-  email          String?
-  phone          String?
-  biometricId    String? // enrolment/user ID on the punch machine (maps device logs to this employee)
-  department     String?
-  designation    String?
-  grade          String?
-  employmentType String    @default("Full-time") // Full-time | Part-time | Contract | Supplied
-  joinDate       DateTime?
-  status         String    @default("Active") // Active | On Leave | Inactive
+  id                 String             @id @default(cuid())
+  companyId          String
+  company            Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  empNo              String
+  name               String
+  email              String?
+  phone              String?
+  biometricId        String? // enrolment/user ID on the punch machine (maps device logs to this employee)
+  department         String?
+  designation        String?
+  grade              String?
+  employmentType     String             @default("Full-time") // Full-time | Part-time | Contract | Supplied
+  joinDate           DateTime?
+  status             String             @default("Active") // Active | On Leave | Inactive
   // Payroll master data (structure only — processing is Phase 3)
-  basicSalary    Float     @default(0)
-  allowances     Float     @default(0)
-  currency       String    @default("AED")
-  annualLeaveBalance Int   @default(30)
-  supplier       String? // agency/sponsor for supplied manpower (HR-15)
+  basicSalary        Float              @default(0)
+  allowances         Float              @default(0)
+  currency           String             @default("AED")
+  annualLeaveBalance Int                @default(30)
+  supplier           String? // agency/sponsor for supplied manpower (HR-15)
   // Personal
-  dateOfBirth    DateTime?
-  gender         String?
-  nationality    String?
-  maritalStatus  String?
-  bloodGroup     String?
-  personalEmail  String?
-  address        String?
-  emergencyName  String?
-  emergencyPhone String?
+  dateOfBirth        DateTime?
+  gender             String?
+  nationality        String?
+  maritalStatus      String?
+  bloodGroup         String?
+  personalEmail      String?
+  address            String?
+  emergencyName      String?
+  emergencyPhone     String?
   // Employment / contract
-  contractType   String? // Limited | Unlimited
-  contractEndDate DateTime?
+  contractType       String? // Limited | Unlimited
+  contractEndDate    DateTime?
   // UAE documents
-  emiratesIdNo      String?
-  emiratesIdExpiry  DateTime?
-  passportNo        String?
-  passportExpiry    DateTime?
-  visaNo            String?
-  visaType          String?
-  visaExpiry        DateTime?
-  labourCardNo      String?
-  labourCardExpiry  DateTime?
+  emiratesIdNo       String?
+  emiratesIdExpiry   DateTime?
+  passportNo         String?
+  passportExpiry     DateTime?
+  visaNo             String?
+  visaType           String?
+  visaExpiry         DateTime?
+  labourCardNo       String?
+  labourCardExpiry   DateTime?
   // Banking (WPS)
-  bankName        String?
-  iban            String?
-  bankRoutingCode String? // employee bank routing code (agent ID) for the WPS SIF
-  onboarding     OnboardingItem[]
-  leaveRequests  LeaveRequest[]
-  attendance     Attendance[]
-  certifications Certification[]
-  timesheets     Timesheet[]
-  appraisals     Appraisal[]
-  documents      EmployeeDocument[]
-  customValues   CustomFieldValue[]
-  separations    Separation[]
-  advances       Advance[]
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  bankName           String?
+  iban               String?
+  bankRoutingCode    String? // employee bank routing code (agent ID) for the WPS SIF
+  onboarding         OnboardingItem[]
+  leaveRequests      LeaveRequest[]
+  attendance         Attendance[]
+  certifications     Certification[]
+  timesheets         Timesheet[]
+  appraisals         Appraisal[]
+  documents          EmployeeDocument[]
+  customValues       CustomFieldValue[]
+  separations        Separation[]
+  advances           Advance[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   @@unique([companyId, empNo])
   @@index([companyId])
@@ -453,12 +461,12 @@ model PayrollRun {
 }
 
 model Payslip {
-  id           String     @id @default(cuid())
-  runId        String
-  run          PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  employeeId   String
-  empNo        String
-  employeeName String
+  id              String     @id @default(cuid())
+  runId           String
+  run             PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employeeId      String
+  empNo           String
+  employeeName    String
   basic           Float
   allowances      Float
   deductions      Float      @default(0) // other deductions (fines, unpaid leave, etc.)
@@ -488,19 +496,19 @@ model Advance {
 
 /// HR — Leave management (FSD HR-03…06)
 model LeaveRequest {
-  id         String    @id @default(cuid())
+  id         String   @id @default(cuid())
   companyId  String
-  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   employeeId String
-  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   type       String // Annual | Sick | Unpaid | Comp-Off
   fromDate   DateTime
   toDate     DateTime
   days       Int
   reason     String?
-  status     String    @default("Pending") // Pending | Approved | Rejected
+  status     String   @default("Pending") // Pending | Approved | Rejected
   decidedBy  String?
-  createdAt  DateTime  @default(now())
+  createdAt  DateTime @default(now())
 
   @@index([companyId])
   @@index([employeeId])
@@ -535,18 +543,18 @@ model Separation {
   basicSalary    Float
   serviceText    String // e.g. "3y 2m 10d"
   serviceYears   Float
-  gratuityDays   Float   @default(0)
-  gratuityAmount Float   @default(0)
-  leaveDays      Float   @default(0)
-  leaveAmount    Float   @default(0)
-  pendingSalary  Float   @default(0)
-  noticePay      Float   @default(0)
-  airTicket      Float   @default(0)
-  otherAdditions Float   @default(0)
-  deductions     Float   @default(0)
-  adjustment     Float   @default(0) // HR manual +/- tweak
+  gratuityDays   Float    @default(0)
+  gratuityAmount Float    @default(0)
+  leaveDays      Float    @default(0)
+  leaveAmount    Float    @default(0)
+  pendingSalary  Float    @default(0)
+  noticePay      Float    @default(0)
+  airTicket      Float    @default(0)
+  otherAdditions Float    @default(0)
+  deductions     Float    @default(0)
+  adjustment     Float    @default(0) // HR manual +/- tweak
   adjustmentNote String?
-  netSettlement  Float   @default(0)
+  netSettlement  Float    @default(0)
   status         String   @default("Draft") // Draft | Approved | Settled
   processedBy    String?
   createdAt      DateTime @default(now())
@@ -684,12 +692,12 @@ model TallyConfig {
 /// A customer or supplier. Free-typed names produced duplicates and made
 /// outstanding impossible to total, so parties are a master record.
 model Party {
-  id            String   @id @default(cuid())
+  id            String         @id @default(cuid())
   companyId     String
-  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   code          String
   name          String
-  type          String   @default("Customer") // Customer | Supplier | Both
+  type          String         @default("Customer") // Customer | Supplier | Both
   /// UAE Tax Registration Number — required on a tax invoice.
   trn           String?
   contactPerson String?
@@ -697,11 +705,11 @@ model Party {
   phone         String?
   address       String?
   /// Payment terms in days, used to flag an invoice as overdue.
-  creditDays    Int      @default(0)
-  isActive      Boolean  @default(true)
+  creditDays    Int            @default(0)
+  isActive      Boolean        @default(true)
   entries       JournalEntry[]
   jobs          Job[]
-  createdAt     DateTime @default(now())
+  createdAt     DateTime       @default(now())
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -711,25 +719,63 @@ model Party {
 /// Costs and revenue are tagged to it so 'did we make money on the ADNOC job?'
 /// has an answer. BRD FIN-06.
 model Job {
-  id           String   @id @default(cuid())
-  companyId    String
-  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  code         String   // e.g. J-2601
-  name         String
+  id            String        @id @default(cuid())
+  companyId     String
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code          String // e.g. J-2601
+  name          String
+  /// A job and a project are the same record here. `type` is only the word the
+  /// client uses for it, so one table serves a fixed-price contract, a service
+  /// call and an internal cost pool without a second entity to keep in step.
+  type          String        @default("Contract") // Contract | Project | Service call | AMC | Internal
+  /// Contract -> package -> variation. Costs are tagged on the leaf and the
+  /// report rolls them up, which is how a main contract shows a true total
+  /// without anything being posted against the parent itself.
+  parentId      String?
+  parent        Job?          @relation("JobTree", fields: [parentId], references: [id])
+  children      Job[]         @relation("JobTree")
   /// The customer this job is for, so a job report can name them.
-  partyId      String?
-  party        Party?   @relation(fields: [partyId], references: [id])
+  partyId       String?
+  party         Party?        @relation(fields: [partyId], references: [id])
   /// What the job was sold for, and what it was expected to cost.
-  contractValue Float   @default(0)
-  budgetCost    Float   @default(0)
-  startDate    DateTime?
-  endDate      DateTime?
-  status       String   @default("Open") // Open | On hold | Completed | Closed
-  notes        String?
-  lines        JournalLine[]
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  contractValue Float         @default(0)
+  budgetCost    Float         @default(0)
+  startDate     DateTime?
+  endDate       DateTime?
+  status        String        @default("Open") // Open | On hold | Completed | Closed
+  notes         String?
+  lines         JournalLine[]
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
 
   @@unique([companyId, code])
   @@index([companyId])
+  @@index([parentId])
+}
+
+/// A cost centre — the second costing dimension, for what belongs to the
+/// business rather than to a customer's job.
+///
+/// Both ERPNext and Odoo keep this separate from the project: ERPNext as a
+/// Cost Center alongside Project, Odoo as an analytic account with no project
+/// attached. It is what lets the workshop, the vehicles and the head office be
+/// reported on when there is no contract to charge them to.
+model CostCentre {
+  id        String        @id @default(cuid())
+  companyId String
+  company   Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code      String // e.g. CC-01
+  name      String
+  /// Departments roll up into a division the same way jobs roll up.
+  parentId  String?
+  parent    CostCentre?   @relation("CostCentreTree", fields: [parentId], references: [id])
+  children  CostCentre[]  @relation("CostCentreTree")
+  lines     JournalLine[]
+  notes     String?
+  isActive  Boolean       @default(true)
+  createdAt DateTime      @default(now())
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([parentId])
 }

@@ -12,6 +12,7 @@ import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { resolvePeriod } from "@/lib/period";
+import { arrange, withDescendants } from "@/lib/tree";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +62,15 @@ export default async function JobsPage({
   // Revenue is what the job earned, cost is what it consumed. Both come from
   // the accounts the lines were posted to, so the figures cannot drift from
   // the ledgers.
-  const costed = jobs.map((j) => {
+  // What each job earned and consumed in its own right. Nothing is posted to a
+  // parent, so a parent's figures are the sum of what sits beneath it — derived
+  // every time rather than stored, because a stored total drifts the moment a
+  // voucher is reversed.
+  const ownRevenue = new Map<string, number>();
+  const ownCost = new Map<string, number>();
+  const ownContract = new Map<string, number>();
+  const ownBudget = new Map<string, number>();
+  for (const j of jobs) {
     let revenue = 0;
     let cost = 0;
     for (const l of j.lines) {
@@ -69,25 +78,45 @@ export default async function JobsPage({
       if (l.account.type === "Income") revenue += -net; // income sits as a credit
       else if (l.account.type === "Expense") cost += net;
     }
+    ownRevenue.set(j.id, revenue);
+    ownCost.set(j.id, cost);
+    ownContract.set(j.id, j.contractValue);
+    ownBudget.set(j.id, j.budgetCost);
+  }
+
+  const costed = arrange(jobs).map((row) => {
+    const j = row.node;
+    // A parent shows the whole contract; a leaf shows only itself. Either way
+    // the figure is the sum over the row and everything under it.
+    const revenue = withDescendants(row, ownRevenue);
+    const cost = withDescendants(row, ownCost);
+    const contractValue = withDescendants(row, ownContract);
+    const budgetCost = withDescendants(row, ownBudget);
     const margin = revenue - cost;
     return {
       ...j,
+      depth: row.depth,
+      hasChildren: row.hasChildren,
+      contractValue,
+      budgetCost,
       revenue,
       cost,
       margin,
       marginPct: revenue > 0 ? margin / revenue : 0,
-      budgetUsed: j.budgetCost > 0 ? cost / j.budgetCost : 0,
-      overBudget: j.budgetCost > 0 && cost > j.budgetCost,
+      budgetUsed: budgetCost > 0 ? cost / budgetCost : 0,
+      overBudget: budgetCost > 0 && cost > budgetCost,
     };
   });
 
-  const totals = costed.reduce(
+  // Summed over the raw jobs, not the rolled-up rows: adding a parent to its own
+  // children would count the same contract twice.
+  const totals = jobs.reduce(
     (t, j) => ({
       contract: t.contract + j.contractValue,
       budget: t.budget + j.budgetCost,
-      revenue: t.revenue + j.revenue,
-      cost: t.cost + j.cost,
-      margin: t.margin + j.margin,
+      revenue: t.revenue + (ownRevenue.get(j.id) ?? 0),
+      cost: t.cost + (ownCost.get(j.id) ?? 0),
+      margin: t.margin + (ownRevenue.get(j.id) ?? 0) - (ownCost.get(j.id) ?? 0),
     }),
     { contract: 0, budget: 0, revenue: 0, cost: 0, margin: 0 }
   );
@@ -107,7 +136,13 @@ export default async function JobsPage({
         <div className="flex flex-wrap items-center gap-2">
           <PrintReport />
           {companyId && <ExportButton dataset="jobs" companyId={companyId} label="Export jobs" />}
-          {companyId && <JobForm companyId={companyId} parties={parties} />}
+          {companyId && (
+            <JobForm
+              companyId={companyId}
+              parties={parties}
+              jobs={jobs.map((j) => ({ id: j.id, code: j.code, name: j.name }))}
+            />
+          )}
         </div>
       </PageHeader>
       <FinanceTabs companyId={companyId} />
@@ -176,7 +211,20 @@ export default async function JobsPage({
             {costed.map((j) => (
               <tr key={j.id}>
                 <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-heading">{j.code}</td>
-                <td className="px-4 py-2 text-ink">{j.name}</td>
+                <td className="px-4 py-2 text-ink">
+                  <span style={{ paddingLeft: `${j.depth * 18}px` }} className="inline-block">
+                    {j.depth > 0 && <span className="mr-1 text-muted">&#9492;</span>}
+                    {j.name}
+                  </span>
+                  {j.type !== "Contract" && (
+                    <span className="ml-2 rounded bg-line px-1.5 py-0.5 text-xs text-muted">{j.type}</span>
+                  )}
+                  {j.hasChildren && (
+                    <span className="ml-2 text-xs text-muted" title="Includes every sub-job beneath it">
+                      incl. sub-jobs
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-2 text-muted">{j.party?.name ?? "—"}</td>
                 <td className="px-4 py-2">
                   <span className={`rounded px-2 py-0.5 text-xs font-medium ${statusColor[j.status] ?? statusColor.Open}`}>
@@ -208,8 +256,11 @@ export default async function JobsPage({
                     >
                       Vouchers
                     </Link>
-                    <JobForm companyId={companyId} parties={parties} job={{
+                    <JobForm companyId={companyId} parties={parties}
+                      jobs={jobs.filter((o) => o.id !== j.id).map((o) => ({ id: o.id, code: o.code, name: o.name }))}
+                      job={{
                       id: j.id, code: j.code, name: j.name, partyId: j.partyId,
+                      type: j.type, parentId: j.parentId,
                       contractValue: j.contractValue, budgetCost: j.budgetCost,
                       startDate: j.startDate ? j.startDate.toISOString().slice(0, 10) : null,
                       endDate: j.endDate ? j.endDate.toISOString().slice(0, 10) : null,
@@ -239,8 +290,10 @@ export default async function JobsPage({
 
       <p className="mt-3 text-xs text-muted">
         Revenue and cost come from the accounts each voucher line was posted to, for the period above — so these
-        figures always agree with the ledgers. A line with no job is not counted here; tag it on the voucher to
-        bring it in.
+        figures always agree with the ledgers. An indented row is a package or variation under the job above it;
+        the parent&rsquo;s figures include everything beneath it, while the total at the foot counts each job once.
+        A line with no job is not counted here — tag it on the voucher, or put it on a cost centre if it is your
+        own overhead.
       </p>
     </div>
   );

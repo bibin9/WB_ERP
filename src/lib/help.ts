@@ -308,6 +308,33 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "The ERP and Tally must be on the same network. If 'Test connection' fails, it tells you exactly what's wrong (usually Tally isn't running or the gateway is off).",
   },
 
+  {
+    id: "job-costing", category: "Finance & Accounting", screens: ["/finance/jobs"],
+    title: "Job costing — did we make money on that job?",
+    summary: "What a job earned, what it cost, and whether it stayed inside its budget.",
+    body: "A job is one piece of work you are doing for a customer. When you post a voucher, each line can be charged to a job — so the revenue you invoiced and the costs you paid out both land against the same job, and the margin is worked out for you. A job and a project are the same record here: 'kind of work' is just the word you use for it.",
+    steps: [
+      "Open Finance -> Job Costing and click 'New job'. Give it a name and, if you know them, the contract value (what you sold it for) and the budget cost (what you expect it to cost you).",
+      "When you post a voucher, use the 'Charge to' box on each line and pick the job. Do this for the sales invoice and for every supplier bill and expense that belongs to it.",
+      "Come back to this screen to see Revenue, Cost and Margin for each job, for whatever date range you choose at the top.",
+      "For a big contract split into packages or variations, create each one as its own job and set 'Part of' to the main contract. The main contract row then shows the whole picture.",
+    ],
+    tip: "Margin only tells the truth if every cost was charged to the job. If some were missed, the job looks more profitable than it really is — the Cost Centres screen shows you how much cost has nothing on it at all.",
+  },
+  {
+    id: "cost-centres", category: "Finance & Accounting", screens: ["/finance/cost-centres"],
+    title: "Cost centres — what your own business costs to run",
+    summary: "For costs no single customer job pays for: the workshop, the vehicles, the office.",
+    body: "Not every cost belongs to a customer's job. The rent, the workshop, the vehicles and the office staff cost money whether or not you win any work. A cost centre is where you put those, so you can see what they add up to. A voucher line carries a job OR a cost centre, never both — otherwise the same cost would be counted twice when you read the two reports side by side.",
+    steps: [
+      "Open Finance -> Cost Centres and click 'New cost centre'. Start simple: Head office, Workshop, Vehicles.",
+      "When you post a cost that is not for a customer job, use the 'Charge to' box on the line and pick the cost centre instead of a job.",
+      "'Own cost' is what was posted to that centre itself. 'Including below' adds up anything sitting underneath it — useful if you put Cranes and Pickups under Vehicles.",
+      "Watch the 'Cost with nothing on it' figure at the top. That is money spent with neither a job nor a cost centre against it.",
+    ],
+    tip: "While 'Cost with nothing on it' is above zero, your job margins are flattering — that cost has to belong somewhere. Click through to the Day Book to find the vouchers and tag them.",
+  },
+
   // ===== HR =====
   {
     id: "hr-employees", category: "Human Resources", screens: ["/hr"],

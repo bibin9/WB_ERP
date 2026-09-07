@@ -48,6 +48,9 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const jobs = companyId
     ? await db.job.findMany({ where: { companyId, isActive: true, status: { in: ["Open", "On hold"] } }, orderBy: { code: "asc" }, select: { id: true, code: true, name: true } })
     : [];
+  const costCentres = companyId
+    ? await db.costCentre.findMany({ where: { companyId, isActive: true }, orderBy: { code: "asc" }, select: { id: true, code: true, name: true } })
+    : [];
 
   const entries = companyId
     ? await db.journalEntry.findMany({
@@ -75,7 +78,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         <PrintReport />
         <div className="flex flex-wrap items-center gap-2">
           {companyId && <ExportButton dataset="journals" companyId={companyId} label="Export journals" />}
-          {companyId && <JournalForm companyId={companyId} accounts={accounts.map((a) => ({ id: a.id, code: a.code, name: a.name }))} parties={parties.map((p) => ({ id: p.id, code: p.code, name: p.name }))} jobs={jobs} />}
+          {companyId && <JournalForm companyId={companyId} accounts={accounts.map((a) => ({ id: a.id, code: a.code, name: a.name }))} parties={parties.map((p) => ({ id: p.id, code: p.code, name: p.name }))} jobs={jobs} costCentres={costCentres} />}
         </div>
       </PageHeader>
 

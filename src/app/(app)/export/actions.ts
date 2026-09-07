@@ -274,6 +274,9 @@ const jobs: Dataset = {
       include: { party: { select: { name: true } }, lines: { include: { account: { select: { type: true } } } } },
       orderBy: { code: "asc" },
     });
+    const codeById = new Map(rows.map((j) => [j.id, j.code]));
+    // Each row carries only what was posted to it; the roll-up is the job
+    // screen's job, and doing it here would double-count on a re-import.
     const figures = (j: (typeof rows)[number]) => {
       let revenue = 0, cost = 0;
       for (const l of j.lines) {
@@ -286,6 +289,10 @@ const jobs: Dataset = {
     const columns: Column<(typeof rows)[number]>[] = [
       { header: "Code", value: (j) => j.code },
       { header: "Job", value: (j) => j.name },
+      { header: "Type", value: (j) => j.type },
+      // The parent's code rather than its id, so the sheet is readable and can
+      // be sorted into the tree without a lookup.
+      { header: "Part Of", value: (j) => (j.parentId ? codeById.get(j.parentId) : "") },
       { header: "Customer", value: (j) => j.party?.name },
       { header: "Status", value: (j) => j.status },
       { header: "Start", value: (j) => j.startDate },
@@ -296,6 +303,33 @@ const jobs: Dataset = {
       { header: "Cost", value: (j) => money(figures(j).cost) },
       { header: "Margin", value: (j) => money(figures(j).margin) },
       { header: "Notes", value: (j) => j.notes },
+    ];
+    return { rows, columns: columns as Column<never>[] };
+  },
+};
+
+const costCentres: Dataset = {
+  screen: "finance.costcentres",
+  label: "cost-centres",
+  async build(companyId) {
+    const rows = await db.costCentre.findMany({
+      where: { companyId },
+      include: { lines: { include: { account: { select: { type: true } } } } },
+      orderBy: { code: "asc" },
+    });
+    const codeById = new Map(rows.map((c) => [c.id, c.code]));
+    const own = (c: (typeof rows)[number]) => {
+      let cost = 0;
+      for (const l of c.lines) if (l.account.type === "Expense") cost += l.debit - l.credit;
+      return cost;
+    };
+    const columns: Column<(typeof rows)[number]>[] = [
+      { header: "Code", value: (c) => c.code },
+      { header: "Cost Centre", value: (c) => c.name },
+      { header: "Sits Under", value: (c) => (c.parentId ? codeById.get(c.parentId) : "") },
+      { header: "Own Cost", value: (c) => money(own(c)) },
+      { header: "Active", value: (c) => (c.isActive ? "Yes" : "No") },
+      { header: "Notes", value: (c) => c.notes },
     ];
     return { rows, columns: columns as Column<never>[] };
   },
@@ -314,6 +348,7 @@ const DATASETS: Record<string, Dataset> = {
   journals,
   accounts,
   jobs,
+  costCentres,
 };
 
 /* ------------------------------------------------------------- single export */

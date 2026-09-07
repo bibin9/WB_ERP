@@ -21,7 +21,13 @@ const FULL = ["view", "create", "edit", "delete", "approve"];
 const MODULE_SCREENS = {
   dashboard: ["dashboard.home"],
   companies: ["companies.list"],
-  finance: ["finance.overview", "finance.daybook", "finance.ledgers", "finance.reports", "finance.vat", "finance.tally"],
+  // Every finance screen, so a new one is granted to the finance roles rather
+  // than silently reaching only the admin roles that bypass this list.
+  finance: [
+    "finance.overview", "finance.daybook", "finance.ledgers", "finance.reports",
+    "finance.parties", "finance.outstanding", "finance.jobs", "finance.costcentres",
+    "finance.vat", "finance.tally",
+  ],
   hr: ["hr.employees", "hr.onboarding", "hr.payroll", "hr.leave", "hr.attendance", "hr.certifications", "hr.separation", "hr.reports", "hr.tasks"],
   approvals: ["approvals.inbox"],
   users: ["users.list", "users.access"],
@@ -376,21 +382,51 @@ async function main() {
   }
   // Jobs, so job costing has something to cost. Two open contracts, with the
   // sample vouchers tagged to the first one.
+  //
+  // A job and a project are the same record; `type` is only the word for it.
+  // J-0003 sits under J-0001 as a package, so the roll-up on the job screen has
+  // something to demonstrate on a fresh install.
   const JOBS = [
-    ["J-0001", "ADNOC pipeline fabrication", "C0001", 450000, 300000],
-    ["J-0002", "Emaar tower MEP fit-out", "C0002", 280000, 210000],
+    ["J-0001", "ADNOC pipeline fabrication", "C0001", 450000, 300000, "Contract", null],
+    ["J-0002", "Emaar tower MEP fit-out", "C0002", 280000, 210000, "Project", null],
+    ["J-0003", "ADNOC — variation 1: extra spools", "C0001", 60000, 42000, "Contract", "J-0001"],
   ];
   for (const company of companies) {
-    for (const [code, name, partyCode, contractValue, budgetCost] of JOBS) {
+    for (const [code, name, partyCode, contractValue, budgetCost, type, parentCode] of JOBS) {
       const party = await db.party.findFirst({ where: { companyId: company.id, code: partyCode } });
+      // The parent is seeded before its child, so this always resolves.
+      const parent = parentCode
+        ? await db.job.findFirst({ where: { companyId: company.id, code: parentCode } })
+        : null;
       await db.job.upsert({
         where: { companyId_code: { companyId: company.id, code } },
-        update: { name, contractValue, budgetCost },
+        update: { name, contractValue, budgetCost, type, parentId: parent?.id ?? null },
         create: {
-          companyId: company.id, code, name, contractValue, budgetCost,
+          companyId: company.id, code, name, contractValue, budgetCost, type,
+          parentId: parent?.id ?? null,
           partyId: party?.id ?? null, status: "Open",
           startDate: new Date(Date.UTC(new Date().getUTCFullYear(), 0, 15)),
         },
+      });
+    }
+  }
+
+  // Cost centres — the other dimension, for what the business carries itself.
+  const CENTRES = [
+    ["CC-01", "Head office", null],
+    ["CC-02", "Workshop — Al Quoz", null],
+    ["CC-03", "Vehicles", null],
+    ["CC-04", "Cranes & lifting", "CC-03"],
+  ];
+  for (const company of companies) {
+    for (const [code, name, parentCode] of CENTRES) {
+      const parent = parentCode
+        ? await db.costCentre.findFirst({ where: { companyId: company.id, code: parentCode } })
+        : null;
+      await db.costCentre.upsert({
+        where: { companyId_code: { companyId: company.id, code } },
+        update: { name, parentId: parent?.id ?? null },
+        create: { companyId: company.id, code, name, parentId: parent?.id ?? null },
       });
     }
   }
@@ -421,7 +457,7 @@ async function main() {
     }
   }
 
-  console.log("Seeded tenant, companies, roles, admin, tasks, chart of accounts, approval routes, employees, certs, supplied worker, sample vouchers, jobs.");
+  console.log("Seeded tenant, companies, roles, admin, tasks, chart of accounts, approval routes, employees, certs, supplied worker, sample vouchers, jobs, cost centres.");
   console.log("Login:  admin@wandb.ae  /  " + ADMIN_PASSWORD);
 }
 

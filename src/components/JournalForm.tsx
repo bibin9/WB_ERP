@@ -5,25 +5,31 @@ import { Plus, X, Trash2 } from "lucide-react";
 import { createJournalEntry } from "@/app/(app)/finance/actions";
 import AccountPicker from "@/components/finance/AccountPicker";
 import { VAT_TREATMENTS, TREATMENT_HELP, type VatTreatment } from "@/lib/vat";
+import { chargeValue, chargeFrom } from "@/lib/costing";
 
 type Account = { id: string; code: string; name: string };
 type PartyOption = { id: string; code: string; name: string };
-type Line = { accountId: string; debit: string; credit: string; vatTreatment: string; jobId: string };
+type Line = { accountId: string; debit: string; credit: string; vatTreatment: string; jobId: string; costCentreId: string };
 
-const empty = (): Line => ({ accountId: "", debit: "", credit: "", vatTreatment: "", jobId: "" });
+const empty = (): Line => ({ accountId: "", debit: "", credit: "", vatTreatment: "", jobId: "", costCentreId: "" });
 
 type JobOption = { id: string; code: string; name: string };
+type CentreOption = { id: string; code: string; name: string };
+
+
 
 export default function JournalForm({
   companyId,
   accounts,
   parties = [],
   jobs = [],
+  costCentres = [],
 }: {
   companyId: string;
   accounts: Account[];
   parties?: PartyOption[];
   jobs?: JobOption[];
+  costCentres?: CentreOption[];
 }) {
   const [open, setOpen] = useState(false);
   const [lines, setLines] = useState<Line[]>([empty(), empty()]);
@@ -73,6 +79,7 @@ export default function JournalForm({
           credit: Number(l.credit) || 0,
           vatTreatment: l.vatTreatment || null,
           jobId: l.jobId || null,
+          costCentreId: l.costCentreId || null,
         }))
       )
     );
@@ -135,7 +142,7 @@ export default function JournalForm({
 
           <div className="overflow-hidden rounded-lg border border-line">
             <div className="grid grid-cols-[1fr,120px,120px,105px,105px,36px] gap-2 bg-brand-paper px-3 py-2 text-xs font-semibold uppercase text-muted">
-              <span>Account</span><span>VAT</span><span>Job</span><span className="text-right">Debit</span><span className="text-right">Credit</span><span />
+              <span>Account</span><span>VAT</span><span>Charge to</span><span className="text-right">Debit</span><span className="text-right">Credit</span><span />
             </div>
             {lines.map((l, i) => (
               <div key={i} className="grid grid-cols-[1fr,120px,120px,105px,105px,36px] items-center gap-2 border-t border-line px-3 py-2">
@@ -154,13 +161,31 @@ export default function JournalForm({
                   {VAT_TREATMENTS.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <select
-                  value={l.jobId}
-                  onChange={(e) => update(i, { jobId: e.target.value })}
+                  value={chargeValue(l)}
+                  onChange={(e) => update(i, chargeFrom(e.target.value))}
                   className="input h-9 py-1.5 text-xs"
-                  title="Tag this cost or revenue to a job, so job costing can answer for it. Leave blank for overheads that belong to no single job."
+                  title={
+                    "Who carries this line. Pick a job when a customer is paying for it, so job costing can " +
+                    "answer for it. Pick a cost centre when it is your own overhead — the workshop, the vehicles, " +
+                    "the office. Leave it blank only for lines that are neither cost nor income: the bank, the " +
+                    "receivable, the VAT account itself."
+                  }
                 >
                   <option value="">—</option>
-                  {jobs.map((j) => <option key={j.id} value={j.id}>{j.code} · {j.name}</option>)}
+                  {jobs.length > 0 && (
+                    <optgroup label="Jobs — a customer pays for this">
+                      {jobs.map((j) => (
+                        <option key={j.id} value={`job:${j.id}`}>{j.code} · {j.name}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {costCentres.length > 0 && (
+                    <optgroup label="Cost centres — our own overhead">
+                      {costCentres.map((c) => (
+                        <option key={c.id} value={`cc:${c.id}`}>{c.code} · {c.name}</option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
                 <input type="number" value={l.debit} onChange={(e) => update(i, { debit: e.target.value, credit: "" })} className="input h-9 py-1.5 text-right text-sm" placeholder="0.00" />
                 <input type="number" value={l.credit} onChange={(e) => update(i, { credit: e.target.value, debit: "" })} className="input h-9 py-1.5 text-right text-sm" placeholder="0.00" />

@@ -4,8 +4,8 @@ Project and end-user documentation for the White & Bright Group ERP.
 
 | Document | Audience | Purpose |
 |---|---|---|
-| **White_and_Bright_ERP_User_Manual.docx** | End users | Step-by-step guide to every screen, with 25 embedded screenshots. Version 1.4. |
-| **White_and_Bright_ERP_Test_Cases.xlsx** | QA / testing team | 186 test cases across all modules, with a Status tracker and auto-counting Summary. |
+| **White_and_Bright_ERP_User_Manual.docx** | End users | Step-by-step guide to every screen, with 25 embedded screenshots. Version 1.5. |
+| **White_and_Bright_ERP_Test_Cases.xlsx** | QA / testing team | 214 test cases across all modules, with a Status tracker and auto-counting Summary. |
 | **White_and_Bright_ERP_BRD_v1.2_APPROVED.docx** | Client / stakeholders | Business Requirements Document (approved baseline). |
 | **White_and_Bright_ERP_FSD_v1.1.docx** | Developers / stakeholders | Functional Specification (aligned to BRD v1.2). |
 | **White_and_Bright_ERP_Technical_Proposal.docx** | Client | One-page technical proposal. |

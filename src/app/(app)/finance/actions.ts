@@ -169,18 +169,23 @@ export async function reverseJournalEntry(
       reference,
       date,
       voucherType: original.voucherType,
+      // The party id, not only the name: Outstanding & Ageing selects on
+      // partyId, so without it a reversed sales invoice would leave the
+      // customer showing the full amount as still owing.
+      partyId: original.partyId,
       partyName: original.partyName,
       vatAmount: -original.vatAmount,
       memo: `Reversal of ${original.reference}${original.memo ? " — " + original.memo : ""}`,
       postedBy: session.user.name,
       reversalOfId: original.id,
       // Debit and credit swap: that is the whole of a reversal.
-      // Carry the job and VAT treatment through, or the correction would
-      // vanish from job costing and the VAT return.
+      // Carry the job, the cost centre and the VAT treatment through, or the
+      // correction would vanish from job costing, from overhead and from the
+      // VAT return while the original stayed in all three.
       lines: {
         create: original.lines.map((l) => ({
           accountId: l.accountId, debit: l.credit, credit: l.debit,
-          vatTreatment: l.vatTreatment, jobId: l.jobId,
+          vatTreatment: l.vatTreatment, jobId: l.jobId, costCentreId: l.costCentreId,
         })),
       },
     },
