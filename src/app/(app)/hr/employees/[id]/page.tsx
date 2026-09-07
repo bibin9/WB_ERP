@@ -40,8 +40,16 @@ function Section({ title, icon, children }: { title: string; icon?: React.ReactN
   );
 }
 
-export default async function EmployeeProfilePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EmployeeProfilePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ err?: string }>;
+}) {
   const { id } = await params;
+  // Set when a save was refused because an identifier was malformed.
+  const { err } = await searchParams;
   await requireAccess("hr.employees");
   const session = await getSession();
   if (!session) return null;
@@ -58,6 +66,16 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
     <div>
       <Link href="/hr" className="mb-3 inline-flex items-center gap-1 text-sm text-brand-blue-600 hover:underline"><ArrowLeft className="h-4 w-4" /> Back to Employees</Link>
       <PageHeader title={`${e.name}`} subtitle={`${e.empNo} · ${e.designation ?? "—"} · ${e.company.code}`} />
+
+      {err && (
+        <div
+          role="alert"
+          className="mb-4 rounded-lg border border-brand-gold/40 bg-brand-gold/10 px-4 py-3 text-sm text-ink"
+        >
+          <span className="font-semibold">Not saved.</span> {err} Nothing on this profile was changed &mdash;
+          correct the value and save again.
+        </div>
+      )}
 
       <form action={updateEmployeeProfile} className="space-y-5">
         <input type="hidden" name="id" value={e.id} />

@@ -11,6 +11,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/guard";
 import { activeTenant } from "@/config/tenant";
 import ExportButton from "@/components/ExportButton";
+import { money } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ const typeColor: Record<string, string> = {
   "Part-time": "text-muted",
 };
 
-const money = (v: number) => v.toLocaleString();
+
 
 export default async function EmployeesPage() {
   const session = await requireAccess("hr.employees");

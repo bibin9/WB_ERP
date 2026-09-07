@@ -7,6 +7,7 @@ import { audit } from "@/lib/audit";
 import { postVoucher, VOUCHER_PREFIX, type PostingLine } from "@/lib/posting";
 import { financialYear } from "@/lib/period";
 import { allow } from "@/lib/guard";
+import { toFils } from "@/lib/money";
 
 
 export async function createJournalEntry(formData: FormData) {
@@ -65,7 +66,7 @@ function controlFrom(formData: FormData): string | null {
  * (debit positive) so it adds straight into the ledger arithmetic.
  */
 function openingFrom(formData: FormData): number {
-  const amount = Math.abs(Number(formData.get("openingAmount")) || 0);
+  const amount = toFils(Math.abs(Number(formData.get("openingAmount")) || 0));
   const side = String(formData.get("openingSide") || "Dr");
   return side === "Cr" ? -amount : amount;
 }

@@ -7,6 +7,7 @@ import { can } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { computeSettlement, type SeparationType } from "@/lib/settlement";
 import { allow } from "@/lib/guard";
+import { aed } from "@/lib/money";
 
 const num = (fd: FormData, k: string) => Number(fd.get(k)) || 0;
 
@@ -56,7 +57,7 @@ export async function createSeparation(formData: FormData) {
 
   // Employee has left — mark inactive.
   await db.employee.update({ where: { id: emp.id }, data: { status: "Inactive" } });
-  await audit({ action: "Created", entity: "Employee", entityId: emp.id, summary: `${type} for ${emp.name}: net settlement AED ${s.netSettlement.toLocaleString()}` });
+  await audit({ action: "Created", entity: "Employee", entityId: emp.id, summary: `${type} for ${emp.name}: net settlement ${aed(s.netSettlement)}` });
   revalidatePath("/hr/separation");
 }
 

@@ -8,6 +8,8 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { allow } from "@/lib/guard";
+import { redirect } from "next/navigation";
+import { EMPLOYEE_VALIDATORS } from "@/lib/uae";
 
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
 const STR_FIELDS = [
@@ -33,9 +35,22 @@ export async function updateEmployeeProfile(formData: FormData) {
   const data: Record<string, unknown> = {};
   for (const f of STR_FIELDS) { const v = String(formData.get(f) ?? "").trim(); data[f] = v || null; }
   if (!data.name) return;
+
+  // The identifiers that something downstream will reject. A malformed IBAN is
+  // not discovered until the bank refuses the whole WPS file days later, naming
+  // no row, so it has to be caught while the person is still looking at the box.
+  // Blank stays allowed — a profile is filled in over time — and completeness is
+  // enforced at WPS generation instead.
+  for (const [field, clean] of Object.entries(EMPLOYEE_VALIDATORS)) {
+    const typed = String(formData.get(field) ?? "").trim();
+    if (!typed) continue;
+    const { value, error } = clean(typed);
+    if (error) redirect(`/hr/employees/${id}?err=${encodeURIComponent(error)}`);
+    data[field] = value;
+  }
   for (const f of DATE_FIELDS) { const v = String(formData.get(f) ?? ""); data[f] = v ? new Date(v) : null; }
-  data.basicSalary = Number(formData.get("basicSalary")) || 0;
-  data.allowances = Number(formData.get("allowances")) || 0;
+  data.basicSalary = toFils(Number(formData.get("basicSalary")) || 0);
+  data.allowances = toFils(Number(formData.get("allowances")) || 0);
 
   await db.employee.update({ where: { id }, data });
   await audit({ action: "Updated", entity: "Employee", entityId: id, summary: `Updated profile of ${s.emp.empNo}` });
@@ -90,3 +105,5 @@ export async function deleteDocument(id: string) {
   await db.employeeDocument.delete({ where: { id } });
   revalidatePath(`/hr/employees/${doc.employeeId}`);
 }
+
+import { toFils } from "@/lib/money";

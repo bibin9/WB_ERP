@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { listDocTypes } from "@/lib/approval-engine";
 import { requireAccess } from "@/lib/guard";
+import { money } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +25,9 @@ const stepColor: Record<string, string> = {
   Current: "border-brand-blue bg-brand-blue/10 text-brand-blue-600",
 };
 
-function money(a: number | null, c: string) {
-  return a == null ? "—" : `${c} ${a.toLocaleString()}`;
+/** An amount with its currency code, e.g. "AED 1,000.00". */
+function amountWithCurrency(a: number | null, c: string) {
+  return a == null ? "—" : `${c} ${money(a)}`;
 }
 
 export default async function ApprovalsPage() {
@@ -82,7 +84,7 @@ export default async function ApprovalsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium text-ink">{r.title}</div>
                     <div className="text-xs text-muted">
-                      {r.docType} · {r.company.code} · {money(r.amount, r.currency)} · by {r.requestedBy} · needs {step.roleName}
+                      {r.docType} · {r.company.code} · {amountWithCurrency(r.amount, r.currency)} · by {r.requestedBy} · needs {step.roleName}
                     </div>
                   </div>
                   <ApprovalDecision stepId={step.id} />
@@ -110,7 +112,7 @@ export default async function ApprovalsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium text-ink">{r.title}</div>
                   <div className="text-xs text-muted">
-                    {r.docType} · {r.company.code} · {money(r.amount, r.currency)} · by {r.requestedBy}
+                    {r.docType} · {r.company.code} · {amountWithCurrency(r.amount, r.currency)} · by {r.requestedBy}
                   </div>
                 </div>
                 <span className={clsx("rounded-full px-2.5 py-0.5 text-xs font-medium", statusBadge[r.status])}>

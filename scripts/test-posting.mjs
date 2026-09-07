@@ -146,6 +146,32 @@ const manual1 = await postVoucher({ ...base, memo: `${TAG} manual one`, lines: b
 const manual2 = await postVoucher({ ...base, memo: `${TAG} manual two`, lines: balanced(12) });
 ok("vouchers with no source are not constrained by it", manual1.ok && manual2.ok);
 
+/* ------------------------------------------------------ rounded to fils - */
+// A VAT extraction or a proration produces 1119.571428…, which is not an amount
+// anybody can pay. Stored unrounded it would show as 1,119.57 while the figure
+// behind it carried a tail, so a report that sums before rounding would
+// disagree with one that rounds before summing.
+{
+  const raw = 1175.55 / 1.05; // 1119.5714285714284
+  const posted = await postVoucher({
+    ...base, memo: `${TAG} vat extraction`, vatAmount: raw * 0.05,
+    lines: [{ accountId: cash.id, debit: raw, credit: 0 }, { accountId: revenue.id, debit: 0, credit: raw }],
+  });
+  ok("a sub-fils amount posts", posted.ok, posted.ok ? posted.reference : posted.error);
+  const stored = await db.journalEntry.findUnique({ where: { id: posted.entryId }, include: { lines: true } });
+  const overTwoDp = (v) => Math.abs(v * 100 - Math.round(v * 100)) > 1e-9;
+  ok("the line is stored rounded to fils", !overTwoDp(stored.lines[0].debit), String(stored.lines[0].debit));
+  ok("and so is the VAT", !overTwoDp(stored.vatAmount), String(stored.vatAmount));
+
+  // Rounding must not turn an unbalanced voucher into a balanced one.
+  const uneven = await postVoucher({
+    ...base, memo: `${TAG} uneven`,
+    lines: [{ accountId: cash.id, debit: 100.005, credit: 0 }, { accountId: revenue.id, debit: 0, credit: 100.004 }],
+  });
+  ok("rounding does not square off an unbalanced voucher",
+    !uneven.ok && /not balanced/i.test(uneven.error), uneven.error);
+}
+
 /* ------------------------------------------------------- the reversal --- */
 // A reversal is its own document. Copying the source would collide with the
 // unique index and make the original impossible to correct.

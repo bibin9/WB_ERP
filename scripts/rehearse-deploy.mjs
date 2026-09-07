@@ -171,6 +171,18 @@ try {
     step("node", ["scripts/db-release.mjs"]);
     step("node", ["prisma/seed.mjs"]);
 
+    // The schema applying is not the same as the release being correct. This
+    // reads back what the seed actually wrote and checks it against the rules
+    // the app enforces — identifiers valid, money in whole fils, books
+    // balanced — because those run on SQLite everywhere else.
+    console.log("\n--- verifying what landed in PostgreSQL ---");
+    try {
+      step("node", ["--experimental-strip-types", "scripts/qa-verify-pg.mjs"]);
+    } catch {
+      console.error("  FAIL — the seeded data does not satisfy the app's own rules.");
+      failed = true;
+    }
+
     const after = state();
     console.log(`\n  after: ${after.tables} tables, migration history: ${after.history}`);
     if (!after.history) {

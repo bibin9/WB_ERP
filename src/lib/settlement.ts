@@ -36,18 +36,50 @@ export type SettlementInput = {
 const DAY = 86_400_000;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-/** Whole years/months/days of service, plus a decimal-years figure for the gratuity formula. */
+/**
+ * Whole years/months/days of service, plus a decimal-years figure for the
+ * gratuity formula.
+ *
+ * Service is measured by calendar anniversary, not by dividing elapsed days by
+ * 365.25. Two reasons, both of which cost the employee money:
+ *
+ *   - An average-length year is 365.25 days, so a real year of 365 days came to
+ *     0.99932 and an employee who had served exactly one year was told they had
+ *     not. The screen showed "1y 0m 0d" beside "under 1 year — not eligible".
+ *     Three years in four contain no 29 February, so this was the common case,
+ *     and a completed year is a statutory entitlement under Decree-Law 33/2021.
+ *   - The same divisor made every settlement fractionally short — always in the
+ *     employer's favour, which is the wrong direction in a labour claim.
+ *
+ * Dates are stored as UTC midnight, so this reads them in UTC. Local getters
+ * would shift the day either side of midnight and make the answer depend on
+ * where the server happens to run.
+ */
 export function serviceLength(join: Date, last: Date) {
   const j = new Date(join), l = new Date(last);
-  let years = l.getFullYear() - j.getFullYear();
-  let months = l.getMonth() - j.getMonth();
-  let days = l.getDate() - j.getDate();
-  if (days < 0) { months -= 1; const pm = new Date(l.getFullYear(), l.getMonth(), 0).getDate(); days += pm; }
+  let years = l.getUTCFullYear() - j.getUTCFullYear();
+  let months = l.getUTCMonth() - j.getUTCMonth();
+  let days = l.getUTCDate() - j.getUTCDate();
+  if (days < 0) {
+    months -= 1;
+    // Day count of the month before the last working day.
+    const pm = new Date(Date.UTC(l.getUTCFullYear(), l.getUTCMonth(), 0)).getUTCDate();
+    days += pm;
+  }
   if (months < 0) { years -= 1; months += 12; }
   const totalDays = Math.max(0, Math.floor((l.getTime() - j.getTime()) / DAY));
-  const decimalYears = totalDays / 365.25;
+
+  const wholeYears = Math.max(0, years);
+  // The part-year is measured against the length of the service year actually
+  // being served, so a year that contains 29 February is not counted short.
+  const since = new Date(Date.UTC(j.getUTCFullYear() + wholeYears, j.getUTCMonth(), j.getUTCDate()));
+  const until = new Date(Date.UTC(j.getUTCFullYear() + wholeYears + 1, j.getUTCMonth(), j.getUTCDate()));
+  const yearLength = Math.max(1, Math.round((until.getTime() - since.getTime()) / DAY));
+  const elapsed = Math.max(0, Math.round((l.getTime() - since.getTime()) / DAY));
+  const decimalYears = l < j ? 0 : wholeYears + Math.min(1, elapsed / yearLength);
+
   const text = years < 0 ? "—" : `${years}y ${months}m ${days}d`;
-  return { years: Math.max(0, years), months: Math.max(0, months), days: Math.max(0, days), decimalYears, totalDays, text };
+  return { years: wholeYears, months: Math.max(0, months), days: Math.max(0, days), decimalYears, totalDays, text };
 }
 
 /** Gratuity per the 21/30-day rule, min 1 year, capped at 2 years' basic pay. */

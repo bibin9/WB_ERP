@@ -8,6 +8,7 @@ import DeleteRouteButton from "@/components/approval/DeleteRouteButton";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
+import { money } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +72,7 @@ export default async function ApprovalRoutesPage() {
                       <span className="text-xs text-muted">L{s.requiredLevel}</span>
                       {s.minAmount != null && (
                         <span className="rounded bg-brand-gold/15 px-1.5 py-0.5 text-[10px] font-semibold text-brand-gold">
-                          ≥ {s.minAmount.toLocaleString()}
+                          ≥ {money(s.minAmount)}
                         </span>
                       )}
                       <StepControls stepId={s.id} canUp={i > 0} canDown={i < route.steps.length - 1} />

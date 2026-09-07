@@ -230,25 +230,25 @@ async function main() {
       biometricId: "101", nationality: "Indian",
       emiratesIdNo: "784-1988-1234567-1", emiratesIdExpiry: d(45),   // amber
       visaNo: "VIS-2024-0091", visaType: "Employment", visaExpiry: d(500),
-      labourCardNo: "LC-77120", labourCardExpiry: d(500),
+      labourCardNo: "78412345601234", labourCardExpiry: d(500),
       passportNo: "Z1234567", passportExpiry: d(900) },
     { empNo: "EMP-0002", name: "Ahmed Al Balushi", department: "Operations", designation: "Operations Manager", grade: "M3", basicSalary: 22000, allowances: 8000,
       biometricId: "102", nationality: "Omani",
       emiratesIdNo: "784-1985-7654321-2", emiratesIdExpiry: d(700),
       visaNo: "VIS-2023-0042", visaType: "Employment", visaExpiry: d(650),
-      labourCardNo: "LC-55201", labourCardExpiry: d(650),
+      labourCardNo: "78412345602345", labourCardExpiry: d(650),
       passportNo: "OM998877", passportExpiry: d(1200) },
     { empNo: "EMP-0003", name: "Maria Santos", department: "Finance", designation: "Accountant", grade: "S2", basicSalary: 9000, allowances: 3000,
       biometricId: "103", nationality: "Filipino",
       emiratesIdNo: "784-1990-2223334-3", emiratesIdExpiry: d(-8),    // expired
       visaNo: "VIS-2022-0310", visaType: "Employment", visaExpiry: d(-5),   // expired
-      labourCardNo: "LC-33940", labourCardExpiry: d(20),   // amber
+      labourCardNo: "78412345603456", labourCardExpiry: d(20),   // amber
       passportNo: "P7788990", passportExpiry: d(55) },       // amber
     { empNo: "EMP-0004", name: "John Mathew", department: "Fabrication", designation: "6G Welder", grade: "W1", employmentType: "Contract", basicSalary: 4500, allowances: 1500,
       biometricId: "104", nationality: "Indian",
       emiratesIdNo: "784-1992-4445556-4", emiratesIdExpiry: d(320),
       visaNo: "VIS-2024-0155", visaType: "Employment", visaExpiry: d(300),
-      labourCardNo: "LC-88410", labourCardExpiry: d(18),   // amber
+      labourCardNo: "78412345604567", labourCardExpiry: d(18),   // amber
       passportNo: "N5566778", passportExpiry: d(400) },
   ];
   const wbeCo = companies[0];
@@ -279,7 +279,7 @@ async function main() {
     biometricId: "201", nationality: "Indian",
     emiratesIdNo: "784-1995-9990001-5", emiratesIdExpiry: d(120),
     visaNo: "VIS-2024-0400", visaType: "Employment", visaExpiry: d(30),   // amber
-    labourCardNo: "LC-91002", labourCardExpiry: d(30),
+    labourCardNo: "78412345605678", labourCardExpiry: d(30),
     passportNo: "S1122334", passportExpiry: d(600),
   };
   await db.employee.upsert({
@@ -290,14 +290,39 @@ async function main() {
   });
 
   // WPS demo data: employer config, employee bank details, a sample advance
+  const WPS_IBANS = [
+    "AE060331234567890100000",
+    "AE760331234567890100001",
+    "AE490331234567890100002",
+    "AE220331234567890100003",
+    "AE920331234567890100004",
+    "AE650331234567890100005",
+  ];
   await db.company.update({ where: { id: wbeCo.id }, data: { wpsEmployerId: "1234567890123", wpsBankRouting: "302460010" } });
   const wbeAll = await db.employee.findMany({ where: { companyId: wbeCo.id }, orderBy: { empNo: "asc" } });
   for (const [i, e] of wbeAll.entries()) {
     await db.employee.update({ where: { id: e.id }, data: {
       bankName: e.bankName ?? "Emirates NBD",
-      iban: e.iban ?? ("AE070331234567890" + String(100000 + i).slice(-6)),
+      // Real UAE IBANs: AE, ISO 7064 check digits, 3-digit bank, 16-digit
+      // account. Arbitrary digits would fail the checksum the moment anyone
+      // tried the WPS export, so the demo would never produce a usable file.
+      iban: e.iban ?? WPS_IBANS[i % WPS_IBANS.length],
       bankRoutingCode: e.bankRoutingCode ?? "302460010",
     } });
+  }
+
+  // Repair identifiers left by an earlier seed. These placeholders passed the
+  // old presence-only check but are not valid: the IBANs carry wrong ISO 7064
+  // check digits and the labour cards are not numeric, so every employee would
+  // now be held back from the WPS file. Matched exactly, so anything a user
+  // typed is left alone.
+  for (const [i, e] of wbeAll.entries()) {
+    const patch = {};
+    if (e.iban && /^AE070331234567890\d{6}$/.test(e.iban)) patch.iban = WPS_IBANS[i % WPS_IBANS.length];
+    if (e.labourCardNo && /^LC-\d+$/.test(e.labourCardNo)) {
+      patch.labourCardNo = `7841234560${String(1234 + i).slice(-4)}`;
+    }
+    if (Object.keys(patch).length) await db.employee.update({ where: { id: e.id }, data: patch });
   }
   if ((await db.advance.count({ where: { companyId: wbeCo.id } })) === 0) {
     const rajesh = wbeAll.find((e) => e.empNo === "EMP-0001");

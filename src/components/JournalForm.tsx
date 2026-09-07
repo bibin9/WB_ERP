@@ -6,6 +6,7 @@ import { createJournalEntry } from "@/app/(app)/finance/actions";
 import AccountPicker from "@/components/finance/AccountPicker";
 import { VAT_TREATMENTS, TREATMENT_HELP, type VatTreatment } from "@/lib/vat";
 import { chargeValue, chargeFrom } from "@/lib/costing";
+import { money } from "@/lib/money";
 
 type Account = { id: string; code: string; name: string };
 type PartyOption = { id: string; code: string; name: string };
@@ -198,15 +199,15 @@ export default function JournalForm({
               <button onClick={() => setLines((ls) => [...ls, empty()])} className="justify-self-start text-xs font-medium text-brand-blue-600 hover:underline">+ Add line</button>
               <span />
               <span />
-              <span className="text-right text-ink">{totalDebit.toLocaleString()}</span>
-              <span className="text-right text-ink">{totalCredit.toLocaleString()}</span>
+              <span className="text-right text-ink">{money(totalDebit)}</span>
+              <span className="text-right text-ink">{money(totalCredit)}</span>
               <span />
             </div>
           </div>
 
           <div className="flex items-center justify-between">
             <span className={balanced ? "text-sm font-medium text-brand-green-700" : "text-sm text-muted"}>
-              {balanced ? "✓ Balanced" : `Difference: ${(totalDebit - totalCredit).toLocaleString()}`}
+              {balanced ? "✓ Balanced" : `Difference: ${money(totalDebit - totalCredit)}`}
             </span>
             {error && <span className="text-sm text-red-600">{error}</span>}
           </div>

@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { allow } from "@/lib/guard";
 import { audit } from "@/lib/audit";
 import { JOB_TYPES, JOB_STATUSES } from "@/lib/costing";
+import { toFils } from "@/lib/money";
 
 /**
  * Jobs — the contracts and projects the business is actually run by.
@@ -20,7 +21,7 @@ import { JOB_TYPES, JOB_STATUSES } from "@/lib/costing";
 // itself lives in @/lib/costing, where the forms can read it too.
 
 function read(formData: FormData) {
-  const num = (k: string) => Math.max(0, Number(formData.get(k)) || 0);
+  const num = (k: string) => toFils(Math.max(0, Number(formData.get(k)) || 0));
   const date = (k: string) => {
     const v = String(formData.get(k) || "").trim();
     return /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(v + "T00:00:00.000Z") : null;

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { allow } from "@/lib/guard";
+import { toFils } from "@/lib/money";
 
 async function nextEmpNo(companyId: string): Promise<string> {
   const n = await db.employee.count({ where: { companyId } });
@@ -33,8 +34,8 @@ export async function createEmployee(formData: FormData) {
       grade: String(formData.get("grade") || "") || null,
       employmentType: String(formData.get("employmentType") || "Full-time"),
       supplier: String(formData.get("supplier") || "") || null,
-      basicSalary: Number(formData.get("basicSalary")) || 0,
-      allowances: Number(formData.get("allowances")) || 0,
+      basicSalary: toFils(Number(formData.get("basicSalary")) || 0),
+      allowances: toFils(Number(formData.get("allowances")) || 0),
     },
   });
   await audit({ action: "Created", entity: "Employee", entityId: created.id, summary: `Added employee ${empNo} — ${name}` });
@@ -73,8 +74,8 @@ export async function updateEmployee(formData: FormData) {
       grade: String(formData.get("grade") || "") || null,
       employmentType: String(formData.get("employmentType") || "Full-time"),
       supplier: String(formData.get("supplier") || "") || null,
-      basicSalary: Number(formData.get("basicSalary")) || 0,
-      allowances: Number(formData.get("allowances")) || 0,
+      basicSalary: toFils(Number(formData.get("basicSalary")) || 0),
+      allowances: toFils(Number(formData.get("allowances")) || 0),
     },
   });
   await audit({ action: "Updated", entity: "Employee", entityId: id, summary: `Updated employee ${emp.empNo} — ${name}` });

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession, canAdminister } from "@/lib/auth";
 import { allow } from "@/lib/guard";
+import { toFils } from "@/lib/money";
 
 async function guard() {
   const session = await getSession();
@@ -42,7 +43,7 @@ export async function addStep(formData: FormData) {
   const routeId = String(formData.get("routeId") || "");
   const roleId = String(formData.get("roleId") || "");
   const minRaw = String(formData.get("minAmount") || "").trim();
-  const minAmount = minRaw ? Number(minRaw) : null;
+  const minAmount = minRaw ? toFils(Number(minRaw)) : null;
 
   const route = await db.approvalRoute.findUnique({ where: { id: routeId }, include: { steps: true } });
   const role = await db.role.findUnique({ where: { id: roleId } });

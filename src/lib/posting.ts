@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "./db";
 import { financialYear } from "./period";
 import { VAT_TREATMENTS } from "./vat";
+import { toFils } from "./money";
 
 /**
  * Posting a voucher.
@@ -113,11 +114,15 @@ export async function postVoucher(input: PostingInput): Promise<PostingResult> {
     partyName = party.name;
   }
 
+  // Rounded to fils on the way in. A VAT extraction or a proration produces
+  // 1119.571428…, which is not an amount anybody can pay: the screen would show
+  // 1,119.57 while the stored figure carried a tail, and a report that sums
+  // before rounding would then disagree with one that rounds before summing.
   const lines = input.lines
     .map((l) => ({
       accountId: l.accountId,
-      debit: Number(l.debit) || 0,
-      credit: Number(l.credit) || 0,
+      debit: toFils(l.debit),
+      credit: toFils(l.credit),
       // Only a treatment the VAT return knows about is stored.
       vatTreatment: VAT_TREATMENTS.includes(l.vatTreatment as never) ? l.vatTreatment ?? null : null,
       jobId: l.jobId || null,
@@ -188,7 +193,7 @@ export async function postVoucher(input: PostingInput): Promise<PostingResult> {
       voucherType: input.voucherType,
       partyId: input.partyId || null,
       partyName,
-      vatAmount: input.vatAmount ?? 0,
+      vatAmount: toFils(input.vatAmount ?? 0),
       memo: input.memo || null,
       postedBy: input.postedBy,
       source: input.source ?? (input.sourceType ? input.sourceType : "manual"),

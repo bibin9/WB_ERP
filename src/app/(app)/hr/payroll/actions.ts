@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { buildSif, splitFixedVariable, type SifEmployee } from "@/lib/wps";
 import { allow } from "@/lib/guard";
+import { cleanIban, cleanLabourCard, cleanRouting } from "@/lib/uae";
 
 async function scoped(companyId: string) {
   const session = await getSession();
@@ -37,9 +38,13 @@ export async function createPayrollRun(formData: FormData) {
       payslips: {
         create: employees.map((e) => {
           const adv = e.advances[0];
-          const advanceRecovery = adv ? Math.min(adv.monthlyRecovery, adv.balance) : 0;
-          const netPay = e.basicSalary + e.allowances - advanceRecovery;
-          return { employeeId: e.id, empNo: e.empNo, employeeName: e.name, basic: e.basicSalary, allowances: e.allowances, deductions: 0, advanceRecovery, netPay };
+          const advanceRecovery = toFils(adv ? Math.min(adv.monthlyRecovery, adv.balance) : 0);
+          const netPay = toFils(e.basicSalary + e.allowances - advanceRecovery);
+          return {
+            employeeId: e.id, empNo: e.empNo, employeeName: e.name,
+            basic: toFils(e.basicSalary), allowances: toFils(e.allowances),
+            deductions: 0, advanceRecovery, netPay,
+          };
         }),
       },
     },
@@ -63,7 +68,7 @@ export async function setRunStatus(runId: string, status: string) {
       const adv = await db.advance.findFirst({ where: { employeeId: s.employeeId, status: "Active" }, orderBy: { createdAt: "asc" } });
       if (!adv) continue;
       const newBal = Math.max(0, Math.round((adv.balance - s.advanceRecovery) * 100) / 100);
-      await db.advance.update({ where: { id: adv.id }, data: { balance: newBal, status: newBal <= 0 ? "Cleared" : "Active" } });
+      await db.advance.update({ where: { id: adv.id }, data: { balance: toFils(newBal), status: newBal <= 0 ? "Cleared" : "Active" } });
     }
   }
   await db.payrollRun.update({ where: { id: runId }, data: { status } });
@@ -92,13 +97,13 @@ export async function createAdvance(formData: FormData) {
   const employeeId = String(formData.get("employeeId") || "");
   const emp = await db.employee.findFirst({ where: { id: employeeId, companyId } });
   if (!emp) return;
-  const amount = Number(formData.get("amount")) || 0;
-  const monthlyRecovery = Number(formData.get("monthlyRecovery")) || 0;
+  const amount = toFils(Number(formData.get("amount")) || 0);
+  const monthlyRecovery = toFils(Number(formData.get("monthlyRecovery")) || 0);
   if (amount <= 0 || monthlyRecovery <= 0) return;
   await db.advance.create({
     data: { companyId, employeeId, employeeName: emp.name, amount, monthlyRecovery, balance: amount, reason: String(formData.get("reason") || "") || null },
   });
-  await audit({ action: "Created", entity: "Employee", entityId: employeeId, summary: `Salary advance AED ${amount.toLocaleString()} to ${emp.name}` });
+  await audit({ action: "Created", entity: "Employee", entityId: employeeId, summary: `Salary advance ${aed(amount)} to ${emp.name}` });
   revalidatePath("/hr/payroll");
 }
 
@@ -149,14 +154,33 @@ export async function generateWpsSif(runId: string): Promise<{ ok: boolean; erro
   const missing: string[] = [];
   for (const p of run.payslips) {
     const e = byId.get(p.employeeId);
-    if (!e || !e.labourCardNo || !e.iban || !e.bankRoutingCode) { missing.push(p.employeeName); continue; }
+    if (!e) { missing.push(`${p.employeeName} — no employee record`); continue; }
+
+    // Present is not the same as valid. The bank rejects the entire file on one
+    // bad row and names none of them, so anything malformed is held back here
+    // with the reason, rather than sent and refused days later.
+    const iban = cleanIban(e.iban ?? "");
+    const card = cleanLabourCard(e.labourCardNo ?? "");
+    const routing = cleanRouting(e.bankRoutingCode ?? "");
+    const problems = [
+      !e.iban ? "no IBAN" : iban.error,
+      !e.labourCardNo ? "no labour-card number" : card.error,
+      !e.bankRoutingCode ? "no bank routing code" : routing.error,
+    ].filter(Boolean);
+    if (problems.length) { missing.push(`${p.employeeName} — ${problems.join("; ")}`); continue; }
+
     const { fixed, variable } = splitFixedVariable(p.basic, p.netPay);
-    lines.push({ personId: e.labourCardNo, routing: e.bankRoutingCode, iban: e.iban, fixed, variable, days: 30 });
+    lines.push({ personId: card.value!, routing: routing.value!, iban: iban.value!, fixed, variable, days: 30 });
   }
-  if (lines.length === 0) return { ok: false, error: "No employees have complete WPS details (labour-card no., IBAN, routing code).", missing };
+  if (lines.length === 0) {
+    return { ok: false, error: "No employee has usable WPS details (labour-card no., IBAN, routing code).", missing };
+  }
 
   const content = buildSif({ employerId: run.company.wpsEmployerId, routing: run.company.wpsBankRouting }, lines, run.period);
   const filename = `WPS_${run.company.code}_${run.period}.sif`;
   await audit({ action: "Posted", entity: "PayrollRun", entityId: runId, summary: `Generated WPS SIF for ${run.period} (${lines.length} employees)` });
   return { ok: true, content, filename, missing };
 }
+
+import { aed } from "@/lib/money";
+import { toFils } from "@/lib/money";
