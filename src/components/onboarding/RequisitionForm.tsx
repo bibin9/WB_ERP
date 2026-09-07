@@ -9,7 +9,7 @@ export default function RequisitionForm({ companyId, departments = [], designati
   if (!open) return <button className="btn-primary" onClick={() => setOpen(true)} disabled={!companyId}><Plus className="h-4 w-4" /> New requisition</button>;
 
   return (
-    <div className="fixed inset-0 z-30 flex items-start justify-center bg-black/30 p-4 pt-20">
+    <div className="fixed inset-0 z-30 flex items-start justify-center bg-black/30 p-4 pt-20 whitespace-normal text-left">
       <div className="card w-full max-w-md p-0">
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
           <h2 className="font-semibold text-heading">New Requisition</h2>

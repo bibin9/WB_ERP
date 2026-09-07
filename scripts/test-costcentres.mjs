@@ -250,6 +250,22 @@ ok(
     jobActions.includes('from "@/lib/costing"')
 );
 
+/* ------------------------------- the roll-up must not reach the edit form -- */
+// The job screen rolls sub-jobs into their parent for display. The edit form is
+// filled from the same row, so if the roll-up overwrote the stored fields,
+// opening a parent and pressing Save would write the total back and permanently
+// double-count every variation. The totals therefore carry their own names.
+{
+  const page = read("src/app/(app)/finance/jobs/page.tsx");
+  ok("the roll-up does not overwrite the stored contract value",
+    !/^\s*contractValue,\s*$/m.test(page) && page.includes("rolledContract"));
+  ok("nor the stored budget", !/^\s*budgetCost,\s*$/m.test(page) && page.includes("rolledBudget"));
+  ok("and the edit form is filled from the job's own figures",
+    page.includes("contractValue: j.contractValue") && page.includes("budgetCost: j.budgetCost"));
+  ok("while the percentage shown is guarded on the figure it is derived from",
+    page.includes("j.rolledBudget > 0 ?"));
+}
+
 /* ------------------------------------------------------------- wiring ------ */
 const ccActions = read("src/app/(app)/finance/cost-centres/actions.ts");
 ok(

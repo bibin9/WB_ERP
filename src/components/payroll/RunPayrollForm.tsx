@@ -18,7 +18,7 @@ export default function RunPayrollForm({ companyId }: { companyId: string }) {
   }
 
   return (
-    <div className="fixed inset-0 z-30 flex items-start justify-center bg-black/30 p-4 pt-24">
+    <div className="fixed inset-0 z-30 flex items-start justify-center bg-black/30 p-4 pt-24 whitespace-normal text-left">
       <div className="card w-full max-w-sm p-0">
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
           <h2 className="font-semibold text-heading">Run Payroll</h2>

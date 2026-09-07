@@ -11,7 +11,7 @@ export default function AdvanceForm({ companyId, employees }: { companyId: strin
   if (!open) return <button className="btn-navy" onClick={() => setOpen(true)} disabled={!companyId || employees.length === 0}><Plus className="h-4 w-4" /> New advance</button>;
 
   return (
-    <div className="fixed inset-0 z-30 flex items-start justify-center bg-black/30 p-4 pt-20">
+    <div className="fixed inset-0 z-30 flex items-start justify-center bg-black/30 p-4 pt-20 whitespace-normal text-left">
       <div className="card w-full max-w-md p-0">
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
           <h2 className="font-semibold text-heading">New Salary Advance</h2>

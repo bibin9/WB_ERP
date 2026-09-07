@@ -37,7 +37,7 @@ export default function PartyForm({ companyId, party }: { companyId: string; par
   if (!open) return trigger;
 
   return (
-    <div className="fixed inset-0 z-30 flex items-start justify-center overflow-y-auto bg-black/30 p-4 pt-16">
+    <div className="fixed inset-0 z-30 flex items-start justify-center overflow-y-auto bg-black/30 p-4 pt-16 whitespace-normal text-left">
       <div className="card w-full max-w-lg p-0">
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
           <h2 className="font-semibold text-heading">{editing ? `Edit ${party!.name}` : "Add customer / supplier"}</h2>

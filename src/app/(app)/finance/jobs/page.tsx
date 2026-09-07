@@ -107,21 +107,25 @@ export default async function JobsPage({
     // the figure is the sum over the row and everything under it.
     const revenue = withDescendants(row, ownRevenue);
     const cost = withDescendants(row, ownCost);
-    const contractValue = withDescendants(row, ownContract);
-    const budgetCost = withDescendants(row, ownBudget);
+    // Named apart from the stored fields on purpose. These are totals including
+    // sub-jobs; the row's own contractValue and budgetCost still mean what is in
+    // the database, because the edit form is filled from this object and would
+    // otherwise write the roll-up back and double-count every variation.
+    const rolledContract = withDescendants(row, ownContract);
+    const rolledBudget = withDescendants(row, ownBudget);
     const margin = revenue - cost;
     return {
       ...j,
       depth: row.depth,
       hasChildren: row.hasChildren,
-      contractValue,
-      budgetCost,
+      rolledContract,
+      rolledBudget,
       revenue,
       cost,
       margin,
       marginPct: revenue > 0 ? margin / revenue : 0,
-      budgetUsed: budgetCost > 0 ? cost / budgetCost : 0,
-      overBudget: budgetCost > 0 && cost > budgetCost,
+      budgetUsed: rolledBudget > 0 ? cost / rolledBudget : 0,
+      overBudget: rolledBudget > 0 && cost > rolledBudget,
     };
   });
 
@@ -271,7 +275,10 @@ export default async function JobsPage({
                   {j.revenue > 0 && <span className="ml-1 text-xs font-normal text-muted">{pct(j.marginPct)}</span>}
                 </td>
                 <td className="px-4 py-2 text-right tabular-nums">
-                  {j.budgetCost > 0 ? (
+                  {/* Guarded on the same figure the percentage is calculated from,
+                      so a parent that carries no budget of its own but has
+                      budgeted sub-jobs still shows its position. */}
+                  {j.rolledBudget > 0 ? (
                     <span className={j.overBudget ? "font-medium text-red-600" : "text-muted"}>
                       {pct(j.budgetUsed)}
                       {j.overBudget && <span className="ml-1 text-xs">over</span>}
