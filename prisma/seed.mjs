@@ -342,123 +342,99 @@ async function main() {
     if (rajesh) await db.advance.create({ data: { companyId: wbeCo.id, employeeId: rajesh.id, employeeName: rajesh.name, amount: 6000, monthlyRecovery: 2000, balance: 6000, reason: "Ramadan advance" } });
   }
 
-  // Repair sample vouchers seeded before the VAT control accounts existed: they
-  // parked the tax in Accruals & Provisions, so the VAT screen cannot agree the
-  // return to the ledger and a demo looks broken on its first open. Matched on
-  // the exact seeded references and the exact wrong account, so nothing a user
-  // posted is touched.
-  {
-    const wrong = await db.chartOfAccount.findFirst({ where: { companyId: wbeCo.id, code: "2100" } });
-    const vatIn = await db.chartOfAccount.findFirst({ where: { companyId: wbeCo.id, code: "1150" } });
-    const vatOut = await db.chartOfAccount.findFirst({ where: { companyId: wbeCo.id, code: "2150" } });
-    if (wrong && vatIn && vatOut) {
-      // Output tax on a sale, and the credit note that reduces it, belong on
-      // 2150; input tax on a purchase is recoverable and belongs on 1150.
-      const moves = [
-        ["SAL/WBE/0001", vatOut.id],
-        ["CN/WBE/0001", vatOut.id],
-        ["PUR/WBE/0001", vatIn.id],
-      ];
-      for (const [reference, accountId] of moves) {
-        const entry = await db.journalEntry.findFirst({
-          where: { companyId: wbeCo.id, reference, source: "seed" },
-          include: { lines: true },
-        });
-        if (!entry) continue;
-        const line = entry.lines.find(
-          (l) => l.accountId === wrong.id && (l.debit === entry.vatAmount || l.credit === entry.vatAmount)
-        );
-        if (line) await db.journalLine.update({ where: { id: line.id }, data: { accountId } });
-      }
-    }
-  }
+  // The sample vouchers, declared once so the same description both creates
+  // them and repairs them.
+  //
+  // They used to sit behind `if (nothing has been seeded yet)`, which asks the
+  // wrong question: an install made by an older version is never revisited, so
+  // a voucher added to this list later never appears there and a field added
+  // later is never filled in. That one line caused four separate defects, the
+  // worst of them a live VAT return reading nil while the ledger held tax.
+  const SAMPLE_VOUCHERS = [
+    // Sales invoice: revenue 200,000 + 5% output VAT 10,000 -> receivable 210,000
+    {
+      reference: "SAL/WBE/0001", voucherType: "Sales", partyName: "Al Habtoor Construction LLC",
+      vatAmount: 10000, memo: "Fabrication & erection \u2014 progress invoice #1", days: -25,
+      lines: [["1100", 210000, 0], ["4000", 0, 200000, "Standard"], ["2150", 0, 10000]],
+    },
+    // Purchase: cost of sales 80,000 + 5% input VAT 4,000 -> payable 84,000
+    {
+      reference: "PUR/WBE/0001", voucherType: "Purchase", partyName: "Emirates Steel Industries",
+      vatAmount: 4000, memo: "Structural steel supply", days: -20,
+      lines: [["5000", 80000, 0, "Standard"], ["1150", 4000, 0], ["2000", 0, 84000]],
+    },
+    // Zero-rated export: work billed outside the GCC. A taxable supply,
+    // declared in box 4, but no tax charged.
+    {
+      reference: "SAL/WBE/0002", voucherType: "Sales", partyName: "Emaar Properties PJSC",
+      vatAmount: 0, memo: "Offshore fabrication \u2014 export, zero-rated", days: -18,
+      lines: [["1100", 60000, 0], ["4000", 0, 60000, "Zero-rated"]],
+    },
+    // Reverse charge: design services bought from abroad. The company accounts
+    // for the tax itself, in box 3 and box 10, netting to nil.
+    {
+      reference: "PUR/WBE/0002", voucherType: "Purchase", partyName: "Overseas Design Consultants",
+      vatAmount: 0, memo: "Imported design services \u2014 reverse charge", days: -12,
+      lines: [["5000", 40000, 0, "Reverse charge"], ["2000", 0, 40000]],
+    },
+    // Credit note: a rate variation agreed after invoicing. Reduces the supply
+    // already declared rather than adding to it.
+    {
+      reference: "CN/WBE/0001", voucherType: "Credit Note", partyName: "Al Habtoor Construction LLC",
+      vatAmount: 500, memo: "Rate variation on progress invoice #1", days: -8,
+      lines: [["4000", 10000, 0, "Standard"], ["2150", 500, 0], ["1100", 0, 10500]],
+    },
+    // Salary payment: a settlement, so no VAT treatment on any line.
+    {
+      reference: "PAY/WBE/0001", voucherType: "Payment", partyName: "Payroll \u2014 Aug 2026",
+      vatAmount: 0, memo: "Monthly salaries", days: -3,
+      lines: [["6000", 50000, 0], ["1000", 0, 50000]],
+    },
+  ];
 
-  // Backfill VAT treatment on sample vouchers seeded before the field existed.
-  // The guard below only asks whether anything was seeded at all, so vouchers
-  // created by an older version are never rebuilt — and without a treatment
-  // they cannot be placed on the VAT return, which then reads nil while the
-  // ledger plainly holds tax. Only null treatments are set, so a treatment a
-  // user chose is never overwritten.
   {
-    const TREATMENTS = [
-      ["SAL/WBE/0001", "4000", "Standard"],
-      ["PUR/WBE/0001", "5000", "Standard"],
-      ["SAL/WBE/0002", "4000", "Zero-rated"],
-      ["PUR/WBE/0002", "5000", "Reverse charge"],
-      ["CN/WBE/0001", "4000", "Standard"],
-    ];
-    for (const [reference, code, treatment] of TREATMENTS) {
-      const entry = await db.journalEntry.findFirst({
-        where: { companyId: wbeCo.id, reference, source: "seed" },
-        include: { lines: { include: { account: { select: { code: true } } } } },
-      });
-      if (!entry) continue;
-      for (const line of entry.lines) {
-        if (line.account.code === code && line.vatTreatment === null) {
-          await db.journalLine.update({ where: { id: line.id }, data: { vatTreatment: treatment } });
-        }
-      }
-    }
-  }
-
-  // Sample finance vouchers for WBE (Tally-style, with UAE VAT) — powers Day Book, P&L, VAT report & dashboard KPIs
-  const seededVouchers = await db.journalEntry.count({ where: { companyId: wbeCo.id, source: "seed" } });
-  if (seededVouchers === 0) {
     const wbeAccts = await db.chartOfAccount.findMany({ where: { companyId: wbeCo.id } });
     const acct = (code) => wbeAccts.find((a) => a.code === code)?.id;
-    const postVoucher = async ({ reference, voucherType, partyName, vatAmount, memo, date, lines }) => {
-      await db.journalEntry.create({
-        data: {
-          companyId: wbeCo.id, reference, voucherType, partyName, vatAmount: vatAmount ?? 0,
-          memo, date, source: "seed", postedBy: admin.id,
-          lines: {
-            create: lines.map(([code, debit, credit, vatTreatment]) => ({
-              accountId: acct(code), debit, credit, vatTreatment: vatTreatment ?? null,
-            })),
-          },
-        },
+
+    for (const v of SAMPLE_VOUCHERS) {
+      const existing = await db.journalEntry.findFirst({
+        where: { companyId: wbeCo.id, reference: v.reference, source: "seed" },
+        include: { lines: true },
       });
-    };
-    // Sales invoice: revenue 200,000 + 5% output VAT 10,000 → receivable 210,000
-    await postVoucher({
-      reference: "SAL/WBE/0001", voucherType: "Sales", partyName: "Al Habtoor Construction LLC", vatAmount: 10000,
-      memo: "Fabrication & erection — progress invoice #1", date: d(-25),
-      lines: [["1100", 210000, 0], ["4000", 0, 200000, "Standard"], ["2150", 0, 10000]],
-    });
-    // Purchase: cost of sales 80,000 + 5% input VAT 4,000 → payable 84,000
-    await postVoucher({
-      reference: "PUR/WBE/0001", voucherType: "Purchase", partyName: "Emirates Steel Industries", vatAmount: 4000,
-      memo: "Structural steel supply", date: d(-20),
-      lines: [["5000", 80000, 0, "Standard"], ["1150", 4000, 0], ["2000", 0, 84000]],
-    });
-    // Zero-rated export — work billed to a client outside the GCC. A taxable
-    // supply, declared in box 4, but no tax charged.
-    await postVoucher({
-      reference: "SAL/WBE/0002", voucherType: "Sales", partyName: "Emaar Properties PJSC", vatAmount: 0,
-      memo: "Offshore fabrication — export, zero-rated", date: d(-18),
-      lines: [["1100", 60000, 0], ["4000", 0, 60000, "Zero-rated"]],
-    });
-    // Reverse charge — design services bought from abroad. The company
-    // accounts for the tax itself: declared in box 3 and reclaimed in box 10,
-    // so it nets to nil.
-    await postVoucher({
-      reference: "PUR/WBE/0002", voucherType: "Purchase", partyName: "Overseas Design Consultants", vatAmount: 0,
-      memo: "Imported design services — reverse charge", date: d(-12),
-      lines: [["5000", 40000, 0, "Reverse charge"], ["2000", 0, 40000]],
-    });
-    // Credit note — a rate variation agreed after invoicing. Reduces the
-    // supply already declared rather than adding to it.
-    await postVoucher({
-      reference: "CN/WBE/0001", voucherType: "Credit Note", partyName: "Al Habtoor Construction LLC", vatAmount: 500,
-      memo: "Rate variation on progress invoice #1", date: d(-8),
-      lines: [["4000", 10000, 0, "Standard"], ["2150", 500, 0], ["1100", 0, 10500]],
-    });
-    // Salary payment (no VAT)
-    await postVoucher({
-      reference: "PAY/WBE/0001", voucherType: "Payment", partyName: "Payroll — Aug 2026", vatAmount: 0,
-      memo: "Monthly salaries", date: d(-3),
-      lines: [["6000", 50000, 0], ["1000", 0, 50000]],
-    });
+
+      if (!existing) {
+        await db.journalEntry.create({
+          data: {
+            companyId: wbeCo.id, reference: v.reference, voucherType: v.voucherType,
+            partyName: v.partyName, vatAmount: v.vatAmount ?? 0, memo: v.memo, date: d(v.days),
+            source: "seed", postedBy: admin.id,
+            lines: {
+              create: v.lines.map(([code, debit, credit, vatTreatment]) => ({
+                accountId: acct(code), debit, credit, vatTreatment: vatTreatment ?? null,
+              })),
+            },
+          },
+        });
+        continue;
+      }
+
+      // Already present: fill in what an older version of this seed could not
+      // know about. Lines are matched on their amounts, which are distinct
+      // within each of these vouchers. Only a blank treatment is filled and
+      // only a line on the wrong account is moved, so anything already correct
+      // is left alone. Only vouchers marked source "seed" are candidates, and
+      // a voucher cannot be edited from the interface at all, so this can never
+      // touch something a user entered.
+      for (const [code, debit, credit, vatTreatment] of v.lines) {
+        const want = acct(code);
+        const line = existing.lines.find((l) => l.debit === debit && l.credit === credit);
+        if (!line) continue;
+        const patch = {};
+        if (want && line.accountId !== want) patch.accountId = want;
+        if (vatTreatment && line.vatTreatment === null) patch.vatTreatment = vatTreatment;
+        if (Object.keys(patch).length) await db.journalLine.update({ where: { id: line.id }, data: patch });
+      }
+    }
   }
 
   // Customers and suppliers, so the outstanding report has real parties behind it.
