@@ -373,6 +373,34 @@ async function main() {
     }
   }
 
+  // Backfill VAT treatment on sample vouchers seeded before the field existed.
+  // The guard below only asks whether anything was seeded at all, so vouchers
+  // created by an older version are never rebuilt — and without a treatment
+  // they cannot be placed on the VAT return, which then reads nil while the
+  // ledger plainly holds tax. Only null treatments are set, so a treatment a
+  // user chose is never overwritten.
+  {
+    const TREATMENTS = [
+      ["SAL/WBE/0001", "4000", "Standard"],
+      ["PUR/WBE/0001", "5000", "Standard"],
+      ["SAL/WBE/0002", "4000", "Zero-rated"],
+      ["PUR/WBE/0002", "5000", "Reverse charge"],
+      ["CN/WBE/0001", "4000", "Standard"],
+    ];
+    for (const [reference, code, treatment] of TREATMENTS) {
+      const entry = await db.journalEntry.findFirst({
+        where: { companyId: wbeCo.id, reference, source: "seed" },
+        include: { lines: { include: { account: { select: { code: true } } } } },
+      });
+      if (!entry) continue;
+      for (const line of entry.lines) {
+        if (line.account.code === code && line.vatTreatment === null) {
+          await db.journalLine.update({ where: { id: line.id }, data: { vatTreatment: treatment } });
+        }
+      }
+    }
+  }
+
   // Sample finance vouchers for WBE (Tally-style, with UAE VAT) — powers Day Book, P&L, VAT report & dashboard KPIs
   const seededVouchers = await db.journalEntry.count({ where: { companyId: wbeCo.id, source: "seed" } });
   if (seededVouchers === 0) {

@@ -34,6 +34,17 @@ export const INPUT_VOUCHERS = new Set(["Purchase", "Payment", "Debit Note"]);
 /** A note adjusts an earlier invoice, so its values carry the opposite sign. */
 export const ADJUSTMENT_VOUCHERS = new Set(["Credit Note", "Debit Note"]);
 
+/**
+ * The voucher types that represent a supply or an expense, and so should carry
+ * a VAT treatment.
+ *
+ * A receipt or a payment settles an invoice that was already declared; it is
+ * movement of money, not a supply, so it needs no treatment and must not be
+ * reported as missing one. Listing those every quarter trains the accountant to
+ * ignore the warning, and then a real omission goes unnoticed with it.
+ */
+export const DOCUMENT_VOUCHERS = new Set(["Sales", "Purchase", "Credit Note", "Debit Note"]);
+
 export type VatLine = {
   voucherType: string;
   treatment: string | null;

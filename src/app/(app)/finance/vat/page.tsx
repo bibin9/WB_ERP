@@ -7,7 +7,7 @@ import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { resolvePeriod, quarters } from "@/lib/period";
-import { buildVat201, taxOn, OUTPUT_VOUCHERS, INPUT_VOUCHERS, ADJUSTMENT_VOUCHERS, VAT_INPUT_CODE, VAT_OUTPUT_CODE, type VatLine } from "@/lib/vat";
+import { buildVat201, taxOn, OUTPUT_VOUCHERS, INPUT_VOUCHERS, ADJUSTMENT_VOUCHERS, DOCUMENT_VOUCHERS, VAT_INPUT_CODE, VAT_OUTPUT_CODE, type VatLine } from "@/lib/vat";
 import { periodMovement } from "@/lib/ledger";
 import { money } from "@/lib/money";
 
@@ -88,8 +88,27 @@ export default async function VatPage({
 
   const box = buildVat201(vatLines);
 
-  // Vouchers that carry no treatment at all cannot be placed on the return.
-  const untreated = entries.filter((e) => e.lines.every((l) => !l.vatTreatment));
+  // Vouchers that should carry a treatment and do not. A receipt or payment is
+  // excluded: settling an invoice is not a supply, and flagging those every
+  // quarter teaches the accountant to ignore the warning entirely.
+  const untreated = entries.filter(
+    (e) => DOCUMENT_VOUCHERS.has(e.voucherType) && e.lines.every((l) => !l.vatTreatment)
+  );
+
+  // A journal is not a VAT document, so it never reaches the query above. If
+  // someone puts a treatment on one, the tax silently vanishes from the return
+  // — so look for that case and say so rather than lose it quietly.
+  const strayJournals = companyId
+    ? await db.journalEntry.findMany({
+        where: {
+          companyId,
+          date: { gte: period.from, lte: period.to },
+          voucherType: { notIn: [...OUTPUT_VOUCHERS, ...INPUT_VOUCHERS] },
+          lines: { some: { vatTreatment: { not: null } } },
+        },
+        select: { reference: true, voucherType: true },
+      })
+    : [];
 
   // Agree the return to the ledger before it is filed. Box 12 less box 13 is
   // what the FTA is being told; the movement on the two VAT control accounts is
@@ -185,6 +204,18 @@ export default async function VatPage({
           </>
         )}
       </div>
+
+      {strayJournals.length > 0 && (
+        <div className="mb-5 rounded-lg border border-brand-gold/50 bg-brand-gold/10 px-4 py-3 text-sm text-ink">
+          <span className="font-semibold">
+            {strayJournals.length} {strayJournals.length === 1 ? "voucher carries" : "vouchers carry"} a VAT treatment
+            but {strayJournals.length === 1 ? "is" : "are"} not a VAT document.
+          </span>{" "}
+          {strayJournals.map((j) => `${j.reference} (${j.voucherType})`).join(", ")}. A journal is never placed on the
+          return, so that tax is not being declared. Re-enter the transaction as a Sales, Purchase, Credit Note or
+          Debit Note voucher if it belongs on the VAT 201.
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <div className="xl:col-span-2">
