@@ -13,11 +13,16 @@
  * Needs a throwaway database in REHEARSAL_DATABASE_URL (in .env). See
  * DEPLOY.md, "Rehearsing a deploy", for where to get one.
  *
- * It rehearses both situations that occur in the wild:
+ * It rehearses the four situations that occur in the wild:
  *
- *   1. an empty database    — a new environment: migrations create everything
- *   2. a database built by  — what production was before migrations: the
+ *   1. an empty database      a new environment: migrations create everything
+ *   2. a database built by    what production was before migrations: the
  *      `db push`              release step must baseline it, not replay
+ *   3. deploying again        a redeploy must be a clean no-op
+ *   4. an established         the path every deploy takes from now on. Rows are
+ *      database, new          inserted first, because an empty table proves
+ *      migration              little — a unique index only fails when there is
+ *                             something to collide with
  *
  * The scratch database is wiped at the start of each. That is why it refuses to
  * run against anything that looks like production.
@@ -209,10 +214,37 @@ try {
     } finally {
       renameSync(parked, live);
     }
+    // Put real rows in before the migration runs. An empty table proves very
+    // little: the risk in a schema change is what it does to existing data, and
+    // a unique index in particular only fails when there is something to
+    // collide with.
+    //
+    // Written as SQL rather than through the seed, because the generated client
+    // matches the new schema while this database is deliberately one migration
+    // behind — the client would ask for columns that do not exist yet.
+    sql(`
+      INSERT INTO "Tenant" ("id","key","name","createdAt","updatedAt")
+        VALUES ('rt','rehearse','Rehearsal',now(),now());
+      INSERT INTO "Company" ("id","tenantId","code","name","baseCurrency","isActive","createdAt")
+        VALUES ('rc','rt','RH','Rehearsal Co','AED',true,now());
+      INSERT INTO "JournalEntry" ("id","companyId","reference","voucherType","date","vatAmount","source","postedBy","createdAt")
+        VALUES ('rj1','rc','RH/JV/1','Journal',now(),0,'manual','rehearsal',now()),
+               ('rj2','rc','RH/JV/2','Journal',now(),0,'manual','rehearsal',now()),
+               ('rj3','rc','RH/JV/3','Journal',now(),0,'manual','rehearsal',now());
+    `);
+    const rows = Number(sql('SELECT COUNT(*) FROM "JournalEntry"'));
     const before = state();
-    console.log(`  before: ${before.tables} tables, history: ${before.history}\n`);
+    console.log(`  before: ${before.tables} tables, history: ${before.history}, ${rows} vouchers\n`);
 
     step("node", ["scripts/db-release.mjs"]);
+
+    const rowsAfter = Number(sql('SELECT COUNT(*) FROM "JournalEntry"'));
+    if (rowsAfter < rows) {
+      console.error(`  FAIL — vouchers were lost: ${rows} before, ${rowsAfter} after.`);
+      failed = true;
+    } else {
+      console.log(`  vouchers intact: ${rowsAfter}`);
+    }
 
     const applied =
       Number(

@@ -124,8 +124,11 @@ ok("the voucher picks a party rather than free text",
   voucher.includes("partyId") && !voucher.includes('placeholder="Customer / supplier"'));
 
 const finActions = read("src/app/(app)/finance/actions.ts");
-ok("the voucher snapshots the party name for the printed document", finActions.includes("partyName = party.name"));
-ok("a party from another company is refused", finActions.includes("not on this company"));
+// These rules moved into src/lib/posting.ts, the service every module posts
+// through, so that is where to assert them.
+const posting = read("src/lib/posting.ts");
+ok("the voucher snapshots the party name for the printed document", posting.includes("partyName = party.name"));
+ok("a party from another company is refused", posting.includes("not on this company"));
 ok("control accounts are set on the account form", read("src/components/AccountForm.tsx").includes("controlType"));
 
 const screens = read("src/lib/rbac.ts");

@@ -213,6 +213,14 @@ model JournalEntry {
   party       Party?        @relation(fields: [partyId], references: [id]) // party ledger (customer/supplier) for the voucher
   vatAmount   Float         @default(0) // UAE VAT (5%) portion, if any
   source      String        @default("manual") // manual | tally
+  /// What produced this voucher, when it was not typed by hand: the module
+  /// and the document inside it. Lets a voucher be traced back to the goods
+  /// receipt or payroll run behind it, and stops the same document posting
+  /// twice — the unique index below is the guard.
+  ///
+  /// e.g. sourceType "grn", sourceId the receipt's id.
+  sourceType  String?
+  sourceId    String?
   /// A reversal points back at the voucher it cancels, so both sides of the
   /// correction stay visible in the audit trail.
   ///
@@ -229,6 +237,7 @@ model JournalEntry {
   createdAt   DateTime      @default(now())
 
   @@unique([companyId, reference])
+  @@unique([companyId, sourceType, sourceId])
   @@index([companyId])
 }
 

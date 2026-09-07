@@ -134,7 +134,7 @@ ok("the original is never edited or deleted", (await db.journalEntry.findUnique(
 const actions = fs.readFileSync("src/app/(app)/finance/actions.ts", "utf8");
 ok("posting reads the date from the form", actions.includes('formData.get("date")'));
 ok("posting refuses a locked period", actions.includes("booksLockedTo") && actions.includes("The books are closed up to"));
-ok("posting refuses a date far in the future", actions.includes("more than a year ahead"));
+ok("posting refuses a date far in the future", fs.readFileSync("src/lib/posting.ts", "utf8").includes("more than a year ahead"));
 ok("the reference carries the financial year", actions.includes("yearTag"));
 ok("reversal refuses an already-reversed voucher", actions.includes("Already reversed by"));
 ok("reversal cannot pre-date the original", actions.includes("cannot be dated before the original"));

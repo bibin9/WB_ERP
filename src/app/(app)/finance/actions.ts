@@ -4,131 +4,66 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { postVoucher, VOUCHER_PREFIX, type PostingLine } from "@/lib/posting";
 import { financialYear } from "@/lib/period";
-import { VAT_TREATMENTS } from "@/lib/vat";
 import { allow } from "@/lib/guard";
 
-type LineInput = { accountId: string; debit: number; credit: number; vatTreatment?: string | null; jobId?: string | null };
-
-/** Reference prefixes, matching the voucher types offered on the form. */
-const VOUCHER_PREFIX: Record<string, string> = {
-  Journal: "JV", Payment: "PV", Receipt: "RV", Contra: "CV", Sales: "SI", Purchase: "PI",
-  // A credit note goes to a customer (sales return, rate variation, retention
-  // release); a debit note goes to a supplier. Both are everyday documents on a
-  // contract and reduce the VAT already declared.
-  "Credit Note": "CN", "Debit Note": "DN",
-};
 
 export async function createJournalEntry(formData: FormData) {
-  if (!(await allow("finance.overview", "create"))) return;
+  if (!(await allow("finance.overview", "create"))) return { ok: false, error: "Not authorised" };
   const session = await getSession();
   if (!session) return { ok: false, error: "Not signed in" };
 
   const companyId = String(formData.get("companyId") || "");
-  const memo = String(formData.get("memo") || "").trim();
-  const voucherType = String(formData.get("voucherType") || "Journal");
-  const partyId = String(formData.get("partyId") || "").trim() || null;
-  const vatAmount = Number(formData.get("vatAmount")) || 0;
   if (!session.companies.some((c) => c.id === companyId)) return { ok: false, error: "No access" };
 
-  const company = await db.company.findUnique({ where: { id: companyId } });
-  if (!company) return { ok: false, error: "Company not found" };
-
-  // The voucher date is the accountant's, not the clock's.
-  const dateRaw = String(formData.get("date") || "").trim();
-  if (dateRaw && !/^\d{4}-\d{2}-\d{2}$/.test(dateRaw)) return { ok: false, error: "Enter a valid date" };
-  const date = dateRaw ? new Date(dateRaw + "T00:00:00.000Z") : new Date();
-  if (isNaN(date.getTime())) return { ok: false, error: "Enter a valid date" };
-
-  // A closed period must stay closed: once a VAT return is filed, the figures
-  // behind it cannot be allowed to move.
-  if (company.booksLockedTo && date <= company.booksLockedTo) {
-    const upto = company.booksLockedTo.toISOString().slice(0, 10);
-    return { ok: false, error: `The books are closed up to ${upto}. Post this on a later date, or ask an administrator to change the lock.` };
-  }
-
-  // The party is a master record now, so outstanding can actually be totalled.
-  // Its name is snapshotted on the voucher for the printed document.
-  let partyName: string | null = null;
-  if (partyId) {
-    const party = await db.party.findFirst({ where: { id: partyId, companyId } });
-    if (!party) return { ok: false, error: "That customer or supplier is not on this company" };
-    partyName = party.name;
-  }
-
-  // A date far in the future is nearly always a typo in the year.
-  const horizon = new Date(Date.now() + 366 * 24 * 3600 * 1000);
-  if (date > horizon) return { ok: false, error: "That date is more than a year ahead — check the year." };
-
-  let lines: LineInput[] = [];
+  let lines: PostingLine[] = [];
   try {
     lines = JSON.parse(String(formData.get("lines") || "[]"));
   } catch {
     return { ok: false, error: "Invalid lines" };
   }
-  lines = lines
-    .map((l) => ({
-      accountId: l.accountId,
-      debit: Number(l.debit) || 0,
-      credit: Number(l.credit) || 0,
-      // Only a treatment the return knows about is stored.
-      vatTreatment: VAT_TREATMENTS.includes(l.vatTreatment as never) ? l.vatTreatment : null,
-      jobId: l.jobId || null,
-    }))
-    .filter((l) => l.accountId && (l.debit > 0 || l.credit > 0));
 
-  if (lines.length < 2) return { ok: false, error: "At least two lines are required" };
+  const voucherType = String(formData.get("voucherType") || "Journal");
 
-  const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
-  const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
-  if (Math.round(totalDebit * 100) !== Math.round(totalCredit * 100) || totalDebit === 0) {
-    return { ok: false, error: "Entry is not balanced (debits must equal credits)" };
-  }
-
-  // Numbering restarts each financial year, the way Tally does, and carries the
-  // year in the reference so two years can never collide.
-  const fy = financialYear(company.fyStartMonth, date);
-  const yearTag = `${String(fy.from.getUTCFullYear()).slice(2)}-${String(fy.to.getUTCFullYear()).slice(2)}`;
-  const n = await db.journalEntry.count({
-    where: { companyId, voucherType, date: { gte: fy.from, lte: fy.to } },
+  // Every rule that protects the books lives in postVoucher, so a voucher
+  // raised by another module obeys exactly the same ones as a typed-in voucher.
+  const result = await postVoucher({
+    companyId,
+    postedBy: session.user.name,
+    voucherType,
+    date: String(formData.get("date") || "").trim() || null,
+    partyId: String(formData.get("partyId") || "").trim() || null,
+    vatAmount: Number(formData.get("vatAmount")) || 0,
+    memo: String(formData.get("memo") || "").trim() || null,
+    lines,
   });
-  const reference = `${company.code}/${VOUCHER_PREFIX[voucherType] ?? "JV"}/${yearTag}/${String(n + 1).padStart(4, "0")}`;
+  if (!result.ok) return result;
 
-  const created = await db.journalEntry.create({
-    data: {
-      companyId,
-      reference,
-      date,
-      voucherType,
-      partyId,
-      partyName,
-      vatAmount,
-      memo: memo || null,
-      postedBy: session.user.name,
-      lines: {
-        create: lines.map((l) => ({
-          accountId: l.accountId, debit: l.debit, credit: l.credit, vatTreatment: l.vatTreatment, jobId: l.jobId,
-        })),
-      },
-    },
+  await audit({
+    action: "Posted",
+    entity: "JournalEntry",
+    entityId: result.entryId,
+    summary: `Posted ${voucherType} ${result.reference}`,
   });
-  await audit({ action: "Posted", entity: "JournalEntry", entityId: created.id, summary: `Posted ${voucherType} ${reference} (${totalDebit.toLocaleString()})` });
-
   revalidatePath("/finance");
-  return { ok: true, error: "" };
+  revalidatePath("/finance/daybook");
+  return { ok: true };
 }
+
 
 const ACCOUNT_TYPES = ["Asset", "Liability", "Equity", "Income", "Expense"];
 
-/**
- * Opening balance from the form: an amount plus a Dr/Cr side, stored signed
- * (debit positive) so it adds straight into the ledger arithmetic.
- */
+/** Which control account this is, if any — what the outstanding report measures. */
 function controlFrom(formData: FormData): string | null {
   const v = String(formData.get("controlType") || "").trim();
   return v === "Receivable" || v === "Payable" ? v : null;
 }
 
+/**
+ * Opening balance from the form: an amount plus a Dr/Cr side, stored signed
+ * (debit positive) so it adds straight into the ledger arithmetic.
+ */
 function openingFrom(formData: FormData): number {
   const amount = Math.abs(Number(formData.get("openingAmount")) || 0);
   const side = String(formData.get("openingSide") || "Dr");

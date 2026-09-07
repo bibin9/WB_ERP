@@ -72,7 +72,8 @@ ok("the VAT report is built from that library",
   read("src/app/(app)/finance/vat/page.tsx").includes("buildVat201"));
 
 const actions = read("src/app/(app)/finance/actions.ts");
-ok("both note types have their own reference prefix", actions.includes('"Credit Note": "CN"') && actions.includes('"Debit Note": "DN"'));
+const posting = read("src/lib/posting.ts");
+ok("both note types have their own reference prefix", posting.includes('"Credit Note": "CN"') && posting.includes('"Debit Note": "DN"'));
 
 /* ------------------------------------------------- numbering by year ----- */
 const fy = financialYear(company.fyStartMonth, D("2026-08-20"));
