@@ -6,6 +6,24 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Money is stored as Float (a double), not Decimal, and that is deliberate.
+//
+// Doubles are the usual accounting foot-gun, so the question was measured
+// rather than assumed: balanced pairs are bit-identical and never diverge, and
+// 200,000 stored amounts summed in opposite orders differ by 7e-5 — four orders
+// of magnitude below a fils. Reaching one fils of drift needs tens of millions
+// of rows, far beyond what this system will hold.
+//
+// The defect that was real is different: storing a value that is not an amount
+// of money at all. A VAT extraction gives 1119.571428…, the screen shows
+// 1,119.57, and a report that sums before rounding then disagrees with one that
+// rounds before summing. Every write now goes through toFils() in lib/money.ts,
+// which fixes that at the source.
+//
+// Converting these columns to Decimal would mean rewriting 33 columns on a live
+// database, touching ~130 arithmetic sites, and handling Decimal across 12
+// server-to-client boundaries where it does not serialise — materially more
+// risk than it removes. Revisit if the ledger ever reaches millions of rows.
 datasource db {
   // SQLite for zero-install local dev. Switch to "postgresql" for production
   // (change provider + DATABASE_URL; JSON-in-String fields stay compatible).
@@ -236,6 +254,7 @@ model JournalEntry {
   postedBy     String
   lines        JournalLine[]
   createdAt    DateTime       @default(now())
+  timesheets   Timesheet[]
 
   @@unique([companyId, reference])
   @@unique([companyId, sourceType, sourceId])
@@ -324,6 +343,10 @@ model Employee {
   // Payroll master data (structure only — processing is Phase 3)
   basicSalary        Float              @default(0)
   allowances         Float              @default(0)
+  /// Cost to the business for one hour of this person's time. Left blank it is
+  /// derived from pay; set it when the real cost differs — a supplied worker
+  /// billed at an agency rate, or someone whose package is not the true cost.
+  hourlyCost         Float?
   currency           String             @default("AED")
   annualLeaveBalance Int                @default(30)
   supplier           String? // agency/sponsor for supplied manpower (HR-15)
@@ -582,19 +605,40 @@ model Certification {
 }
 
 /// HR — Project timesheets (FSD HR-17). projectRef is free text until Projects (P3) links it.
+/// Time an employee spent on a job.
+///
+/// Until this carried a job and a rate, labour never reached job costing: the
+/// hours were recorded, the salary was posted to the P&L, and the job showed
+/// only its material and subcontract cost. For a technical-services contractor
+/// labour is usually the largest cost on a job, so every margin was overstated.
 model Timesheet {
-  id         String   @id @default(cuid())
+  id         String        @id @default(cuid())
   companyId  String
   employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee   Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   date       DateTime
-  projectRef String
+  /// The job this time was spent on. Nullable because entries made before
+  /// timesheets carried a job still have to be readable.
+  jobId      String?
+  job        Job?          @relation(fields: [jobId], references: [id])
+  /// Free-text reference kept from before there was a job list. Now optional.
+  projectRef String?
   hours      Float
+  /// Cost to the business per hour, taken at the moment the entry was made.
+  /// Snapshotted rather than derived on read: a pay rise must not silently
+  /// rewrite the cost of work that was done last year.
+  costRate   Float         @default(0)
+  /// The voucher that absorbed this time into the ledger. Set once; a
+  /// timesheet with a voucher cannot be posted again or edited.
+  entryId    String?
+  entry      JournalEntry? @relation(fields: [entryId], references: [id])
   notes      String?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime      @default(now())
 
   @@index([companyId])
   @@index([employeeId])
+  @@index([jobId])
+  @@index([entryId])
 }
 
 /// HR — Performance appraisal (FSD HR-14)
@@ -745,6 +789,7 @@ model Job {
   status        String        @default("Open") // Open | On hold | Completed | Closed
   notes         String?
   lines         JournalLine[]
+  timesheets    Timesheet[]
   isActive      Boolean       @default(true)
   createdAt     DateTime      @default(now())
 

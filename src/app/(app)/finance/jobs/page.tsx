@@ -7,12 +7,15 @@ import PrintReport from "@/components/finance/PrintReport";
 import ExportButton from "@/components/ExportButton";
 import GuardedDelete from "@/components/GuardedDelete";
 import JobForm from "@/components/finance/JobForm";
+import PostLabour from "@/components/finance/PostLabour";
+import { lineCost } from "@/lib/labour";
 import { deleteJob } from "./actions";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { resolvePeriod } from "@/lib/period";
 import { arrange, withDescendants } from "@/lib/tree";
+import { money } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +57,20 @@ export default async function JobsPage({
         orderBy: { code: "asc" },
       })
     : [];
+
+  // Hours logged against a job in this period that have not been charged yet.
+  // Shown before posting so nobody runs it blind.
+  const waiting = companyId
+    ? await db.timesheet.findMany({
+        where: { companyId, jobId: { not: null }, entryId: null, date: { gte: period.from, lte: period.to } },
+        select: { hours: true, costRate: true },
+      })
+    : [];
+  const pendingLabour = {
+    entries: waiting.length,
+    hours: waiting.reduce((t, w) => t + w.hours, 0),
+    amount: waiting.reduce((t, w) => t + lineCost(w.hours, w.costRate), 0),
+  };
 
   const parties = companyId
     ? await db.party.findMany({ where: { companyId, isActive: true }, orderBy: { name: "asc" }, select: { id: true, code: true, name: true } })
@@ -135,6 +152,14 @@ export default async function JobsPage({
       >
         <div className="flex flex-wrap items-center gap-2">
           <PrintReport />
+          {companyId && (
+            <PostLabour
+              companyId={companyId}
+              from={period.fromStr}
+              to={period.toStr}
+              pending={pendingLabour}
+            />
+          )}
           {companyId && <ExportButton dataset="jobs" companyId={companyId} label="Export jobs" />}
           {companyId && (
             <JobForm
@@ -153,6 +178,14 @@ export default async function JobsPage({
       <div className="mb-5">
         <PeriodPicker from={period.fromStr} to={period.toStr} label={period.label} />
       </div>
+
+      {pendingLabour.entries > 0 && (
+        <div className="mb-5 rounded-lg border border-brand-gold/40 bg-brand-gold/10 px-4 py-3 text-sm text-ink">
+          <span className="font-semibold">These margins are missing labour.</span>{" "}
+          {pendingLabour.hours}h worth {money(pendingLabour.amount)} has been logged against jobs in this period but
+          not charged to them yet. Use &ldquo;Post labour&rdquo; above.
+        </div>
+      )}
 
       {costed.length > 0 && (
         <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">

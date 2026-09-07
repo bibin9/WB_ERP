@@ -322,6 +322,31 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "Margin only tells the truth if every cost was charged to the job. If some were missed, the job looks more profitable than it really is — the Cost Centres screen shows you how much cost has nothing on it at all.",
   },
   {
+    id: "labour-on-jobs", category: "Finance & Accounting", screens: ["/finance/jobs", "/hr/attendance"],
+    title: "Putting your people's time onto a job",
+    summary: "Log hours against a job, then charge them, so the margin includes the wages.",
+    body: "Wages are usually the biggest cost on a job, but they only reach job costing if someone records who worked on what. Time is logged on HR -> Attendance & Timesheets, against a job from the list. Each entry stores an hourly cost at the moment it is saved, so a pay rise later does not change what last year's work cost. Recording the hours is not the same as charging them: the Job Costing screen has a Post labour button that turns the logged hours into cost on the jobs.",
+    steps: [
+      "Open HR -> Attendance & Timesheets and use the Job timesheets form. Pick the person, the job and the hours; the note underneath shows what that entry will cost the job.",
+      "Open Finance -> Job Costing. If time is waiting, a message at the top says how many hours and how much.",
+      "Click Post labour, check the figures it shows you, and confirm. It writes one voucher.",
+      "The jobs now include their labour, and the message disappears until more time is logged.",
+    ],
+    tip: "Your profit does not change when you post labour, and that is correct: the wages were already in the accounts as Salaries & Wages. Posting only moves the cost onto the jobs that used it, so the pair 'Site Labour' and 'Labour Recovered' cancel out in the Profit & Loss. What the difference between Salaries & Wages and Labour Recovered tells you is how much wage cost was not charged to any job at all.",
+  },
+  {
+    id: "timesheet-no-job", category: "Finance & Accounting", screens: ["/hr/attendance"],
+    title: "Why time without a job matters",
+    summary: "Hours logged with no job cost nothing on any job, so margins look better than they are.",
+    body: "If a timesheet entry has no job on it, that work never reaches job costing. The wages are still paid and still appear in the Profit & Loss, but no job carries them, so every job margin reads better than the truth. The Attendance screen counts these for you.",
+    steps: [
+      "On HR -> Attendance & Timesheets, look for the note saying how many entries have no job on them.",
+      "In the list, those rows show 'no job' in amber in the Job column.",
+      "Delete and re-enter them against the right job. Once time has been charged to a job it can no longer be deleted \u2014 reverse the voucher in the Day Book instead.",
+    ],
+    tip: "If someone's time genuinely is not for a customer \u2014 workshop tidying, training, waiting for materials \u2014 that is real information, not a mistake. It is the gap between Salaries & Wages and Labour Recovered on the Profit & Loss, and it tells you what your unbilled time is costing.",
+  },
+  {
     id: "cost-centres", category: "Finance & Accounting", screens: ["/finance/cost-centres"],
     title: "Cost centres — what your own business costs to run",
     summary: "For costs no single customer job pays for: the workshop, the vehicles, the office.",

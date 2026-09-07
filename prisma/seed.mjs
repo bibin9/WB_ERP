@@ -168,7 +168,13 @@ async function main() {
     ["4000", "Contract Revenue", "Income"],
     ["4100", "Other Income", "Income"],
     ["5000", "Cost of Sales", "Expense"],
+    // The absorption pair. Timesheet hours are debited to 5100 against the job
+    // they were worked on and credited to 6900, so the P&L is unchanged while
+    // job costing finally sees the labour. The gap between 6000 and 6900 is
+    // wage cost that was never charged to any job.
+    ["5100", "Site Labour", "Expense"],
     ["6000", "Salaries & Wages", "Expense"],
+    ["6900", "Labour Recovered", "Expense"],
     ["6100", "Rent", "Expense"],
     ["6200", "Utilities", "Expense"],
   ];
@@ -482,7 +488,31 @@ async function main() {
     }
   }
 
-  console.log("Seeded tenant, companies, roles, admin, tasks, chart of accounts, approval routes, employees, certs, supplied worker, sample vouchers, jobs, cost centres.");
+  // Demo time against the first job, left uncharged on purpose so the warning
+  // on the Job Costing screen and the "Post labour" step are both visible on a
+  // fresh install.
+  if ((await db.timesheet.count({ where: { companyId: wbeCo.id, jobId: { not: null } } })) === 0) {
+    const job = await db.job.findFirst({ where: { companyId: wbeCo.id, code: "J-0001" } });
+    const crew = await db.employee.findMany({ where: { companyId: wbeCo.id }, orderBy: { empNo: "asc" }, take: 3 });
+    if (job && crew.length) {
+      const day = (back) => new Date(Date.now() - back * 86400000);
+      for (const [i, e] of crew.entries()) {
+        // The same derivation the app uses: whole package over 208 standard hours.
+        const rate = Math.round((((e.basicSalary || 0) + (e.allowances || 0)) / 208) * 100) / 100;
+        for (const back of [3, 2, 1]) {
+          await db.timesheet.create({
+            data: {
+              companyId: wbeCo.id, employeeId: e.id, jobId: job.id,
+              date: day(back), hours: 8, costRate: rate,
+              notes: i === 0 && back === 3 ? "Spool fabrication" : null,
+            },
+          });
+        }
+      }
+    }
+  }
+
+  console.log("Seeded tenant, companies, roles, admin, tasks, chart of accounts, approval routes, employees, certs, supplied worker, sample vouchers, jobs, cost centres, timesheets.");
   console.log("Login:  admin@wandb.ae  /  " + ADMIN_PASSWORD);
 }
 

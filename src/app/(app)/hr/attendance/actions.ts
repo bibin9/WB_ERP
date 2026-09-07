@@ -6,6 +6,8 @@ import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { parsePunchLog, aggregateDaily, dayToAttendance } from "@/lib/punch";
 import { allow } from "@/lib/guard";
+import { hourlyCostFor } from "@/lib/labour";
+import { toFils } from "@/lib/money";
 
 async function empInScope(employeeId: string) {
   const session = await getSession();
@@ -129,27 +131,56 @@ export async function deleteAttendance(id: string) {
   revalidatePath("/hr/attendance");
 }
 
-export async function addTimesheet(formData: FormData) {
-  if (!(await allow("hr.attendance", "create"))) return;
+export async function addTimesheet(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  if (!(await allow("hr.attendance", "create"))) return { ok: false, error: "Not authorised" };
   const employeeId = String(formData.get("employeeId") || "");
   const emp = await empInScope(employeeId);
   const dateStr = String(formData.get("date") || "");
-  const projectRef = String(formData.get("projectRef") || "").trim();
   const hours = Number(formData.get("hours")) || 0;
-  if (!emp || !dateStr || !projectRef || hours <= 0) return;
+  if (!emp) return { ok: false, error: "That employee is not in your companies" };
+  if (!dateStr) return { ok: false, error: "Pick a date" };
+  if (hours <= 0) return { ok: false, error: "Enter the hours worked" };
+  if (hours > 24) return { ok: false, error: "That is more than a day — check the hours" };
+
+  // The job has to be a real one, and in the same company, or the cost would
+  // land on another company's contract when the hours are absorbed.
+  const jobId = String(formData.get("jobId") || "").trim() || null;
+  if (jobId && !(await db.job.findFirst({ where: { id: jobId, companyId: emp.companyId } }))) {
+    return { ok: false, error: "That job is not in this company" };
+  }
+
+  // The rate is taken now and stored on the row. Deriving it on read would mean
+  // a pay rise silently rewrote the cost of work done last year.
+  const costRate = toFils(hourlyCostFor(emp));
+
   await db.timesheet.create({
-    data: { companyId: emp.companyId, employeeId, date: new Date(dateStr), projectRef, hours, notes: String(formData.get("notes") || "") || null },
+    data: {
+      companyId: emp.companyId, employeeId, date: new Date(dateStr), jobId, hours, costRate,
+      projectRef: String(formData.get("projectRef") || "").trim() || null,
+      notes: String(formData.get("notes") || "") || null,
+    },
   });
-  await audit({ action: "Created", entity: "Timesheet", summary: `${emp.name} logged ${hours}h to ${projectRef}` });
+  await audit({
+    action: "Created",
+    entity: "Timesheet",
+    summary: `${emp.name} logged ${hours}h${jobId ? " to a job" : " with no job"} at ${costRate.toFixed(2)}/h`,
+  });
   revalidatePath("/hr/attendance");
+  return { ok: true };
 }
 
-export async function deleteTimesheet(id: string) {
-  if (!(await allow("hr.attendance", "delete"))) return;
+export async function deleteTimesheet(id: string): Promise<{ ok: boolean; error?: string }> {
+  if (!(await allow("hr.attendance", "delete"))) return { ok: false, error: "Not authorised" };
   const session = await getSession();
-  if (!session) return;
+  if (!session) return { ok: false, error: "Not signed in" };
   const t = await db.timesheet.findUnique({ where: { id } });
-  if (!t || !session.companies.some((c) => c.id === t.companyId)) return;
+  if (!t || !session.companies.some((c) => c.id === t.companyId)) return { ok: false, error: "Not found" };
+  // Once the hours are on a voucher, deleting the row would leave the ledger
+  // charging a job for time that no longer exists. Reverse the voucher instead.
+  if (t.entryId) {
+    return { ok: false, error: "This time is already charged to a job. Reverse that voucher in the Day Book first." };
+  }
   await db.timesheet.delete({ where: { id } });
   revalidatePath("/hr/attendance");
+  return { ok: true };
 }

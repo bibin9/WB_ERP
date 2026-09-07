@@ -124,5 +124,25 @@ const crossCo = q(`
   WHERE a."companyId" <> e."companyId"`);
 ok("no line posts into another company's account", Number(crossCo) === 0, `${crossCo} cross-company`);
 
+/* --------------------------------------------- labour reaches the jobs --- */
+const sheets = Number(q(`SELECT COUNT(*) FROM "Timesheet"`));
+ok("timesheets were seeded", sheets > 0, `${sheets} rows`);
+
+const rateless = Number(q(`SELECT COUNT(*) FROM "Timesheet" WHERE "jobId" IS NOT NULL AND "costRate" <= 0`));
+ok("every job-tagged timesheet carries a rate", rateless === 0, `${rateless} without one`);
+
+const crossJob = Number(q(`
+  SELECT COUNT(*) FROM "Timesheet" t JOIN "Job" j ON j.id = t."jobId"
+  WHERE j."companyId" <> t."companyId"`));
+ok("no timesheet points at another company's job", crossJob === 0, `${crossJob} cross-company`);
+
+const orphanCharge = Number(q(`
+  SELECT COUNT(*) FROM "Timesheet" t LEFT JOIN "JournalEntry" e ON e.id = t."entryId"
+  WHERE t."entryId" IS NOT NULL AND e.id IS NULL`));
+ok("every charged timesheet points at a real voucher", orphanCharge === 0, `${orphanCharge} orphaned`);
+
+const labourAccts = Number(q(`SELECT COUNT(*) FROM "ChartOfAccount" WHERE "code" IN ('5100','6900')`));
+ok("the labour absorption accounts exist", labourAccts > 0, `${labourAccts} across all companies`);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
