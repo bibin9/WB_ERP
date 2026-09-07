@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { LayoutGrid, BookOpen, ScrollText, FileBarChart, Receipt, RefreshCw, Users, Clock, HardHat, Building2 } from "lucide-react";
+import { LayoutGrid, BookOpen, ScrollText, FileBarChart, Receipt, RefreshCw, Users, Clock, HardHat, Building2, Scale } from "lucide-react";
 
 const TABS = [
   { href: "/finance", label: "Overview", icon: LayoutGrid, screen: "finance.overview" },
   { href: "/finance/daybook", label: "Day Book", icon: BookOpen, screen: "finance.daybook" },
   { href: "/finance/ledgers", label: "Ledgers", icon: ScrollText, screen: "finance.ledgers" },
   { href: "/finance/reports", label: "Reports", icon: FileBarChart, screen: "finance.reports" },
+  { href: "/finance/trial-balance", label: "Trial Balance", icon: Scale, screen: "finance.reports" },
   { href: "/finance/parties", label: "Parties", icon: Users, screen: "finance.parties" },
   { href: "/finance/outstanding", label: "Outstanding", icon: Clock, screen: "finance.outstanding" },
   { href: "/finance/jobs", label: "Job Costing", icon: HardHat, screen: "finance.jobs" },

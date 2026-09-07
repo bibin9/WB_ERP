@@ -7,7 +7,9 @@ import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { resolvePeriod, quarters } from "@/lib/period";
-import { buildVat201, taxOn, OUTPUT_VOUCHERS, INPUT_VOUCHERS, ADJUSTMENT_VOUCHERS, type VatLine } from "@/lib/vat";
+import { buildVat201, taxOn, OUTPUT_VOUCHERS, INPUT_VOUCHERS, ADJUSTMENT_VOUCHERS, VAT_INPUT_CODE, VAT_OUTPUT_CODE, type VatLine } from "@/lib/vat";
+import { periodMovement } from "@/lib/ledger";
+import { money } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
 
@@ -89,6 +91,29 @@ export default async function VatPage({
   // Vouchers that carry no treatment at all cannot be placed on the return.
   const untreated = entries.filter((e) => e.lines.every((l) => !l.vatTreatment));
 
+  // Agree the return to the ledger before it is filed. Box 12 less box 13 is
+  // what the FTA is being told; the movement on the two VAT control accounts is
+  // what the books actually say. They should be the same number.
+  const vatAccounts = companyId
+    ? await db.chartOfAccount.findMany({
+        where: { companyId, code: { in: [VAT_OUTPUT_CODE, VAT_INPUT_CODE] } },
+        include: { lines: { include: { entry: { select: { date: true } } } } },
+      })
+    : [];
+  const outputAcc = vatAccounts.find((a) => a.code === VAT_OUTPUT_CODE);
+  const inputAcc = vatAccounts.find((a) => a.code === VAT_INPUT_CODE);
+  // A liability's movement is a credit, so flip it to compare with tax due.
+  const ledgerOutput = outputAcc ? -periodMovement(outputAcc, period.from, period.to, company?.openingAsOf) : 0;
+  const ledgerInput = inputAcc ? periodMovement(inputAcc, period.from, period.to, company?.openingAsOf) : 0;
+  const ledgerNet = ledgerOutput - ledgerInput;
+  const recon = {
+    available: !!outputAcc && !!inputAcc,
+    ledgerOutput,
+    ledgerInput,
+    ledgerNet,
+    difference: Math.round((box.netPayable - ledgerNet) * 100) / 100,
+  };
+
   return (
     <div>
       <div className="print-header mb-4 border-b border-line pb-3">
@@ -110,6 +135,55 @@ export default async function VatPage({
       </div>
       <div className="mb-5">
         <PeriodPicker from={period.fromStr} to={period.toStr} label={period.label} presets={qtrs} />
+      </div>
+
+      {/* The check before filing. Shown above the boxes because if these two do
+          not agree, the boxes below are not yet the figures to submit. */}
+      <div className={`mb-5 card p-5 ${recon.available && recon.difference !== 0 ? "border-brand-gold/50" : ""}`}>
+        <h2 className="mb-1 font-semibold text-heading">Does the return agree with the books?</h2>
+        {!recon.available ? (
+          <p className="text-sm text-muted">
+            This company has no {VAT_OUTPUT_CODE} VAT Output or {VAT_INPUT_CODE} VAT Input account, so the return
+            cannot be checked against the ledger. Add them under Ledgers and post the tax on each invoice to them.
+          </p>
+        ) : (
+          <>
+            <div className="mt-2 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+              <div className="rounded-lg border border-line p-3">
+                <div className="text-xs text-muted">Box 14 &mdash; what we are telling the FTA</div>
+                <div className="mt-1 text-lg font-semibold tabular-nums text-heading">{money(box.netPayable)}</div>
+              </div>
+              <div className="rounded-lg border border-line p-3">
+                <div className="text-xs text-muted">Per the ledger &mdash; {VAT_OUTPUT_CODE} less {VAT_INPUT_CODE}</div>
+                <div className="mt-1 text-lg font-semibold tabular-nums text-heading">{money(recon.ledgerNet)}</div>
+                <div className="mt-0.5 text-xs text-muted">
+                  output {money(recon.ledgerOutput)} &minus; input {money(recon.ledgerInput)}
+                </div>
+              </div>
+              <div className="rounded-lg border border-line p-3">
+                <div className="text-xs text-muted">Difference</div>
+                <div
+                  className={`mt-1 text-lg font-semibold tabular-nums ${
+                    recon.difference === 0 ? "text-brand-green-700" : "text-brand-gold"
+                  }`}
+                >
+                  {money(recon.difference)}
+                </div>
+                <div className="mt-0.5 text-xs text-muted">
+                  {recon.difference === 0 ? "agreed" : "investigate before filing"}
+                </div>
+              </div>
+            </div>
+            {recon.difference !== 0 && (
+              <p className="mt-3 text-xs text-muted">
+                The return and the ledger disagree. The usual causes are tax posted to an account other than{" "}
+                {VAT_OUTPUT_CODE} or {VAT_INPUT_CODE}, a line given a treatment but no tax, or tax entered on a
+                voucher whose lines carry no treatment at all. The unclassified figure and the list of untreated
+                vouchers below are the places to look.
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">

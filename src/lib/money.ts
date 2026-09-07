@@ -15,7 +15,12 @@
 export const money = (v: number | null | undefined): string =>
   v == null || Number.isNaN(v)
     ? "—"
-    : v.toLocaleString("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // `v + 0` alone keeps negative zero, and "-0.00" on a reconciliation reads
+    // as a real difference. Nothing that rounds to nothing should carry a sign.
+    : (Math.abs(v) < 0.005 ? 0 : v).toLocaleString("en-AE", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
 
 /** The same, with the currency in front, for prose and audit lines. */
 export const aed = (v: number | null | undefined): string => (v == null ? "—" : `AED ${money(v)}`);

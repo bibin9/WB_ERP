@@ -322,6 +322,32 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "Margin only tells the truth if every cost was charged to the job. If some were missed, the job looks more profitable than it really is — the Cost Centres screen shows you how much cost has nothing on it at all.",
   },
   {
+    id: "trial-balance", category: "Finance & Accounting", screens: ["/finance/trial-balance"],
+    title: "Trial balance \u2014 proving the books add up",
+    summary: "Every account's opening, its movement in the period, and its closing, in four columns.",
+    body: "The trial balance is the check that nothing is missing a side. Every entry has a debit and a credit, so when you add up all the debits and all the credits they must come to the same number. This screen does that for you and says at the top whether it balances. It is also the first report your auditor will ask for.",
+    steps: [
+      "Open Finance -> Trial Balance and choose the dates at the top.",
+      "Read the green line: 'In balance' means every voucher has both sides.",
+      "Opening is what each account brought in from before the period. 'In the period' is the total that went in and the total that went out \u2014 not the difference between them. Closing is where the account ended.",
+      "Use Print for the auditor's file, or Export for a spreadsheet.",
+    ],
+    tip: "Opening plus what moved always equals closing, on every line. If a figure looks wrong, that is the quickest way to find which of the three is the odd one \u2014 then click through to Ledgers for that account to see the individual vouchers.",
+  },
+  {
+    id: "vat-agrees-to-books", category: "Finance & Accounting", screens: ["/finance/vat"],
+    title: "Checking the VAT return before you file it",
+    summary: "The return and the accounts should show the same number. The screen tells you if they do not.",
+    body: "The VAT return is worked out from the treatment you put on each voucher line. Your accounts hold the tax itself, on 2150 VAT Output (what you owe the FTA) and 1150 VAT Input (what you can reclaim). Those two ways of arriving at the figure should agree. The panel at the top of the VAT screen does that comparison for you.",
+    steps: [
+      "Open Finance -> VAT and pick the quarter.",
+      "Read the panel at the top. 'Difference 0.00 \u2014 agreed' means the return matches your accounts and is safe to file.",
+      "If there is a difference, look at the unclassified figure and the list of untreated vouchers further down the screen.",
+      "Fix the vouchers, then check the panel again before you submit anything to the FTA.",
+    ],
+    tip: "The usual causes of a difference are tax posted to an account other than 1150 or 2150, a line given a VAT treatment but no tax, or tax entered on a voucher whose lines carry no treatment at all. Always post the VAT on an invoice to 1150 or 2150 and this stays at zero.",
+  },
+  {
     id: "labour-on-jobs", category: "Finance & Accounting", screens: ["/finance/jobs", "/hr/attendance"],
     title: "Putting your people's time onto a job",
     summary: "Log hours against a job, then charge them, so the margin includes the wages.",

@@ -1,6 +1,8 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { broughtForward, balanceAsAt, openingInPeriod } from "@/lib/ledger";
+import { financialYear } from "@/lib/period";
 import { getSession, canAdminister } from "@/lib/auth";
 import { allow } from "@/lib/guard";
 import { audit } from "@/lib/audit";
@@ -335,6 +337,53 @@ const costCentres: Dataset = {
   },
 };
 
+const trialBalance: Dataset = {
+  screen: "finance.reports",
+  label: "trial-balance",
+  async build(companyId) {
+    const company = await db.company.findUnique({ where: { id: companyId } });
+    // The financial year to date, which is what an auditor asks for. A narrower
+    // range is available on screen; the file is the standard one.
+    const fy = financialYear(company?.fyStartMonth ?? 1, new Date());
+    const accounts = await db.chartOfAccount.findMany({
+      where: { companyId },
+      include: { lines: { include: { entry: { select: { date: true } } } } },
+      orderBy: { code: "asc" },
+    });
+    const dr = (v: number) => (v > 0 ? v : 0);
+    const cr = (v: number) => (v < 0 ? -v : 0);
+    const rows = accounts.map((a) => {
+      const opening = broughtForward(a, fy.from, company?.openingAsOf);
+      const closing = balanceAsAt(a, fy.to, company?.openingAsOf);
+      const inPeriod = a.lines.filter((l) => l.entry.date >= fy.from && l.entry.date <= fy.to);
+      const openingHere = openingInPeriod(company?.openingAsOf, fy.from, fy.to) ? a.openingBalance : 0;
+      return {
+        code: a.code,
+        name: a.name,
+        type: a.type,
+        openingDr: dr(opening),
+        openingCr: cr(opening),
+        periodDr: inPeriod.reduce((t, l) => t + l.debit, 0) + dr(openingHere),
+        periodCr: inPeriod.reduce((t, l) => t + l.credit, 0) + cr(openingHere),
+        closingDr: dr(closing),
+        closingCr: cr(closing),
+      };
+    });
+    const columns: Column<(typeof rows)[number]>[] = [
+      { header: "Code", value: (r) => r.code },
+      { header: "Account", value: (r) => r.name },
+      { header: "Type", value: (r) => r.type },
+      { header: "Opening Dr", value: (r) => money(r.openingDr) },
+      { header: "Opening Cr", value: (r) => money(r.openingCr) },
+      { header: "Period Dr", value: (r) => money(r.periodDr) },
+      { header: "Period Cr", value: (r) => money(r.periodCr) },
+      { header: "Closing Dr", value: (r) => money(r.closingDr) },
+      { header: "Closing Cr", value: (r) => money(r.closingCr) },
+    ];
+    return { rows, columns: columns as Column<never>[] };
+  },
+};
+
 /** Every dataset the app can export, keyed by the name used in the UI.
  *  Not exported: a "use server" module may only export async functions. */
 const DATASETS: Record<string, Dataset> = {
@@ -347,6 +396,7 @@ const DATASETS: Record<string, Dataset> = {
   separations,
   journals,
   accounts,
+  trialBalance,
   jobs,
   costCentres,
 };

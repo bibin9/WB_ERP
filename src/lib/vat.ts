@@ -44,6 +44,17 @@ export type VatLine = {
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /** Tax on a taxable value: only standard-rated and reverse-charge lines bear it. */
+/**
+ * The two accounts a VAT return is proved against.
+ *
+ * A VAT 201 is filed as output tax due less input tax recoverable. Holding the
+ * two separately is what lets box 12 and box 13 be agreed back to the balance
+ * sheet before the return is sent — the check that catches tax posted to the
+ * wrong account, or a supply given a treatment but no tax.
+ */
+export const VAT_INPUT_CODE = "1150";
+export const VAT_OUTPUT_CODE = "2150";
+
 export function taxOn(treatment: string | null, taxableValue: number): number {
   if (treatment === "Standard" || treatment === "Reverse charge") return round2(taxableValue * VAT_RATE);
   return 0;

@@ -159,9 +159,16 @@ async function main() {
     ["1000", "Cash at Bank", "Asset", 150000],
     ["1100", "Accounts Receivable", "Asset", 0, "Receivable"],
     ["1200", "Inventory", "Asset"],
+    // VAT is held on its own two accounts, not netted into one. A VAT 201 is
+    // filed as output tax due less input tax recoverable, and the only way to
+    // prove the return before sending it to the FTA is to agree box 12 and
+    // box 13 back to these balances. Without them the accountant has nowhere
+    // correct to post the tax on an invoice.
+    ["1150", "VAT Input (Recoverable)", "Asset"],
     ["1500", "Plant & Equipment", "Asset"],
     ["2000", "Accounts Payable", "Liability", -50000, "Payable"],
     ["2100", "Accruals & Provisions", "Liability"],
+    ["2150", "VAT Output (Payable)", "Liability"],
     ["2200", "Retention Payable", "Liability"],
     ["3000", "Share Capital", "Equity", -100000],
     ["3100", "Retained Earnings", "Equity"],
@@ -335,6 +342,37 @@ async function main() {
     if (rajesh) await db.advance.create({ data: { companyId: wbeCo.id, employeeId: rajesh.id, employeeName: rajesh.name, amount: 6000, monthlyRecovery: 2000, balance: 6000, reason: "Ramadan advance" } });
   }
 
+  // Repair sample vouchers seeded before the VAT control accounts existed: they
+  // parked the tax in Accruals & Provisions, so the VAT screen cannot agree the
+  // return to the ledger and a demo looks broken on its first open. Matched on
+  // the exact seeded references and the exact wrong account, so nothing a user
+  // posted is touched.
+  {
+    const wrong = await db.chartOfAccount.findFirst({ where: { companyId: wbeCo.id, code: "2100" } });
+    const vatIn = await db.chartOfAccount.findFirst({ where: { companyId: wbeCo.id, code: "1150" } });
+    const vatOut = await db.chartOfAccount.findFirst({ where: { companyId: wbeCo.id, code: "2150" } });
+    if (wrong && vatIn && vatOut) {
+      // Output tax on a sale, and the credit note that reduces it, belong on
+      // 2150; input tax on a purchase is recoverable and belongs on 1150.
+      const moves = [
+        ["SAL/WBE/0001", vatOut.id],
+        ["CN/WBE/0001", vatOut.id],
+        ["PUR/WBE/0001", vatIn.id],
+      ];
+      for (const [reference, accountId] of moves) {
+        const entry = await db.journalEntry.findFirst({
+          where: { companyId: wbeCo.id, reference, source: "seed" },
+          include: { lines: true },
+        });
+        if (!entry) continue;
+        const line = entry.lines.find(
+          (l) => l.accountId === wrong.id && (l.debit === entry.vatAmount || l.credit === entry.vatAmount)
+        );
+        if (line) await db.journalLine.update({ where: { id: line.id }, data: { accountId } });
+      }
+    }
+  }
+
   // Sample finance vouchers for WBE (Tally-style, with UAE VAT) — powers Day Book, P&L, VAT report & dashboard KPIs
   const seededVouchers = await db.journalEntry.count({ where: { companyId: wbeCo.id, source: "seed" } });
   if (seededVouchers === 0) {
@@ -357,13 +395,13 @@ async function main() {
     await postVoucher({
       reference: "SAL/WBE/0001", voucherType: "Sales", partyName: "Al Habtoor Construction LLC", vatAmount: 10000,
       memo: "Fabrication & erection — progress invoice #1", date: d(-25),
-      lines: [["1100", 210000, 0], ["4000", 0, 200000, "Standard"], ["2100", 0, 10000]],
+      lines: [["1100", 210000, 0], ["4000", 0, 200000, "Standard"], ["2150", 0, 10000]],
     });
     // Purchase: cost of sales 80,000 + 5% input VAT 4,000 → payable 84,000
     await postVoucher({
       reference: "PUR/WBE/0001", voucherType: "Purchase", partyName: "Emirates Steel Industries", vatAmount: 4000,
       memo: "Structural steel supply", date: d(-20),
-      lines: [["5000", 80000, 0, "Standard"], ["2100", 4000, 0], ["2000", 0, 84000]],
+      lines: [["5000", 80000, 0, "Standard"], ["1150", 4000, 0], ["2000", 0, 84000]],
     });
     // Zero-rated export — work billed to a client outside the GCC. A taxable
     // supply, declared in box 4, but no tax charged.
@@ -385,7 +423,7 @@ async function main() {
     await postVoucher({
       reference: "CN/WBE/0001", voucherType: "Credit Note", partyName: "Al Habtoor Construction LLC", vatAmount: 500,
       memo: "Rate variation on progress invoice #1", date: d(-8),
-      lines: [["4000", 10000, 0, "Standard"], ["2100", 500, 0], ["1100", 0, 10500]],
+      lines: [["4000", 10000, 0, "Standard"], ["2150", 500, 0], ["1100", 0, 10500]],
     });
     // Salary payment (no VAT)
     await postVoucher({
