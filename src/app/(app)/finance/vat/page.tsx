@@ -363,9 +363,10 @@ export default async function VatPage({
 
       {untreated.length > 0 && (
         <p className="mt-3 text-xs text-muted">
-          {untreated.length} voucher{untreated.length === 1 ? "" : "s"} in this period have no VAT treatment on any
-          line — {untreated.map((e) => e.reference).slice(0, 6).join(", ")}
-          {untreated.length > 6 ? "…" : ""}. Set a treatment if they belong on the return.
+          {untreated.length === 1 ? "1 voucher in this period has" : `${untreated.length} vouchers in this period have`}{" "}
+          no VAT treatment on any line — {untreated.map((e) => e.reference).slice(0, 6).join(", ")}
+          {untreated.length > 6 ? "…" : ""}. Set a treatment if{" "}
+          {untreated.length === 1 ? "it belongs" : "they belong"} on the return.
         </p>
       )}
     </div>
