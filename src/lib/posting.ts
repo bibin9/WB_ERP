@@ -82,6 +82,32 @@ function parseDate(value: string | Date | null | undefined): Date | null {
  * Does no permission checking — the caller knows who is asking and what they
  * are allowed to do. It does check everything about the voucher itself.
  */
+/**
+ * How many times to try for a free voucher number before giving up.
+ *
+ * Each attempt re-reads the count, so the guess improves as other writers land;
+ * twenty simultaneous posts settle well inside this. The limit exists so a
+ * pathological case ends in a sentence rather than a spin.
+ */
+const MAX_REFERENCE_ATTEMPTS = 25;
+
+/**
+ * Which unique index refused an insert, if one did.
+ *
+ * Prisma reports P2002 with the offending fields in `meta.target`, whose shape
+ * differs between PostgreSQL and SQLite — an array of fields on one, a
+ * constraint name on the other — so it is flattened to a string and read for
+ * the field names rather than matched exactly.
+ */
+function uniqueClash(err: unknown): "reference" | "source" | null {
+  const e = err as { code?: string; meta?: { target?: unknown } };
+  if (e?.code !== "P2002") return null;
+  const target = JSON.stringify(e.meta?.target ?? "").toLowerCase();
+  if (target.includes("sourceid") || target.includes("sourcetype")) return "source";
+  if (target.includes("reference")) return "reference";
+  return null;
+}
+
 export async function postVoucher(input: PostingInput): Promise<PostingResult> {
   const company = await db.company.findUnique({ where: { id: input.companyId } });
   if (!company) return { ok: false, error: "Company not found" };
@@ -180,37 +206,81 @@ export async function postVoucher(input: PostingInput): Promise<PostingResult> {
   // year in the reference so two years can never collide.
   const fy = financialYear(company.fyStartMonth, date);
   const yearTag = `${String(fy.from.getUTCFullYear()).slice(2)}-${String(fy.to.getUTCFullYear()).slice(2)}`;
-  const n = await db.journalEntry.count({
-    where: { companyId: input.companyId, voucherType: input.voucherType, date: { gte: fy.from, lte: fy.to } },
-  });
-  const reference = `${company.code}/${VOUCHER_PREFIX[input.voucherType] ?? "JV"}/${yearTag}/${String(n + 1).padStart(4, "0")}`;
+  const prefix = `${company.code}/${VOUCHER_PREFIX[input.voucherType] ?? "JV"}/${yearTag}/`;
 
-  const created = await db.journalEntry.create({
-    data: {
-      companyId: input.companyId,
-      reference,
-      date,
-      voucherType: input.voucherType,
-      partyId: input.partyId || null,
-      partyName,
-      vatAmount: toFils(input.vatAmount ?? 0),
-      memo: input.memo || null,
-      postedBy: input.postedBy,
-      source: input.source ?? (input.sourceType ? input.sourceType : "manual"),
-      sourceType: input.sourceType || null,
-      sourceId: input.sourceId || null,
-      lines: {
-        create: lines.map((l) => ({
-          accountId: l.accountId,
-          debit: l.debit,
-          credit: l.credit,
-          vatTreatment: l.vatTreatment,
-          jobId: l.jobId,
-          costCentreId: l.costCentreId,
-        })),
-      },
-    },
-  });
+  // Counting the vouchers and using count + 1 was a read-modify-write race, and
+  // a stress test found how badly: twenty people posting at the same instant,
+  // three got a voucher and seventeen got "Unique constraint failed on the
+  // fields: (companyId, reference)". The unique index did its job — no two
+  // vouchers ever shared a number, and nothing was corrupted — but a finance
+  // team at month-end was being refused most of its work in a language nobody
+  // could read.
+  //
+  // So the collision is expected rather than exceptional. Take the next number,
+  // try it, and if somebody else got there first take the one after. The count
+  // is re-read each time, so the guess improves as other writers land and the
+  // loop converges in a handful of attempts even with twenty in flight.
+  //
+  // A database sequence would be tidier on PostgreSQL and unavailable on the
+  // SQLite used for local development, and a number that behaves differently in
+  // the two places is worse than one that retries in both.
+  for (let attempt = 0; attempt < MAX_REFERENCE_ATTEMPTS; attempt++) {
+    const n = await db.journalEntry.count({
+      where: { companyId: input.companyId, voucherType: input.voucherType, date: { gte: fy.from, lte: fy.to } },
+    });
+    // The count, re-read, IS the next number — no attempt offset. Adding the
+    // attempt would skip: three writers colliding on 0101 would take 0101,
+    // 0103, 0105 and leave holes. A voucher sequence with gaps is the first
+    // thing an auditor asks about, and "the software did it" is not an answer.
+    const reference = `${prefix}${String(n + 1).padStart(4, "0")}`;
 
-  return { ok: true, entryId: created.id, reference };
+    try {
+      const created = await db.journalEntry.create({
+        data: {
+          companyId: input.companyId,
+          reference,
+          date,
+          voucherType: input.voucherType,
+          partyId: input.partyId || null,
+          partyName,
+          vatAmount: toFils(input.vatAmount ?? 0),
+          memo: input.memo || null,
+          postedBy: input.postedBy,
+          source: input.source ?? (input.sourceType ? input.sourceType : "manual"),
+          sourceType: input.sourceType || null,
+          sourceId: input.sourceId || null,
+          lines: {
+            create: lines.map((l) => ({
+              accountId: l.accountId,
+              debit: l.debit,
+              credit: l.credit,
+              vatTreatment: l.vatTreatment,
+              jobId: l.jobId,
+              costCentreId: l.costCentreId,
+            })),
+          },
+        },
+      });
+      return { ok: true, entryId: created.id, reference };
+    } catch (err) {
+      // Two different unique indexes can refuse this insert and they mean
+      // opposite things. A clash on the reference is two people numbering at
+      // once — try again. A clash on the source document is the SAME document
+      // being posted twice, which must stay a refusal: retrying it would post
+      // the thing the index exists to prevent.
+      const clash = uniqueClash(err);
+      if (clash === "source") {
+        return { ok: false, error: "That document has already been posted." };
+      }
+      if (clash !== "reference") throw err;
+      // A little jitter so simultaneous writers stop marching in lockstep.
+      await new Promise((r) => setTimeout(r, Math.floor(Math.random() * 15)));
+    }
+  }
+
+  return {
+    ok: false,
+    error:
+      "Could not allocate a voucher number — too many people are posting to this company at once. Try again in a moment.",
+  };
 }

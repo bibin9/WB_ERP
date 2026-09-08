@@ -188,5 +188,129 @@ ok("all eight voucher types have a prefix", Object.keys(VOUCHER_PREFIX).length =
 
 await cleanup();
 await db.$disconnect();
+/* ================ two people posting at the same moment =================== */
+/**
+ * The reference number used to be a count, read and then used. A stress test
+ * against PostgreSQL found what that costs: twenty simultaneous posts, three
+ * succeeded and seventeen were refused with "Unique constraint failed on the
+ * fields: (companyId, reference)". Nothing was corrupted — the index held — but
+ * a finance team at month-end was being turned away in a language nobody reads.
+ *
+ * SQLite serialises writers, so this cannot reproduce the collision here the way
+ * PostgreSQL does. What it CAN prove is the part that matters either way: every
+ * caller gets a voucher, no two share a number, and the sequence has no holes.
+ * The gap check earns its place — the first version of the fix skipped numbers,
+ * which is an audit finding of its own.
+ */
+{
+  const co = await db.company.findFirst({ where: { code: "WBE" } });
+  const accounts = await db.chartOfAccount.findMany({
+    where: { companyId: co.id, code: { in: ["1000", "4000"] } },
+    select: { id: true, code: true },
+  });
+  const bank = accounts.find((a) => a.code === "1000");
+  const revenue = accounts.find((a) => a.code === "4000");
+
+  const before = await db.journalEntry.findMany({
+    where: { companyId: co.id, voucherType: "Contra" },
+    select: { reference: true },
+  });
+
+  const WORKERS = 8;
+  const results = await Promise.all(
+    Array.from({ length: WORKERS }, (_, k) =>
+      postVoucher({
+        companyId: co.id,
+        postedBy: `worker-${k}`,
+        voucherType: "Contra",
+        date: "2026-06-15",
+        memo: `race ${k}`,
+        lines: [
+          { accountId: bank.id, debit: 10, credit: 0 },
+          { accountId: revenue.id, debit: 0, credit: 10 },
+        ],
+      }).catch((e) => ({ ok: false, error: String(e?.message ?? e) }))
+    )
+  );
+
+  const posted = results.filter((r) => r.ok);
+  ok("every simultaneous post gets a voucher", posted.length === WORKERS,
+    `${posted.length} of ${WORKERS}` + (posted.length < WORKERS
+      ? ` — ${results.find((r) => !r.ok)?.error?.slice(0, 80)}`
+      : ""));
+
+  const refs = posted.map((r) => r.reference);
+  ok("no two of them share a number", new Set(refs).size === refs.length, refs.join(", "));
+
+  const after = await db.journalEntry.findMany({
+    where: { companyId: co.id, voucherType: "Contra" },
+    select: { reference: true },
+  });
+  const nums = after.map((e) => Number(e.reference.split("/").pop())).sort((a, b) => a - b);
+  const gaps = nums.filter((v, i) => i > 0 && v !== nums[i - 1] + 1);
+  ok("the sequence has no gaps in it", gaps.length === 0,
+    gaps.length ? `jumps to ${gaps.join(", ")}` : `${nums.length} consecutive`);
+
+  const agg = await db.journalLine.aggregate({
+    where: { entry: { companyId: co.id } },
+    _sum: { debit: true, credit: true },
+  });
+  ok("and the ledger still balances after all of it",
+    Math.abs((agg._sum.debit ?? 0) - (agg._sum.credit ?? 0)) < 0.005);
+
+  // Put the books back.
+  const made = after.filter((e) => !before.some((b) => b.reference === e.reference));
+  for (const e of made) {
+    const row = await db.journalEntry.findFirst({ where: { companyId: co.id, reference: e.reference } });
+    if (row) await db.journalEntry.delete({ where: { id: row.id } });
+  }
+}
+
+/* =========== the same document cannot be posted twice, even in a race ==== */
+{
+  const co = await db.company.findFirst({ where: { code: "WBE" } });
+  const accounts = await db.chartOfAccount.findMany({
+    where: { companyId: co.id, code: { in: ["1000", "4000"] } },
+    select: { id: true, code: true },
+  });
+  const bank = accounts.find((a) => a.code === "1000");
+  const revenue = accounts.find((a) => a.code === "4000");
+  const sourceId = "race-source-" + Date.now();
+
+  // Retrying a reference clash is right; retrying a duplicate SOURCE DOCUMENT
+  // would post the very thing the index exists to prevent. The two look
+  // identical to Prisma — both are P2002 — so they are told apart by which
+  // fields the constraint names.
+  const both = await Promise.all(
+    [0, 1].map((k) =>
+      postVoucher({
+        companyId: co.id,
+        postedBy: `worker-${k}`,
+        voucherType: "Contra",
+        date: "2026-06-16",
+        memo: "same document twice",
+        lines: [
+          { accountId: bank.id, debit: 10, credit: 0 },
+          { accountId: revenue.id, debit: 0, credit: 10 },
+        ],
+        sourceType: "race-test",
+        sourceId,
+      }).catch((e) => ({ ok: false, error: String(e?.message ?? e) }))
+    )
+  );
+  const won = both.filter((r) => r.ok);
+  ok("only one of two posts of the same document succeeds", won.length === 1,
+    `${won.length} succeeded`);
+  ok("and the other is told why, in a sentence",
+    both.some((r) => !r.ok && /already been posted/i.test(r.error ?? "")),
+    both.find((r) => !r.ok)?.error?.slice(0, 90) ?? "(no message)");
+
+  const rows = await db.journalEntry.findMany({
+    where: { companyId: co.id, sourceType: "race-test", sourceId },
+  });
+  ok("exactly one voucher exists for that document", rows.length === 1, `${rows.length} rows`);
+  for (const r of rows) await db.journalEntry.delete({ where: { id: r.id } });
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
