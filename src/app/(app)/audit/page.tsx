@@ -4,6 +4,7 @@ import PageHeader from "@/components/PageHeader";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
+import { shortAgent, AUTH_ACTIONS } from "@/lib/auditmeta";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,10 @@ const actionColor: Record<string, string> = {
   Updated: "bg-brand-blue/10 text-brand-blue-600",
   Rejected: "bg-red-50 text-red-600",
   Deleted: "bg-red-50 text-red-600",
+  [AUTH_ACTIONS.signedIn]: "bg-brand-green/10 text-brand-green-700",
+  [AUTH_ACTIONS.signedOut]: "bg-line text-muted",
+  [AUTH_ACTIONS.failed]: "bg-amber-50 text-amber-700",
+  [AUTH_ACTIONS.lockedOut]: "bg-red-50 text-red-600",
 };
 
 export default async function AuditPage() {
@@ -41,11 +46,12 @@ export default async function AuditPage() {
                 <th className="px-4 py-3 font-semibold">Action</th>
                 <th className="px-4 py-3 font-semibold">Entity</th>
                 <th className="px-4 py-3 font-semibold">Details</th>
+                <th className="px-4 py-3 font-semibold">From</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {logs.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-10 text-center text-muted">No activity recorded yet.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-muted">No activity recorded yet.</td></tr>
               )}
               {logs.map((l) => (
                 <tr key={l.id} className="hover:bg-brand-paper/60">
@@ -56,6 +62,18 @@ export default async function AuditPage() {
                   </td>
                   <td className="px-4 py-2.5 text-xs text-heading">{l.entity}</td>
                   <td className="px-4 py-2.5 text-ink">{l.summary}</td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted">
+                    {l.ipAddress || l.userAgent ? (
+                      // The full user agent is ninety characters of version
+                      // numbers; hovering shows it, the cell shows the device.
+                      <span title={l.userAgent ?? ""}>
+                        {l.ipAddress ?? "—"}
+                        {l.userAgent ? <span className="block text-[11px]">{shortAgent(l.userAgent)}</span> : null}
+                      </span>
+                    ) : (
+                      <span className="text-muted/60">—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -68,7 +86,10 @@ export default async function AuditPage() {
         <p className="text-sm text-muted">
           <span className="font-medium text-ink">Immutable:</span> audit entries are written
           automatically on key actions (companies, users, approvals, journal entries, employees) and
-          cannot be edited or deleted.
+          cannot be edited or deleted. Sign-ins, sign-outs, failed attempts and lock-outs are
+          recorded here too, with the address and device they came from. An entry with no name you
+          recognise is somebody typing an email address that has no account — that is normal on a
+          site facing the internet; a run of them against one real account is not.
         </p>
       </div>
     </div>

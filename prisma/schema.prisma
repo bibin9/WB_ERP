@@ -507,15 +507,22 @@ model Notification {
 model AuditLog {
   id        String   @id @default(cuid())
   tenantId  String
-  userId    String?
+  userId    String? // null for a sign-in attempt on an email that matches no account
   userName  String
-  action    String // Created | Updated | Approved | Rejected | Deleted | Posted
-  entity    String // Company | User | JournalEntry | ApprovalRequest | Employee | JobAssignment | ApprovalRoute
+  action    String // Created | Updated | Approved | Rejected | Deleted | Posted | Signed in | Signed out | Sign-in failed | Locked out
+  entity    String // Company | User | JournalEntry | ApprovalRequest | Employee | JobAssignment | ApprovalRoute | Session
   entityId  String?
   summary   String
+  /// Where the request came from. Nullable because entries written before this
+  /// existed have no address, and because a request can arrive without one.
+  ipAddress String?
+  /// The browser's own description of itself, stored raw and shortened for display.
+  userAgent String?
   createdAt DateTime @default(now())
 
   @@index([tenantId])
+  /// The screen reads the newest hundred for one tenant, which is exactly this.
+  @@index([tenantId, createdAt])
 }
 
 /// HR — Recruitment & Onboarding (FSD HR-09…11)

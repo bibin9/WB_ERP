@@ -888,7 +888,25 @@ export const HELP_ARTICLES: HelpArticle[] = [
     id: "audit", category: "Administration & Security", screens: ["/audit"],
     title: "Audit log",
     summary: "Who did what, and when.",
-    body: "The audit log is a permanent record of key actions — created, updated, approved, deleted — with the user and time. Use it to answer 'who changed this?'.",
+    body: "The audit log is a permanent record of key actions — created, updated, approved, deleted, posted — with the user, the time, and the address and device the person was using. Use it to answer 'who changed this?'.",
+    steps: [
+      "The newest entries are at the top. Each row is one thing that happened.",
+      "'From' shows the internet address the request came from and the device, for example '86.98.x.x — Chrome on Windows'.",
+      "Nothing here can be edited or deleted, by anyone, including an administrator. That is the point of it.",
+    ],
+    tip: "The address is the one the office or phone network was using at that moment, not a permanent label for a person. Two people in the same office share one.",
+  },
+  {
+    id: "audit-signins", category: "Administration & Security", screens: ["/audit", "/users"],
+    title: "Reading the sign-in records",
+    summary: "Every sign-in, sign-out, failed password and lock-out is written down.",
+    body: "Four kinds of entry appear alongside the normal ones. 'Signed in' and 'Signed out' are somebody arriving and leaving. 'Sign-in failed' is an attempt that did not work — a wrong password, a deactivated account, or an email address that has no account at all. 'Locked out' is the account being frozen for 15 minutes after three wrong passwords in a row.",
+    steps: [
+      "Somebody says they did not do something: find their name, check the time and the 'From' column against where they actually were.",
+      "A user is being locked out repeatedly: look at the addresses. All the same one is usually a saved old password on a phone. Lots of different ones is somebody guessing.",
+      "Names you do not recognise in a 'Sign-in failed' row are email addresses that were typed but have no account here. A few is ordinary internet background noise.",
+    ],
+    tip: "The sign-in page always says 'Invalid email or password', whether or not the account exists — deliberately, so a stranger cannot use it to find out who works here. The audit log is where the real reason is written, because only people you have granted access can read it.",
   },
 
   // ===== NOTIFICATIONS =====

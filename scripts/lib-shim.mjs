@@ -30,6 +30,11 @@ export async function importLibs(names) {
           // a plain node import can satisfy, and nothing in it is under test.
           .replace(/^import "server-only";.*$/m, "")
           .replace(/from "\.\/([a-zA-Z-]+)"/g, (_m, dep) => `from "./.${dep}.shim.ts"`)
+          // Node resolves a package subpath literally too, so `next/headers`
+          // has to become `next/headers.js`. The framework module still throws
+          // when it is called outside a request — which is the behaviour under
+          // test, not something to stub away.
+          .replace(/from "next\/([a-zA-Z-]+)"/g, (_m, sub) => `from "next/${sub}.js"`)
       );
       written.push(path);
     }
