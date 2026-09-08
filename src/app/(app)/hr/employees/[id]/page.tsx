@@ -104,8 +104,11 @@ export default async function EmployeeProfilePage({
           <Field label="Grade" name="grade" def={e.grade ?? ""} />
           <Select label="Employment type" name="employmentType" def={e.employmentType} options={["Full-time", "Part-time", "Contract", "Supplied"]} />
           <Field label="Join date" name="joinDate" def={d(e.joinDate)} type="date" />
-          <Select label="Contract type" name="contractType" def={e.contractType} options={["Limited", "Unlimited"]} />
+          <Select label="Contract type" name="contractType" def={e.contractType} options={["Limited"]} />
           <Field label="Contract end date" name="contractEndDate" def={d(e.contractEndDate)} type="date" />
+          {/* A leaver's final month is worked out from this. Without it a man who
+              goes on the 12th is paid for the whole month, or for none of it. */}
+          <Field label="Last working day" name="lastWorkingDay" def={d(e.lastWorkingDay)} type="date" />
           <Field label="Manpower supplier" name="supplier" def={e.supplier ?? ""} />
           <Field label="Basic salary (AED)" name="basicSalary" def={String(e.basicSalary)} type="number" />
           <Field label="Allowances (AED)" name="allowances" def={String(e.allowances)} type="number" />

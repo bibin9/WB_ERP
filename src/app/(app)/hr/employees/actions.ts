@@ -18,7 +18,7 @@ const STR_FIELDS = [
   "gender", "nationality", "maritalStatus", "bloodGroup", "personalEmail", "address", "emergencyName", "emergencyPhone",
   "contractType", "emiratesIdNo", "passportNo", "visaNo", "visaType", "labourCardNo", "bankName", "iban", "bankRoutingCode",
 ];
-const DATE_FIELDS = ["dateOfBirth", "joinDate", "contractEndDate", "emiratesIdExpiry", "passportExpiry", "visaExpiry", "labourCardExpiry"];
+const DATE_FIELDS = ["dateOfBirth", "joinDate", "lastWorkingDay", "contractEndDate", "emiratesIdExpiry", "passportExpiry", "visaExpiry", "labourCardExpiry"];
 
 async function scoped(employeeId: string) {
   const session = await getSession();

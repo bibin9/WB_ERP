@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { parsePunchLog, aggregateDaily, dayToAttendance } from "@/lib/punch";
+import { splitDayHours } from "@/lib/payroll";
 import { allow } from "@/lib/guard";
 import { hourlyCostFor } from "@/lib/labour";
 import { toFils } from "@/lib/money";
@@ -26,10 +27,18 @@ export async function markAttendance(formData: FormData) {
   const date = new Date(dateStr);
   const status = String(formData.get("status") || "Present");
   const hours = Number(formData.get("hours")) || (status === "Present" ? 8 : status === "Half-day" ? 4 : 0);
+
+  // Overtime entered by hand, for the days there are no punches for. The two
+  // rates are kept apart because the law prices them differently: 125% for
+  // ordinary hours, 150% for night work, a rest day or a public holiday.
+  const otHours = Math.max(0, Number(formData.get("otHours")) || 0);
+  const otPremiumHours = Math.max(0, Number(formData.get("otPremiumHours")) || 0);
+  const remarks = String(formData.get("remarks") || "") || null;
+
   await db.attendance.upsert({
     where: { employeeId_date: { employeeId, date } },
-    update: { status, hours, remarks: String(formData.get("remarks") || "") || null },
-    create: { companyId: emp.companyId, employeeId, date, status, hours, remarks: String(formData.get("remarks") || "") || null },
+    update: { status, hours, otHours, otPremiumHours, remarks },
+    create: { companyId: emp.companyId, employeeId, date, status, hours, otHours, otPremiumHours, remarks },
   });
   revalidatePath("/hr/attendance");
 }
@@ -103,11 +112,19 @@ export async function importPunchLog(companyId: string, formData: FormData): Pro
     const employeeId = byBio.get(d.deviceId);
     if (!employeeId) { unmatched.add(d.deviceId); continue; }
     const { hours, status } = dayToAttendance(d);
+    // The punches already say how long the man was on site, so the overtime is
+    // there to be read rather than re-keyed from a paper sheet — and because
+    // the in and out times are known, the hours that fall between 22:00 and
+    // 04:00 can be priced at the higher rate without anyone deciding.
+    const split = splitDayHours(hours, d.firstIn, d.lastOut);
     const date = new Date(d.ymd);
+    const window = `${d.firstIn.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}–${d.lastOut.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+    const ot = split.ot + split.otPremium;
+    const remarks = `Punch: ${window}${ot > 0 ? ` · ${ot}h OT${split.otPremium > 0 ? ` (${split.otPremium}h night)` : ""}` : ""}`;
     await db.attendance.upsert({
       where: { employeeId_date: { employeeId, date } },
-      update: { status, hours, remarks: `Punch: ${d.firstIn.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}–${d.lastOut.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}` },
-      create: { companyId, employeeId, date, status, hours, remarks: `Punch: ${d.firstIn.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}–${d.lastOut.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}` },
+      update: { status, hours, otHours: split.ot, otPremiumHours: split.otPremium, remarks },
+      create: { companyId, employeeId, date, status, hours, otHours: split.ot, otPremiumHours: split.otPremium, remarks },
     });
     imported++;
   }

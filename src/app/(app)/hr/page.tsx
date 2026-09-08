@@ -94,7 +94,7 @@ export default async function EmployeesPage({
     <div>
       <PageHeader
         title="HR & Admin"
-        subtitle="Employee master data and payroll structure (Phase 1). Attendance, leave and payroll runs come in Phase 3."
+        subtitle="Everyone on the books, their contract and their pay. Attendance, leave, payroll and end-of-service all read from these records."
       >
         <div className="flex flex-wrap items-center gap-2">
           <ExportButton dataset="employees" companyId="*" label="Export employees" />
@@ -189,9 +189,10 @@ export default async function EmployeesPage({
       <div className="card mt-5 flex items-start gap-3 p-5">
         <Users className="mt-0.5 h-5 w-5 shrink-0 text-brand-blue-600" />
         <p className="text-sm text-muted">
-          <span className="font-medium text-ink">Phase 1 scope:</span> employee records and salary
-          structure (master data). Attendance, leave, timesheets and payroll processing are Phase 3 —
-          they build on these records.
+          <span className="font-medium text-ink">This screen is the source of everything else.</span> A
+          payroll run needs a join date, a basic salary, an IBAN, a labour-card number and a bank routing
+          code &mdash; a record missing any of them is held back rather than paid wrong. When somebody
+          leaves, set their last working day here and the final month is worked out for the days served.
         </p>
       </div>
     </div>

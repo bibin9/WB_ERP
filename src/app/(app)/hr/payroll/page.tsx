@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PayslipDeduction from "@/components/payroll/PayslipDeduction";
 import { Wallet, HandCoins } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import HrTabs from "@/components/HrTabs";
@@ -86,30 +87,77 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
                   <tr className="border-b border-line bg-brand-paper text-left text-xs uppercase text-muted">
                     <th className="px-3 py-2 font-semibold">Emp</th>
                     <th className="px-3 py-2 font-semibold">Name</th>
+                    <th className="px-3 py-2 text-right font-semibold">Days</th>
                     <th className="px-3 py-2 text-right font-semibold">Basic</th>
                     <th className="px-3 py-2 text-right font-semibold">Allow.</th>
+                    <th className="px-3 py-2 text-right font-semibold">Overtime</th>
                     <th className="px-3 py-2 text-right font-semibold">Advance</th>
                     <th className="px-3 py-2 text-right font-semibold">Deduct.</th>
                     <th className="px-3 py-2 text-right font-semibold">Net</th>
+                    <th className="px-3 py-2 font-semibold print:hidden" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
                   {selected.payslips.map((p) => (
                     <tr key={p.id}>
                       <td className="px-3 py-2 font-mono text-xs text-heading">{p.empNo}</td>
-                      <td className="px-3 py-2 text-ink">{p.employeeName}</td>
+                      <td className="px-3 py-2 text-ink">
+                        {p.employeeName}
+                        {p.partMonthReason && (
+                          <span className="block text-xs text-brand-gold">{p.partMonthReason}</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-xs text-muted">
+                        {p.daysPaid}/{p.daysInPeriod}
+                        {p.unpaidDays > 0 && (
+                          <span className="block text-brand-gold">−{p.unpaidDays}d unpaid</span>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-right tabular-nums">{money(p.basic)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{money(p.allowances)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {p.overtime ? (
+                          <>
+                            {money(p.overtime)}
+                            <span className="block text-xs text-muted">
+                              {p.otHours ? `${p.otHours}h` : ""}
+                              {p.otPremiumHours ? `${p.otHours ? " + " : ""}${p.otPremiumHours}h night` : ""}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-right tabular-nums text-brand-gold">{p.advanceRecovery ? "−" + money(p.advanceRecovery) : "—"}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-muted">{p.deductions ? "−" + money(p.deductions) : "—"}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-muted">
+                        {p.deductions || p.otherDeductions ? (
+                          <>
+                            {"−" + money(p.deductions + p.otherDeductions)}
+                            {p.deductionNote && <span className="block text-xs">{p.deductionNote}</span>}
+                          </>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-right font-medium tabular-nums text-ink">{money(p.netPay)}</td>
+                      <td className="px-3 py-2 text-right print:hidden">
+                        {selected.status === "Draft" && (
+                          <PayslipDeduction
+                            id={p.id}
+                            employeeName={p.employeeName}
+                            otherDeductions={p.otherDeductions}
+                            deductionNote={p.deductionNote}
+                          />
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-line bg-brand-paper font-semibold">
-                    <td className="px-3 py-2" colSpan={6}>Total net pay</td>
+                    <td className="px-3 py-2" colSpan={8}>Total net pay</td>
                     <td className="px-3 py-2 text-right tabular-nums text-ink">{money(selected.payslips.reduce((s, p) => s + p.netPay, 0))}</td>
+                    <td className="print:hidden" />
                   </tr>
                 </tfoot>
               </table>

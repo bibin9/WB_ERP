@@ -263,5 +263,64 @@ const ctBadTrn = Number(q(`
   WHERE "corporateTaxTRN" IS NOT NULL AND "corporateTaxTRN" !~ '^[0-9]{15}$'`));
 ok("any recorded corporate tax TRN is 15 digits", ctBadTrn === 0, `${ctBadTrn} malformed`);
 
+/* ------------------------------------------------ payroll ---------------- */
+const payCols = Number(q(`
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'Payslip'
+    AND column_name IN ('overtime','otHours','otPremiumHours','daysPaid','daysInPeriod',
+                        'unpaidDays','otherDeductions','deductionNote','contractBasic')`));
+ok("a payslip can show its working", payCols === 9, `${payCols} of 9 columns`);
+
+const attCols = Number(q(`
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'Attendance'
+    AND column_name IN ('otHours','otPremiumHours')`));
+ok("the muster records overtime at both rates", attCols === 2, `${attCols} of 2 columns`);
+
+const lwd = Number(q(`
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'Employee' AND column_name = 'lastWorkingDay'`));
+ok("a leaver can be given a last working day", lwd === 1, `${lwd} of 1 column`);
+
+// A payslip restated by the seed must never read as nil days: "0/30" on screen
+// says nobody was paid for anything, which is how the last four column
+// additions announced themselves.
+const zeroDays = Number(q(`SELECT COUNT(*) FROM "Payslip" WHERE "daysPaid" <= 0`));
+ok("no payslip reads as nil days paid", zeroDays === 0, `${zeroDays} at nil`);
+
+const overPaid = Number(q(`SELECT COUNT(*) FROM "Payslip" WHERE "daysPaid" > "daysInPeriod"`));
+ok("no payslip pays more days than the month holds", overPaid === 0, `${overPaid} over`);
+
+const negPay = Number(q(`SELECT COUNT(*) FROM "Payslip" WHERE "netPay" < 0`));
+ok("no payslip is negative", negPay === 0, `${negPay} below nil`);
+
+// Every money column on a payslip has to land on whole fils, like every other.
+const payFils = rows(`
+  SELECT 'Payslip.netPay', COUNT(*) FROM (SELECT "netPay" AS x FROM "Payslip") t WHERE ${overTwoDp}
+  UNION ALL SELECT 'Payslip.overtime', COUNT(*) FROM (SELECT "overtime" AS x FROM "Payslip") t WHERE ${overTwoDp}
+  UNION ALL SELECT 'Payslip.deductions', COUNT(*) FROM (SELECT "deductions" AS x FROM "Payslip") t WHERE ${overTwoDp}
+  UNION ALL SELECT 'Payslip.otherDeductions', COUNT(*) FROM (SELECT "otherDeductions" AS x FROM "Payslip") t WHERE ${overTwoDp}
+`);
+for (const [col, n] of payFils) ok(`${col} holds whole fils`, Number(n) === 0, `${n} with more than 2dp`);
+
+// A deduction that cannot be explained is the one that becomes a labour claim.
+const unexplained = Number(q(`
+  SELECT COUNT(*) FROM "Payslip"
+  WHERE "otherDeductions" > 0 AND COALESCE("deductionNote",'') = ''`));
+ok("every manual deduction carries a reason", unexplained === 0, `${unexplained} unexplained`);
+
+// Overtime money and overtime hours have to agree about whether there was any.
+const otMismatch = Number(q(`
+  SELECT COUNT(*) FROM "Payslip"
+  WHERE ("overtime" > 0) <> (("otHours" + "otPremiumHours") > 0)`));
+ok("overtime pay and overtime hours agree", otMismatch === 0, `${otMismatch} disagreeing`);
+
+const negOt = Number(q(`SELECT COUNT(*) FROM "Attendance" WHERE "otHours" < 0 OR "otPremiumHours" < 0`));
+ok("no attendance row carries negative overtime", negOt === 0, `${negOt} negative`);
+
+// More than sixteen hours of overtime in one day is a keying error, not a shift.
+const wildOt = Number(q(`SELECT COUNT(*) FROM "Attendance" WHERE "otHours" + "otPremiumHours" > 16`));
+ok("no day carries an impossible amount of overtime", wildOt === 0, `${wildOt} over 16h`);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

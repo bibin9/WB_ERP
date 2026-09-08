@@ -30,6 +30,24 @@ export function MarkAttendanceForm({ employees }: { employees: Emp[] }) {
         <label className="mb-1 block text-xs font-medium text-muted">Hours</label>
         <input name="hours" type="number" className="input h-9 w-20 py-1.5 text-sm" placeholder="8" />
       </div>
+      <div>
+        <label
+          className="mb-1 block text-xs font-medium text-muted"
+          title="Overtime past the eighth hour, paid at 125% of basic."
+        >
+          OT hrs
+        </label>
+        <input name="otHours" type="number" step="0.5" min="0" className="input h-9 w-20 py-1.5 text-sm" placeholder="0" />
+      </div>
+      <div>
+        <label
+          className="mb-1 block text-xs font-medium text-muted"
+          title="Overtime at 150%: hours between 22:00 and 04:00, a rest day, or a public holiday taken as pay rather than a day off."
+        >
+          OT @150%
+        </label>
+        <input name="otPremiumHours" type="number" step="0.5" min="0" className="input h-9 w-20 py-1.5 text-sm" placeholder="0" />
+      </div>
       <button type="submit" className="btn-primary h-9 py-1.5">Mark</button>
     </form>
   );

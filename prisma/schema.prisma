@@ -393,8 +393,14 @@ model Employee {
   emergencyName      String?
   emergencyPhone     String?
   // Employment / contract
-  contractType       String? // Limited | Unlimited
+  /// Limited-term is the only kind Federal Decree-Law 33/2021 allows. The
+  /// column keeps its width for records migrated from before February 2022.
+  contractType       String? // Limited
   contractEndDate    DateTime?
+  /// The last day a leaver is on the payroll. Without it a part month cannot
+  /// be worked out, and a man who leaves on the 12th is either paid for the
+  /// whole month or — if he is marked Inactive first — for none of it.
+  lastWorkingDay     DateTime?
   // UAE documents
   emiratesIdNo       String?
   emiratesIdExpiry   DateTime?
@@ -516,17 +522,37 @@ model PayrollRun {
 }
 
 model Payslip {
-  id              String     @id @default(cuid())
-  runId           String
-  run             PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  employeeId      String
-  empNo           String
-  employeeName    String
-  basic           Float
-  allowances      Float
-  deductions      Float      @default(0) // other deductions (fines, unpaid leave, etc.)
-  advanceRecovery Float      @default(0) // salary-advance / loan installment recovered this run
-  netPay          Float
+  id                 String     @id @default(cuid())
+  runId              String
+  run                PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employeeId         String
+  empNo              String
+  employeeName       String
+  /// Basic and allowances as paid — already reduced for a part month.
+  basic              Float
+  allowances         Float
+  /// The contractual monthly figures, kept so a part month can be read back and
+  /// explained without hunting for the employee record as it was that month.
+  contractBasic      Float      @default(0)
+  contractAllowances Float      @default(0)
+  /// Days paid out of the days the month holds. Equal on a full month.
+  daysPaid           Float      @default(0)
+  daysInPeriod       Int        @default(30)
+  /// Why it was a part month — "joined 2026-09-20", "last working day
+  /// 2026-09-12" — so nobody has to work it out from the numbers.
+  partMonthReason    String?
+  otHours            Float      @default(0)
+  otPremiumHours     Float      @default(0)
+  overtime           Float      @default(0)
+  /// Days lost to unpaid leave, the unpaid half of sick leave, and unexcused
+  /// absence — and what those days cost.
+  unpaidDays         Float      @default(0)
+  deductions         Float      @default(0) // absence and unpaid leave, computed
+  /// Fines and anything else HR enters by hand, with a note saying what it was.
+  otherDeductions    Float      @default(0)
+  deductionNote      String?
+  advanceRecovery    Float      @default(0) // salary-advance / loan installment recovered this run
+  netPay             Float
 
   @@index([runId])
 }
@@ -571,15 +597,21 @@ model LeaveRequest {
 
 /// HR — Time & Attendance (FSD HR-02)
 model Attendance {
-  id         String   @id @default(cuid())
-  companyId  String
-  employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  date       DateTime
-  status     String   @default("Present") // Present | Absent | Leave | Off | Half-day
-  hours      Float    @default(8)
-  remarks    String?
-  createdAt  DateTime @default(now())
+  id             String   @id @default(cuid())
+  companyId      String
+  employeeId     String
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date           DateTime
+  status         String   @default("Present") // Present | Absent | Leave | Off | Half-day
+  hours          Float    @default(8)
+  /// Overtime past the eighth hour, at 125% of basic.
+  otHours        Float    @default(0)
+  /// Overtime at 150%: hours between 22:00 and 04:00, a rest day, or a public
+  /// holiday taken as pay rather than a day off. Held apart from otHours
+  /// because the two are priced differently and a payslip has to show which.
+  otPremiumHours Float    @default(0)
+  remarks        String?
+  createdAt      DateTime @default(now())
 
   @@unique([employeeId, date])
   @@index([companyId])

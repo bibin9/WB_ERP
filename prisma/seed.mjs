@@ -677,7 +677,86 @@ async function main() {
     }
   }
 
-  console.log("Seeded tenant, companies, roles, admin, tasks, chart of accounts, approval routes, employees, certs, supplied worker, sample vouchers, jobs, cost centres, timesheets, cheques, retention, corporate tax.");
+  // A fortnight of site attendance with real overtime on it, so a payroll run
+  // on the demo data shows the thing the screen is for rather than a flat
+  // salary. The welder works a shutdown; the helper does two night shifts.
+  {
+    const crew = await db.employee.findMany({
+      where: { companyId: wbeCo.id, empNo: { in: ["EMP-0004", "SUP-0001", "EMP-0003"] } },
+    });
+    const byNo = Object.fromEntries(crew.map((e) => [e.empNo, e]));
+    const now = new Date();
+    const dayOf = (n) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), n));
+
+    // [employee, day of month, status, hours, ordinary OT, OT at 150%]
+    const MUSTER = [
+      ["EMP-0004", 1, "Present", 8, 0, 0],
+      ["EMP-0004", 2, "Present", 12, 4, 0],
+      ["EMP-0004", 3, "Present", 12, 4, 0],
+      ["EMP-0004", 4, "Present", 12, 0, 4],
+      ["EMP-0004", 5, "Present", 8, 0, 0],
+      ["SUP-0001", 1, "Present", 8, 0, 0],
+      ["SUP-0001", 2, "Present", 10, 0, 2],
+      ["SUP-0001", 3, "Present", 10, 0, 2],
+      ["EMP-0003", 1, "Present", 8, 0, 0],
+      ["EMP-0003", 2, "Absent", 0, 0, 0],
+    ];
+    for (const [empNo, dom, status, hours, otHours, otPremiumHours] of MUSTER) {
+      const e = byNo[empNo];
+      if (!e) continue;
+      const date = dayOf(dom);
+      const exists = await db.attendance.findFirst({ where: { employeeId: e.id, date } });
+      if (exists) continue;
+      await db.attendance.create({
+        data: { companyId: wbeCo.id, employeeId: e.id, date, status, hours, otHours, otPremiumHours },
+      });
+    }
+
+    // Two days of approved unpaid leave, so the deduction has something to bite
+    // on and the payslip shows how it reads.
+    const maria = byNo["EMP-0003"];
+    if (maria) {
+      const from = dayOf(10);
+      const exists = await db.leaveRequest.findFirst({
+        where: { employeeId: maria.id, type: "Unpaid", fromDate: from },
+      });
+      if (!exists) {
+        await db.leaveRequest.create({
+          data: {
+            companyId: wbeCo.id, employeeId: maria.id, type: "Unpaid",
+            fromDate: from, toDate: dayOf(11), days: 2,
+            reason: "Personal, agreed with the department", status: "Approved",
+            decidedBy: "Administrator",
+          },
+        });
+      }
+    }
+  }
+
+  // Payslips written before payroll knew about part months and overtime carry
+  // nil in the new columns, which would read on screen as "0/30 days" — as
+  // though nobody had been paid for anything. They were full months, so they
+  // are restated as full months.
+  //
+  // This is the fourth time a column added after a database was seeded has
+  // needed exactly this, so it is done unconditionally rather than behind a
+  // "only on a fresh install" guard: the guard is what caused the other three.
+  {
+    const stale = await db.payslip.findMany({ where: { daysPaid: 0 } });
+    for (const s of stale) {
+      await db.payslip.update({
+        where: { id: s.id },
+        data: {
+          daysPaid: s.daysInPeriod || 30,
+          contractBasic: s.contractBasic || s.basic,
+          contractAllowances: s.contractAllowances || s.allowances,
+        },
+      });
+    }
+    if (stale.length) console.log(`Restated ${stale.length} payslip(s) written before part months were tracked.`);
+  }
+
+  console.log("Seeded tenant, companies, roles, admin, tasks, chart of accounts, approval routes, employees, certs, supplied worker, sample vouchers, jobs, cost centres, timesheets, cheques, retention, corporate tax, site attendance.");
   console.log("Login:  admin@wandb.ae  /  " + ADMIN_PASSWORD);
 }
 
