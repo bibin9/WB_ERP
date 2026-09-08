@@ -51,21 +51,21 @@ model Tenant {
 
 /// A legal company within a tenant's group (multi-company).
 model Company {
-  id               String               @id @default(cuid())
-  tenantId         String
-  tenant           Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  code             String
-  name             String
-  baseCurrency     String               @default("AED")
+  id                  String               @id @default(cuid())
+  tenantId            String
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code                String
+  name                String
+  baseCurrency        String               @default("AED")
   // UAE WPS (Wage Protection System) employer details, used to generate the bank SIF file
-  wpsEmployerId    String? // MOL establishment / employer unique ID
+  wpsEmployerId       String? // MOL establishment / employer unique ID
   /// Month the financial year starts (1 = January).
-  fyStartMonth     Int                  @default(1)
+  fyStartMonth        Int                  @default(1)
   /// Nothing may be posted on or before this date. Set after a VAT return is
   /// filed or a period is closed, so the figures behind it cannot move.
-  booksLockedTo    DateTime?
+  booksLockedTo       DateTime?
   /// Date the opening balances are stated as at — normally the FY start.
-  openingAsOf      DateTime?
+  openingAsOf         DateTime?
   /// The company's own letterhead logo, shown at the top of every printed
   /// report for this company.
   ///
@@ -74,29 +74,36 @@ model Company {
   /// letterhead is worse than one that never had it. A logo is a few kilobytes,
   /// which a text column carries comfortably. A plain https:// URL is accepted
   /// too, for a company that already hosts its mark somewhere.
-  logoUrl          String?
+  logoUrl             String?
   /// Corporate Tax Registration Number, issued by the FTA when the company
   /// registers for corporate tax. Separate from the VAT TRN: a company can be
   /// registered for one and not the other, and the return quotes this one.
-  corporateTaxTRN  String?
-  parties          Party[]
-  taxReturns       CorporateTaxReturn[]
-  jobs             Job[]
-  costCentres      CostCentre[]
-  cheques          Cheque[]
-  retentions       Retention[]
-  wpsBankRouting   String? // employer bank routing code (agent ID)
-  isActive         Boolean              @default(true)
-  memberships      CompanyMembership[]
-  jobAssignments   JobAssignment[]
-  approvalRequests ApprovalRequest[]
-  accounts         ChartOfAccount[]
-  journalEntries   JournalEntry[]
-  employees        Employee[]
-  requisitions     Requisition[]
-  payrollRuns      PayrollRun[]
-  leaveRequests    LeaveRequest[]
-  createdAt        DateTime             @default(now())
+  corporateTaxTRN     String?
+  /// Whether the company trades in one of the fourteen sectors MOHRE has named
+  /// for Emiratisation — construction, real estate, healthcare, hospitality,
+  /// information and communications, financial activities and the rest.
+  ///
+  /// It decides which rule applies at twenty to forty-nine employees, and the
+  /// system cannot work it out from a trade licence, so somebody has to say.
+  emiratisationSector Boolean              @default(false)
+  parties             Party[]
+  taxReturns          CorporateTaxReturn[]
+  jobs                Job[]
+  costCentres         CostCentre[]
+  cheques             Cheque[]
+  retentions          Retention[]
+  wpsBankRouting      String? // employer bank routing code (agent ID)
+  isActive            Boolean              @default(true)
+  memberships         CompanyMembership[]
+  jobAssignments      JobAssignment[]
+  approvalRequests    ApprovalRequest[]
+  accounts            ChartOfAccount[]
+  journalEntries      JournalEntry[]
+  employees           Employee[]
+  requisitions        Requisition[]
+  payrollRuns         PayrollRun[]
+  leaveRequests       LeaveRequest[]
+  createdAt           DateTime             @default(now())
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -380,7 +387,19 @@ model Employee {
   /// billed at an agency rate, or someone whose package is not the true cost.
   hourlyCost         Float?
   currency           String             @default("AED")
-  annualLeaveBalance Int                @default(30)
+  /// Left over from when the balance was a stored number that was decremented
+  /// on approval. It is no longer the balance — that is worked out from the
+  /// join date and the leave actually approved, in lib/leave.ts — but the
+  /// column stays as the opening adjustment a company needs when it brings
+  /// balances across from whatever it used before this system.
+  annualLeaveBalance Int                @default(0)
+  /// Days of unpaid leave taken across the whole of service.
+  ///
+  /// Gratuity is earned on the service period, and unpaid leave is not part of
+  /// it — so a man who took three months unpaid has three months less service
+  /// than the calendar suggests. Kept as a running total because the leave
+  /// records may not go back as far as the employment does.
+  unpaidLeaveDays    Float              @default(0)
   supplier           String? // agency/sponsor for supplied manpower (HR-15)
   // Personal
   dateOfBirth        DateTime?
@@ -401,6 +420,35 @@ model Employee {
   /// be worked out, and a man who leaves on the 12th is either paid for the
   /// whole month or — if he is marked Inactive first — for none of it.
   lastWorkingDay     DateTime?
+  /// When probation ends. Article 9 allows six months at most and no
+  /// extension. The date has to be watched, because a decision is due before
+  /// it passes and the notice period changes the moment it does — fourteen
+  /// days during probation, the contract's figure after it.
+  probationEndDate   DateTime?
+  /// Recorded when somebody is confirmed, so a passed date can be told apart
+  /// from one nobody acted on.
+  probationCleared   Boolean            @default(false)
+  /// Notice the contract requires, in days. Between 30 and 90 by law.
+  noticePeriodDays   Int?
+  /// The repatriation ticket the contract promises, in dirhams. Entered here
+  /// so the final settlement stops being a number somebody remembers.
+  airTicketAllowance Float              @default(0)
+  /// Involuntary Loss of Employment cover, compulsory since January 2023.
+  /// Not subscribing is a AED 400 fine on the employee, and since 2026 an
+  /// unpaid ILOE liability blocks a work permit or visa transaction — which is
+  /// the employer's problem the moment a visa needs renewing.
+  iloeSubscribed     Boolean            @default(false)
+  iloeExpiry         DateTime?
+  /// Outside the scheme: investors and owners, domestic workers, temporary
+  /// contract staff, anyone under eighteen, and a pensioner who has taken a
+  /// new job. Recorded so an exempt person stops appearing on the chase list.
+  iloeExempt         Boolean            @default(false)
+  /// Whether the role counts as skilled for Emiratisation.
+  ///
+  /// MOHRE's skill levels one to five turn on the occupation and the
+  /// qualification behind it, which no system can read off a job title — so
+  /// this is a judgement somebody records rather than one the software makes.
+  skilledRole        Boolean            @default(false)
   // UAE documents
   emiratesIdNo       String?
   emiratesIdExpiry   DateTime?
@@ -597,21 +645,28 @@ model LeaveRequest {
 
 /// HR — Time & Attendance (FSD HR-02)
 model Attendance {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   companyId      String
   employeeId     String
-  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee       Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   date           DateTime
-  status         String   @default("Present") // Present | Absent | Leave | Off | Half-day
-  hours          Float    @default(8)
+  status         String    @default("Present") // Present | Absent | Leave | Off | Half-day
+  hours          Float     @default(8)
+  /// When the man actually came and went, kept from the punch log.
+  ///
+  /// The remarks line held these as text, which reads well and proves nothing.
+  /// Two rules need them as real times: the night-rate split, and the summer
+  /// midday ban — where the punch data is the evidence either way.
+  firstIn        DateTime?
+  lastOut        DateTime?
   /// Overtime past the eighth hour, at 125% of basic.
-  otHours        Float    @default(0)
+  otHours        Float     @default(0)
   /// Overtime at 150%: hours between 22:00 and 04:00, a rest day, or a public
   /// holiday taken as pay rather than a day off. Held apart from otHours
   /// because the two are priced differently and a payslip has to show which.
-  otPremiumHours Float    @default(0)
+  otPremiumHours Float     @default(0)
   remarks        String?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
 
   @@unique([employeeId, date])
   @@index([companyId])

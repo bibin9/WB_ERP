@@ -183,6 +183,9 @@ async function main() {
     // job costing finally sees the labour. The gap between 6000 and 6900 is
     // wage cost that was never charged to any job.
     ["5100", "Site Labour", "Expense"],
+    // Salary advances are a debt the employee owes back, so they sit as an
+    // asset until payroll recovers them — not as a cost the month they are paid.
+    ["1170", "Employee Advances", "Asset"],
     ["6000", "Salaries & Wages", "Expense"],
     ["6900", "Labour Recovered", "Expense"],
     ["6100", "Rent", "Expense"],
@@ -756,7 +759,80 @@ async function main() {
     if (stale.length) console.log(`Restated ${stale.length} payslip(s) written before part months were tracked.`);
   }
 
-  console.log("Seeded tenant, companies, roles, admin, tasks, chart of accounts, approval routes, employees, certs, supplied worker, sample vouchers, jobs, cost centres, timesheets, cheques, retention, corporate tax, site attendance.");
+  // The annual leave balance used to be a stored number, set to 30 when a
+  // record was created and decremented on approval. It is now an opening
+  // adjustment — a figure a company carries across from whatever it used
+  // before — and the real balance is worked out from the join date and the
+  // leave actually approved.
+  //
+  // So a row still holding exactly 30 with no approved leave behind it is the
+  // old default, not a migrated balance, and leaving it there would hand
+  // everybody thirty free days on top of what they have earned. Anything else
+  // is left alone: it might be a real figure somebody typed.
+  {
+    const suspects = await db.employee.findMany({ where: { annualLeaveBalance: 30 } });
+    let cleared = 0;
+    for (const e of suspects) {
+      const taken = await db.leaveRequest.count({
+        where: { employeeId: e.id, type: "Annual", status: "Approved" },
+      });
+      if (taken > 0) continue; // the number has been used; it may be deliberate
+      await db.employee.update({ where: { id: e.id }, data: { annualLeaveBalance: 0 } });
+      cleared++;
+    }
+    if (cleared) console.log(`Cleared the old default leave balance on ${cleared} employee(s); balances now accrue from the join date.`);
+  }
+
+  // A probation date on the newest joiner, so the watchlist has something to
+  // show and the six-month rule is visible rather than theoretical.
+  {
+    const e = await db.employee.findFirst({ where: { companyId: wbeCo.id, empNo: "EMP-0004" } });
+    if (e && e.joinDate && !e.probationEndDate) {
+      const j = e.joinDate;
+      await db.employee.update({
+        where: { id: e.id },
+        data: {
+          probationEndDate: new Date(Date.UTC(j.getUTCFullYear(), j.getUTCMonth() + 6, j.getUTCDate())),
+          probationCleared: true,
+          noticePeriodDays: 30,
+          airTicketAllowance: 1800,
+        },
+      });
+    }
+  }
+
+  // Compliance demo data. An engineering contractor is in one of the fourteen
+  // Emiratisation sectors, so the panel shows the rule that will apply as the
+  // company grows rather than an empty box. ILOE is set on most of the sample
+  // staff and left off one, so the chase list has something in it.
+  {
+    for (const co of companies) {
+      if (!co.emiratisationSector) {
+        await db.company.update({ where: { id: co.id }, data: { emiratisationSector: true } });
+      }
+    }
+
+    const SKILLED = ["EMP-0001", "EMP-0002", "EMP-0003", "EMP-0004"];
+    const NO_ILOE = ["EMP-0004"]; // one left unsubscribed, so the list is not empty
+    for (const e of await db.employee.findMany({ where: { companyId: wbeCo.id } })) {
+      const supplied = e.employmentType === "Supplied";
+      await db.employee.update({
+        where: { id: e.id },
+        data: {
+          skilledRole: SKILLED.includes(e.empNo),
+          // Supplied labour sits outside the scheme; it is the agency's to hold.
+          iloeExempt: supplied,
+          iloeSubscribed: !supplied && !NO_ILOE.includes(e.empNo),
+          iloeExpiry:
+            !supplied && !NO_ILOE.includes(e.empNo) && !e.iloeExpiry
+              ? new Date(Date.now() + 200 * 86400000)
+              : e.iloeExpiry,
+        },
+      });
+    }
+  }
+
+  console.log("Seeded tenant, companies, roles, admin, tasks, chart of accounts, approval routes, employees, certs, supplied worker, sample vouchers, jobs, cost centres, timesheets, cheques, retention, corporate tax, site attendance, compliance.");
   console.log("Login:  admin@wandb.ae  /  " + ADMIN_PASSWORD);
 }
 

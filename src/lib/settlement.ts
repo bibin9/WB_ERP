@@ -24,6 +24,15 @@ export type SettlementInput = {
   lastWorkingDay: Date;
   leaveBalanceDays: number;
   separationType: SeparationType;
+  /**
+   * Days of unpaid leave taken across the whole of service.
+   *
+   * Gratuity is earned on the service period, and unpaid leave is not part of
+   * it — a man who took three months unpaid has three months less service than
+   * the calendar says. Left out, every long absence is paid for twice: once by
+   * not deducting the salary, and again in the end-of-service benefit.
+   */
+  unpaidLeaveDays?: number;
   forfeitGratuity?: boolean; // gross misconduct
   pendingSalary?: number;
   noticePay?: number; // pay in lieu of notice owed TO the employee (+)
@@ -100,7 +109,15 @@ export function computeGratuity(basicSalary: number, decimalYears: number, forfe
 export type Settlement = ReturnType<typeof computeSettlement>;
 
 export function computeSettlement(i: SettlementInput) {
-  const svc = serviceLength(i.joinDate, i.lastWorkingDay);
+  // Unpaid leave is taken off the end of the service period rather than
+  // adjusted afterwards, so it works the same way at every boundary — including
+  // the one that matters most, where a long absence drops somebody back under
+  // the year that earns any gratuity at all.
+  const unpaid = Math.max(0, Number(i.unpaidLeaveDays) || 0);
+  const effectiveLast = unpaid > 0
+    ? new Date(i.lastWorkingDay.getTime() - unpaid * DAY)
+    : i.lastWorkingDay;
+  const svc = serviceLength(i.joinDate, effectiveLast);
   const dailyBasic = i.basicSalary / 30;
   const forfeit = i.forfeitGratuity ?? i.separationType === "Termination (Misconduct)";
   const gratuity = computeGratuity(i.basicSalary, svc.decimalYears, forfeit);

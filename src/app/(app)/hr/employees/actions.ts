@@ -18,7 +18,7 @@ const STR_FIELDS = [
   "gender", "nationality", "maritalStatus", "bloodGroup", "personalEmail", "address", "emergencyName", "emergencyPhone",
   "contractType", "emiratesIdNo", "passportNo", "visaNo", "visaType", "labourCardNo", "bankName", "iban", "bankRoutingCode",
 ];
-const DATE_FIELDS = ["dateOfBirth", "joinDate", "lastWorkingDay", "contractEndDate", "emiratesIdExpiry", "passportExpiry", "visaExpiry", "labourCardExpiry"];
+const DATE_FIELDS = ["dateOfBirth", "joinDate", "lastWorkingDay", "probationEndDate", "contractEndDate", "iloeExpiry", "emiratesIdExpiry", "passportExpiry", "visaExpiry", "labourCardExpiry"];
 
 async function scoped(employeeId: string) {
   const session = await getSession();
@@ -53,9 +53,41 @@ export async function updateEmployeeProfile(formData: FormData) {
     if (error) redirect(`/hr/employees/${id}?err=${encodeURIComponent(error)}`);
     data[field] = value;
   }
+  // One person, one record. Production had two "Rajesh Kumar" rows before this
+  // check existed, and a duplicate is not a cosmetic problem: both records go
+  // into the payroll run, both go into the WPS file, and the same man is paid
+  // twice. An Emirates ID and a passport number each identify exactly one
+  // human, so they are the right things to test.
+  for (const [field, label] of [["emiratesIdNo", "Emirates ID"], ["passportNo", "passport number"]] as const) {
+    const value = data[field] as string | null;
+    if (!value) continue;
+    const clash = await db.employee.findFirst({
+      where: { companyId: s.emp.companyId, [field]: value, NOT: { id } },
+      select: { name: true, empNo: true },
+    });
+    if (clash) {
+      redirect(
+        `/hr/employees/${id}?err=` +
+          encodeURIComponent(
+            `That ${label} is already on ${clash.name} (${clash.empNo}). Two records for one person get paid twice.`
+          )
+      );
+    }
+  }
+
   for (const f of DATE_FIELDS) { const v = String(formData.get(f) ?? ""); data[f] = v ? new Date(v) : null; }
   data.basicSalary = toFils(Number(formData.get("basicSalary")) || 0);
   data.allowances = toFils(Number(formData.get("allowances")) || 0);
+  data.airTicketAllowance = toFils(Number(formData.get("airTicketAllowance")) || 0);
+
+  // Between thirty and ninety days by law; blank means the contract is silent
+  // and the statutory thirty applies.
+  const notice = Number(formData.get("noticePeriodDays"));
+  data.noticePeriodDays = Number.isFinite(notice) && notice > 0 ? Math.min(90, Math.max(30, Math.round(notice))) : null;
+  data.probationCleared = String(formData.get("probationCleared") || "") === "on";
+  data.skilledRole = String(formData.get("skilledRole") || "") === "on";
+  data.iloeSubscribed = String(formData.get("iloeSubscribed") || "") === "on";
+  data.iloeExempt = String(formData.get("iloeExempt") || "") === "on";
 
   await db.employee.update({ where: { id }, data });
   await audit({ action: "Updated", entity: "Employee", entityId: id, summary: `Updated profile of ${s.emp.empNo}` });

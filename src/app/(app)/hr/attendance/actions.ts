@@ -123,8 +123,8 @@ export async function importPunchLog(companyId: string, formData: FormData): Pro
     const remarks = `Punch: ${window}${ot > 0 ? ` · ${ot}h OT${split.otPremium > 0 ? ` (${split.otPremium}h night)` : ""}` : ""}`;
     await db.attendance.upsert({
       where: { employeeId_date: { employeeId, date } },
-      update: { status, hours, otHours: split.ot, otPremiumHours: split.otPremium, remarks },
-      create: { companyId, employeeId, date, status, hours, otHours: split.ot, otPremiumHours: split.otPremium, remarks },
+      update: { status, hours, firstIn: d.firstIn, lastOut: d.lastOut, otHours: split.ot, otPremiumHours: split.otPremium, remarks },
+      create: { companyId, employeeId, date, status, hours, firstIn: d.firstIn, lastOut: d.lastOut, otHours: split.ot, otPremiumHours: split.otPremium, remarks },
     });
     imported++;
   }

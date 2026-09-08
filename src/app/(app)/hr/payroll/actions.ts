@@ -8,6 +8,17 @@ import { buildSif, splitFixedVariable, type SifEmployee } from "@/lib/wps";
 import { allow } from "@/lib/guard";
 import { cleanIban, cleanLabourCard, cleanRouting } from "@/lib/uae";
 import { computePayslip, payrollReadiness, sickSplit } from "@/lib/payroll";
+import { postVoucher } from "@/lib/posting";
+
+/**
+ * Where a month of wages lands in the books.
+ *
+ * The salary cost, the bank, and the advance the employee is paying back —
+ * which is an asset until it is recovered, not a cost the month it is lent.
+ */
+const SALARY_EXPENSE_CODE = "6000";
+const BANK_CODE = "1000";
+const ADVANCE_CODE = "1170";
 import { money } from "@/lib/money";
 
 /** The validators the readiness gate uses, in one place. */
@@ -70,6 +81,11 @@ export async function createPayrollRun(formData: FormData) {
   const employees = await db.employee.findMany({
     where: {
       companyId,
+      // Supplied labour sits on the agency's establishment card and the
+      // agency's WPS. The company pays the agency an invoice; putting the man
+      // on its own payroll puts a name on its MOL file that MOHRE never
+      // sponsored, and pays him twice into the bargain.
+      employmentType: { not: "Supplied" },
       AND: [
         { OR: [{ status: { not: "Inactive" } }, { lastWorkingDay: { gte: start } }] },
         // Somebody who has not started yet is not on this month's payroll.
@@ -228,14 +244,19 @@ export async function updatePayslip(formData: FormData): Promise<{ ok: boolean; 
 }
 
 export async function setRunStatus(runId: string, status: string) {
-  if (!(await allow("hr.payroll", "approve"))) return;
+  if (!(await allow("hr.payroll", "approve"))) return { ok: false as const, error: "Not authorised" };
   const session = await getSession();
-  if (!session) return;
+  if (!session) return { ok: false as const, error: "Not signed in" };
   const run = await db.payrollRun.findUnique({ where: { id: runId } });
-  if (!run || !session.companies.some((c) => c.id === run.companyId)) return;
+  if (!run || !session.companies.some((c) => c.id === run.companyId)) return { ok: false as const, error: "Not found" };
 
-  // On first transition to Paid, recover advance installments from balances.
+  // On first transition to Paid: recover the advances, and put the month in
+  // the books. Before this the accountant re-keyed a salary journal every
+  // month from a printout, which is how the payroll and the ledger drift.
   if (status === "Paid" && run.status !== "Paid") {
+    const posted = await postPayrollToLedger(runId, session.user.name);
+    if (!posted.ok) return { ok: false, error: posted.error };
+
     const slips = await db.payslip.findMany({ where: { runId, advanceRecovery: { gt: 0 } } });
     for (const s of slips) {
       const adv = await db.advance.findFirst({ where: { employeeId: s.employeeId, status: "Active" }, orderBy: { createdAt: "asc" } });
@@ -244,10 +265,103 @@ export async function setRunStatus(runId: string, status: string) {
       await db.advance.update({ where: { id: adv.id }, data: { balance: toFils(newBal), status: newBal <= 0 ? "Cleared" : "Active" } });
     }
   }
+
+  // Once a run is in the ledger it cannot quietly go back to being a draft —
+  // the voucher would still be there, and the two would disagree.
+  if (status !== "Paid" && run.status === "Paid") {
+    const voucher = await db.journalEntry.findFirst({
+      where: { companyId: run.companyId, sourceType: "payroll", sourceId: runId },
+    });
+    if (voucher) {
+      return {
+        ok: false,
+        error: `This run is posted to the ledger as ${voucher.reference}. Reverse that voucher in the Day Book first.`,
+      };
+    }
+  }
+
   await db.payrollRun.update({ where: { id: runId }, data: { status } });
   await audit({ action: status === "Paid" ? "Posted" : "Updated", entity: "PayrollRun", entityId: runId, summary: `Payroll ${run.period} → ${status}` });
   revalidatePath("/hr/payroll");
+  revalidatePath("/finance/daybook");
+  return { ok: true as const };
 }
+
+/**
+ * The month's wages, as one voucher.
+ *
+ *   Dr 6000 Salaries & Wages   what the month actually cost
+ *   Cr 1000 Cash at Bank       what left the account
+ *   Cr 1170 Employee Advances  what the staff paid back out of it
+ *
+ * The salary cost is gross less the absence and unpaid-leave deductions,
+ * because those days were never earned — so the expense is what the company
+ * owed, not what it would have owed had everybody turned up. The three lines
+ * balance by construction: gross less deductions is net pay plus the advance
+ * recovered, which is the same arithmetic the payslip does.
+ *
+ * One voucher per run, enforced by postVoucher's own uniqueness on the source
+ * document, so approving twice cannot post twice.
+ */
+async function postPayrollToLedger(runId: string, postedBy: string) {
+  const run = await db.payrollRun.findUnique({ where: { id: runId }, include: { payslips: true } });
+  if (!run) return { ok: false as const, error: "Run not found" };
+  if (run.payslips.length === 0) return { ok: true as const };
+
+  const accounts = await db.chartOfAccount.findMany({
+    where: { companyId: run.companyId, code: { in: [SALARY_EXPENSE_CODE, BANK_CODE, ADVANCE_CODE] } },
+    select: { id: true, code: true },
+  });
+  const find = (code: string) => accounts.find((a) => a.code === code);
+  const salary = find(SALARY_EXPENSE_CODE);
+  const bank = find(BANK_CODE);
+  const advances = find(ADVANCE_CODE);
+  if (!salary || !bank) {
+    return {
+      ok: false as const,
+      error: `This company needs accounts ${SALARY_EXPENSE_CODE} and ${BANK_CODE} before payroll can be posted. Add them under Ledgers.`,
+    };
+  }
+
+  const net = round2(run.payslips.reduce((t, p) => t + p.netPay, 0));
+  const recovered = round2(run.payslips.reduce((t, p) => t + p.advanceRecovery, 0));
+  const cost = round2(net + recovered);
+  if (cost <= 0) return { ok: true as const };
+
+  if (recovered > 0 && !advances) {
+    return {
+      ok: false as const,
+      error: `Advances were recovered this month, so this company needs account ${ADVANCE_CODE} Employee Advances. Add it under Ledgers.`,
+    };
+  }
+
+  // The last day of the month the wages belong to, which is the date an
+  // accountant expects the cost to fall on — not the day somebody clicked.
+  const [y, m] = run.period.split("-").map(Number);
+  const dateStr = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+
+  const lines: { accountId: string; debit: number; credit: number }[] = [
+    { accountId: salary.id, debit: cost, credit: 0 },
+    { accountId: bank.id, debit: 0, credit: net },
+  ];
+  if (recovered > 0 && advances) lines.push({ accountId: advances.id, debit: 0, credit: recovered });
+
+  const res = await postVoucher({
+    companyId: run.companyId,
+    postedBy,
+    voucherType: "Payment",
+    date: dateStr,
+    memo: `Payroll for ${run.period} — ${run.payslips.length} employee${run.payslips.length === 1 ? "" : "s"}`,
+    lines,
+    sourceType: "payroll",
+    sourceId: runId,
+    source: "payroll",
+  });
+  if (!res.ok) return { ok: false as const, error: res.error };
+  return { ok: true as const, reference: res.reference };
+}
+
+const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 
 export async function deletePayrollRun(runId: string): Promise<{ ok: boolean; error?: string }> {
   if (!(await allow("hr.payroll", "delete"))) return { ok: false, error: "Not authorised" };

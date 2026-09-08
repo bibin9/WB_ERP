@@ -82,7 +82,15 @@ export async function updateCompany(formData: FormData) {
   if (!name) return;
   await db.company.update({
     where: { id },
-    data: { name, baseCurrency, logoUrl: logoFrom(formData), ...financialYearFrom(formData) },
+    data: {
+      name,
+      baseCurrency,
+      logoUrl: logoFrom(formData),
+      // Which Emiratisation rule applies at 20–49 employees. Nothing on a
+      // trade licence tells the system this, so somebody has to say.
+      emiratisationSector: String(formData.get("emiratisationSector") || "") === "on",
+      ...financialYearFrom(formData),
+    },
   });
   await audit({ action: "Updated", entity: "Company", entityId: id, summary: `Updated company ${company.code} — ${name}` });
   revalidatePath("/companies");

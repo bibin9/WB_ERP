@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { computeSettlement, type SeparationType } from "@/lib/settlement";
+import { leaveBalance } from "@/lib/leave";
 import { allow } from "@/lib/guard";
 import { aed } from "@/lib/money";
 
@@ -25,16 +26,31 @@ export async function createSeparation(formData: FormData) {
   if (!lastStr) return;
   const lastWorkingDay = new Date(lastStr);
 
+  // The leave being encashed is what was actually earned and not taken, worked
+  // out from the join date and the approved requests — not a stored number.
+  // Encashing a stale figure pays out days that were never accrued.
+  const takenAgg = await db.leaveRequest.aggregate({
+    where: { employeeId: emp.id, type: "Annual", status: "Approved" },
+    _sum: { days: true },
+  });
+  const bal = leaveBalance(
+    emp.joinDate,
+    lastWorkingDay,
+    takenAgg._sum.days ?? 0,
+    emp.annualLeaveBalance
+  );
+
   const s = computeSettlement({
     basicSalary: emp.basicSalary,
     joinDate: emp.joinDate ?? emp.createdAt,
     lastWorkingDay,
-    leaveBalanceDays: emp.annualLeaveBalance,
+    leaveBalanceDays: Math.max(0, bal.balance),
+    unpaidLeaveDays: emp.unpaidLeaveDays,
+    airTicket: num(formData, "airTicket") || emp.airTicketAllowance,
     separationType: type,
     forfeitGratuity: formData.get("forfeitGratuity") === "on",
     pendingSalary: num(formData, "pendingSalary"),
     noticePay: num(formData, "noticePay"),
-    airTicket: num(formData, "airTicket"),
     otherAdditions: num(formData, "otherAdditions"),
     deductions: num(formData, "deductions"),
     adjustment: num(formData, "adjustment"),

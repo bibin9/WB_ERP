@@ -322,5 +322,159 @@ ok("no attendance row carries negative overtime", negOt === 0, `${negOt} negativ
 const wildOt = Number(q(`SELECT COUNT(*) FROM "Attendance" WHERE "otHours" + "otPremiumHours" > 16`));
 ok("no day carries an impossible amount of overtime", wildOt === 0, `${wildOt} over 16h`);
 
+/* ------------------------------------ leave, probation and notice -------- */
+const hrCols = Number(q(`
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'Employee'
+    AND column_name IN ('probationEndDate','probationCleared','noticePeriodDays',
+                        'airTicketAllowance','unpaidLeaveDays')`));
+ok("the contract record holds probation, notice and the ticket", hrCols === 5, `${hrCols} of 5 columns`);
+
+// The old default of 30 was a placeholder, not a migrated balance. Left in
+// place it hands everybody thirty days on top of what they have accrued, and
+// those days are encashed in cash on the way out.
+const staleDefault = Number(q(`
+  SELECT COUNT(*) FROM "Employee" e
+  WHERE e."annualLeaveBalance" = 30
+    AND NOT EXISTS (
+      SELECT 1 FROM "LeaveRequest" l
+      WHERE l."employeeId" = e.id AND l."type" = 'Annual' AND l."status" = 'Approved')`));
+ok("the old default leave balance has been cleared", staleDefault === 0, `${staleDefault} still at the default`);
+
+const negLeave = Number(q(`SELECT COUNT(*) FROM "Employee" WHERE "annualLeaveBalance" < 0`));
+ok("no leave opening adjustment is negative", negLeave === 0, `${negLeave} negative`);
+
+const negUnpaid = Number(q(`SELECT COUNT(*) FROM "Employee" WHERE "unpaidLeaveDays" < 0`));
+ok("no unpaid-leave total is negative", negUnpaid === 0, `${negUnpaid} negative`);
+
+// Between thirty and ninety days, or blank for "the contract is silent".
+const badNotice = Number(q(`
+  SELECT COUNT(*) FROM "Employee"
+  WHERE "noticePeriodDays" IS NOT NULL AND ("noticePeriodDays" < 30 OR "noticePeriodDays" > 90)`));
+ok("every notice period is inside the statutory range", badNotice === 0, `${badNotice} outside 30-90 days`);
+
+// Probation is six months at most and cannot be extended.
+const longProbation = Number(q(`
+  SELECT COUNT(*) FROM "Employee"
+  WHERE "probationEndDate" IS NOT NULL AND "joinDate" IS NOT NULL
+    AND "probationEndDate" > "joinDate" + INTERVAL '6 months' + INTERVAL '1 day'`));
+ok("no probation runs longer than six months", longProbation === 0, `${longProbation} too long`);
+
+const probationBeforeJoin = Number(q(`
+  SELECT COUNT(*) FROM "Employee"
+  WHERE "probationEndDate" IS NOT NULL AND "joinDate" IS NOT NULL AND "probationEndDate" < "joinDate"`));
+ok("no probation ends before it starts", probationBeforeJoin === 0, `${probationBeforeJoin} inverted`);
+
+// Two records for one person are paid twice.
+const dupEid = Number(q(`
+  SELECT COUNT(*) FROM (
+    SELECT "companyId", "emiratesIdNo" FROM "Employee"
+    WHERE COALESCE("emiratesIdNo",'') <> ''
+    GROUP BY 1, 2 HAVING COUNT(*) > 1) t`));
+ok("no two employees in a company share an Emirates ID", dupEid === 0, `${dupEid} duplicated`);
+
+const dupPassport = Number(q(`
+  SELECT COUNT(*) FROM (
+    SELECT "companyId", "passportNo" FROM "Employee"
+    WHERE COALESCE("passportNo",'') <> ''
+    GROUP BY 1, 2 HAVING COUNT(*) > 1) t`));
+ok("nor a passport number", dupPassport === 0, `${dupPassport} duplicated`);
+
+const leaveBackwards = Number(q(`SELECT COUNT(*) FROM "LeaveRequest" WHERE "toDate" < "fromDate"`));
+ok("no leave request ends before it starts", leaveBackwards === 0, `${leaveBackwards} inverted`);
+
+const leaveDays = Number(q(`SELECT COUNT(*) FROM "LeaveRequest" WHERE "days" <= 0`));
+ok("every leave request is at least a day", leaveDays === 0, `${leaveDays} at nil or below`);
+
+const ticketFils = Number(q(`
+  SELECT COUNT(*) FROM (SELECT "airTicketAllowance" AS x FROM "Employee") t
+  WHERE ABS(x * 100 - ROUND(x * 100)) > 1e-9`));
+ok("air ticket allowances are whole fils", ticketFils === 0, `${ticketFils} with more than 2dp`);
+
+/* ------------------------------- compliance and the payroll journal ------ */
+const compCols = Number(q(`
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'Employee'
+    AND column_name IN ('iloeSubscribed','iloeExpiry','iloeExempt','skilledRole')`));
+ok("the record carries ILOE and the skilled-role flag", compCols === 4, `${compCols} of 4 columns`);
+
+const sectorCol = Number(q(`
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'Company' AND column_name = 'emiratisationSector'`));
+ok("a company can be marked an Emiratisation priority sector", sectorCol === 1, `${sectorCol} of 1`);
+
+const punchCols = Number(q(`
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'Attendance'
+    AND column_name IN ('firstIn','lastOut')`));
+ok("the muster keeps the punch times the midday rule needs", punchCols === 2, `${punchCols} of 2`);
+
+// A shift cannot end before it starts.
+const punchBackwards = Number(q(`
+  SELECT COUNT(*) FROM "Attendance"
+  WHERE "firstIn" IS NOT NULL AND "lastOut" IS NOT NULL AND "lastOut" < "firstIn"`));
+ok("no punch record ends before it starts", punchBackwards === 0, `${punchBackwards} inverted`);
+
+// Somebody both subscribed and exempt is a contradiction the screen cannot show.
+const iloeBoth = Number(q(`
+  SELECT COUNT(*) FROM "Employee" WHERE "iloeSubscribed" = true AND "iloeExempt" = true`));
+ok("nobody is both ILOE-subscribed and exempt", iloeBoth === 0, `${iloeBoth} contradictory`);
+
+/* ---- the payroll journal ------------------------------------------------ */
+const advAcc = Number(q(`SELECT COUNT(*) FROM "ChartOfAccount" WHERE "code" = '1170'`));
+ok("the employee advances account exists", advAcc > 0, `${advAcc} across all companies`);
+
+// Every paid run must have exactly one voucher, and no run that is not paid
+// may have one — otherwise the payroll and the ledger disagree about a month.
+const paidWithout = Number(q(`
+  SELECT COUNT(*) FROM "PayrollRun" r
+  WHERE r."status" = 'Paid' AND NOT EXISTS (
+    SELECT 1 FROM "JournalEntry" e
+    WHERE e."sourceType" = 'payroll' AND e."sourceId" = r.id)`));
+ok("every paid payroll run is in the ledger", paidWithout === 0, `${paidWithout} unposted`);
+
+const unpaidWith = Number(q(`
+  SELECT COUNT(*) FROM "PayrollRun" r
+  WHERE r."status" <> 'Paid' AND EXISTS (
+    SELECT 1 FROM "JournalEntry" e
+    WHERE e."sourceType" = 'payroll' AND e."sourceId" = r.id)`));
+ok("no draft run has a voucher behind it", unpaidWith === 0, `${unpaidWith} posted but not paid`);
+
+const doublePosted = Number(q(`
+  SELECT COUNT(*) FROM (
+    SELECT "sourceId" FROM "JournalEntry" WHERE "sourceType" = 'payroll'
+    GROUP BY 1 HAVING COUNT(*) > 1) t`));
+ok("no payroll run was posted twice", doublePosted === 0, `${doublePosted} duplicated`);
+
+// A payroll voucher balances like any other, and the total it moves has to
+// equal the run it came from.
+const payrollUnbalanced = Number(q(`
+  SELECT COUNT(*) FROM (
+    SELECT e.id FROM "JournalEntry" e
+    JOIN "JournalLine" l ON l."entryId" = e.id
+    WHERE e."sourceType" = 'payroll'
+    GROUP BY e.id HAVING ABS(SUM(l."debit") - SUM(l."credit")) > 0.005) t`));
+ok("every payroll voucher balances", payrollUnbalanced === 0, `${payrollUnbalanced} unbalanced`);
+
+const payrollMismatch = Number(q(`
+  SELECT COUNT(*) FROM "PayrollRun" r
+  JOIN "JournalEntry" e ON e."sourceType" = 'payroll' AND e."sourceId" = r.id
+  JOIN (
+    SELECT "runId", SUM("netPay") AS net, SUM("advanceRecovery") AS rec
+    FROM "Payslip" GROUP BY "runId") p ON p."runId" = r.id
+  JOIN (
+    SELECT l."entryId", SUM(l."debit") AS dr FROM "JournalLine" l GROUP BY l."entryId") v
+    ON v."entryId" = e.id
+  WHERE ABS(v.dr - (p.net + p.rec)) > 0.005`));
+ok("each payroll voucher matches the run behind it", payrollMismatch === 0, `${payrollMismatch} disagreeing`);
+
+// Supplied labour belongs on the agency's payroll, not this company's.
+const suppliedPaid = Number(q(`
+  SELECT COUNT(*) FROM "Payslip" p
+  JOIN "Employee" e ON e.id = p."employeeId"
+  JOIN "PayrollRun" r ON r.id = p."runId"
+  WHERE e."employmentType" = 'Supplied' AND r."createdAt" > NOW() - INTERVAL '1 minute'`));
+ok("no supplied worker reached a run created by this seed", suppliedPaid === 0, `${suppliedPaid} on a new run`);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

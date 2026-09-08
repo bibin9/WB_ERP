@@ -3,6 +3,8 @@ import HrTabs from "@/components/HrTabs";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { activeTenant } from "@/config/tenant";
+import { probationState } from "@/lib/leave";
+import { emiratisation, isEmirati, iloeStatus, iloeCategory, middayBreach, inMiddayBanSeason } from "@/lib/compliance";
 
 export const dynamic = "force-dynamic";
 
@@ -66,18 +68,273 @@ export default async function HrReportsPage() {
     supplied: employees.filter((e) => e.companyId === c.id && e.employmentType === "Supplied").length,
   }));
 
+  // Anyone whose probation is running out, or has run out with nobody
+  // recording a decision. A cleared probation drops off the list.
+  const today = new Date();
+
+  // Emiratisation, per company: the rule that applies turns on headcount, and
+  // whether the company trades in one of the fourteen sectors MOHRE has named.
+  const emiratisationByCompany = companies.map((co) => {
+    const staff = employees.filter((e) => e.companyId === co.id && e.status !== "Inactive");
+    const nationals = staff.filter((e) => isEmirati(e.nationality));
+    return {
+      co,
+      nationalNames: nationals.map((e) => `${e.name} (${e.empNo})`),
+      result: emiratisation({
+        headcount: staff.length,
+        skilledCount: staff.filter((e) => e.skilledRole).length,
+        nationals: nationals.length,
+        prioritySector: co.emiratisationSector,
+      }),
+    };
+  });
+
+  // ILOE: who still has to subscribe, and who has let it lapse. Exempt people
+  // drop off, or the list stops being read.
+  const iloe = employees
+    .filter((e) => e.status !== "Inactive")
+    .map((e) => ({ e, st: iloeStatus(e, today), cat: iloeCategory(e.basicSalary) }))
+    .filter(({ st }) => !st.ok || st.expiringSoon);
+
+  // The summer midday ban. Only the punch data can show whether somebody was on
+  // site across it — and only the punch data can show that nobody was.
+  const banSeason = inMiddayBanSeason(today);
+  const middayRows = banSeason
+    ? (
+        await db.attendance.findMany({
+          where: {
+            companyId: { in: scope },
+            firstIn: { not: null },
+            date: { gte: new Date(today.getTime() - 60 * DAY) },
+          },
+          include: { employee: { select: { name: true, empNo: true } } },
+          orderBy: { date: "desc" },
+          take: 400,
+        })
+      )
+        .map((a) => ({ a, br: middayBreach(a.date, a.firstIn, a.lastOut) }))
+        .filter(({ br }) => br.spansBreak)
+        .slice(0, 25)
+    : [];
+  const probationDue = employees
+    .filter((e) => e.probationEndDate && !e.probationCleared)
+    .map((e) => ({ e, st: probationState(e.probationEndDate, today) }))
+    .filter(({ st }) => st.overdue || st.endingSoon)
+    .sort((a, b) => (a.st.daysRemaining ?? 0) - (b.st.daysRemaining ?? 0));
+
   return (
     <div>
       <PageHeader title="HR — Compliance & Expiry" subtitle="Visa, Emirates ID, Labour Card, Passport & certification expiry — plus manpower summary." />
       <HrTabs />
 
       {/* Alert cards */}
-      <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-5">
         <div className="stat-card"><div className="text-2xl font-bold text-red-600">{expired}</div><div className="text-sm text-muted">Documents expired</div></div>
         <div className="stat-card"><div className="text-2xl font-bold text-brand-gold">{expiring}</div><div className="text-sm text-muted">Expiring ≤ 60 days</div></div>
         <div className="stat-card"><div className="text-2xl font-bold text-heading">{certAlerts}</div><div className="text-sm text-muted">Certs due/expired</div></div>
         <div className="stat-card"><div className="text-2xl font-bold text-ink">{total}</div><div className="text-sm text-muted">Active headcount</div></div>
+        <div className="stat-card">
+          <div className={probationDue.length ? "text-2xl font-bold text-brand-gold" : "text-2xl font-bold text-ink"}>{probationDue.length}</div>
+          <div className="text-sm text-muted">Probation decisions due</div>
+        </div>
       </div>
+
+      {/* Emiratisation.
+          The bill arrives once a year and is the size of a salary, so the
+          number that matters is the shortfall, not the headcount. */}
+      <div className="card mb-5">
+        <div className="border-b border-line px-5 py-3">
+          <h2 className="font-semibold text-heading">Emiratisation</h2>
+        </div>
+        <div className="divide-y divide-line">
+          {emiratisationByCompany.map(({ co, result, nationalNames }) => (
+            <div key={co.id} className="px-5 py-3">
+              <div className="flex flex-wrap items-baseline gap-2">
+                <span className="font-medium text-ink">{co.code}</span>
+                <span className="text-xs text-muted">{co.name}</span>
+                {result.applies && (
+                  <span
+                    className={
+                      "ml-auto rounded px-2 py-0.5 text-xs font-medium " +
+                      (result.shortfall > 0
+                        ? "bg-brand-gold/15 text-brand-gold"
+                        : "bg-brand-green/10 text-brand-green-700")
+                    }
+                  >
+                    {result.shortfall > 0
+                      ? `${result.shortfall} short of ${result.required}`
+                      : `${result.nationals} of ${result.required} — met`}
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-muted">{result.note}</p>
+              {result.applies && result.shortfall > 0 && (
+                <p className="mt-1 text-xs text-brand-gold">
+                  Exposure about AED {result.exposure.toLocaleString("en-AE")}
+                  {"monthlyExposure" in result && result.monthlyExposure
+                    ? ` a year (AED ${result.monthlyExposure.toLocaleString("en-AE")} a month per unfilled position)`
+                    : ", collected as a one-off contribution per missing hire"}
+                  .
+                </p>
+              )}
+              {nationalNames.length > 0 && (
+                <p className="mt-1 text-xs text-muted">Counted: {nationalNames.join(", ")}</p>
+              )}
+            </div>
+          ))}
+        </div>
+        <p className="border-t border-line px-5 py-3 text-xs text-muted">
+          UAE nationals are counted from the nationality on each record, and the names counted are listed
+          above &mdash; a nationality spelled another way is invisible otherwise, and a count that is
+          quietly one short is the expensive kind of wrong. Mark the company as a priority sector on its
+          record if it trades in construction, real estate, healthcare, hospitality or one of the other
+          named sectors.
+        </p>
+      </div>
+
+      {/* ILOE. The fine lands on the employee; the blocked work permit lands
+          on the employer, which is why HR chases it. */}
+      {iloe.length > 0 && (
+        <div className="card mb-5 overflow-x-auto">
+          <div className="border-b border-line px-5 py-3">
+            <h2 className="font-semibold text-heading">Unemployment insurance (ILOE) &mdash; {iloe.length} to chase</h2>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-line bg-brand-paper text-left text-xs uppercase text-muted">
+                <th className="px-4 py-2 font-semibold">Employee</th>
+                <th className="px-4 py-2 font-semibold">Band</th>
+                <th className="px-4 py-2 text-right font-semibold">Premium</th>
+                <th className="px-4 py-2 font-semibold">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {iloe.map(({ e, st, cat }) => (
+                <tr key={e.id}>
+                  <td className="px-4 py-2 text-ink">
+                    {e.name} <span className="font-mono text-xs text-muted">{e.empNo}</span>
+                  </td>
+                  <td className="px-4 py-2 text-xs text-muted">Category {cat.category}</td>
+                  <td className="px-4 py-2 text-right text-xs tabular-nums text-muted">
+                    AED {cat.monthly}/mo
+                  </td>
+                  <td className="px-4 py-2">
+                    <span
+                      className={
+                        "rounded px-2 py-0.5 text-xs font-medium " +
+                        (st.ok ? "bg-brand-blue/10 text-brand-blue-600" : "bg-brand-gold/15 text-brand-gold")
+                      }
+                    >
+                      {st.reason}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* The summer midday ban. */}
+      {banSeason && (
+        <div className="card mb-5 overflow-x-auto">
+          <div className="border-b border-line px-5 py-3">
+            <h2 className="font-semibold text-heading">Midday break &mdash; 15 June to 15 September</h2>
+          </div>
+          {middayRows.length === 0 ? (
+            <p className="px-5 py-6 text-sm text-muted">
+              No punch record in the last sixty days shows anybody on site across 12:30&ndash;15:00. That is
+              the evidence, not just the absence of a complaint.
+            </p>
+          ) : (
+            <>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-line bg-brand-paper text-left text-xs uppercase text-muted">
+                    <th className="px-4 py-2 font-semibold">Date</th>
+                    <th className="px-4 py-2 font-semibold">Employee</th>
+                    <th className="px-4 py-2 font-semibold">On site</th>
+                    <th className="px-4 py-2 text-right font-semibold">Across the break</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {middayRows.map(({ a, br }) => (
+                    <tr key={a.id}>
+                      <td className="px-4 py-2 text-ink">{fmt(a.date)}</td>
+                      <td className="px-4 py-2 text-ink">
+                        {a.employee.name} <span className="font-mono text-xs text-muted">{a.employee.empNo}</span>
+                      </td>
+                      <td className="px-4 py-2 text-xs text-muted">
+                        {a.firstIn?.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                        &ndash;
+                        {a.lastOut?.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                      </td>
+                      <td className="px-4 py-2 text-right text-xs tabular-nums text-brand-gold">{br.hours}h</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="border-t border-line px-5 py-3 text-xs text-muted">
+                These are days to look at, not breaches. The punches show the man was on site across the
+                break; they do not show whether he was outdoors in the sun, and an electrician in a plant
+                room is not in breach. Where the work was outdoors, it is.
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Probation.
+          The date matters twice and both are easy to miss: a confirm-or-release
+          decision is due before it passes, and the moment it does the notice
+          period changes from fourteen days to whatever the contract says. */}
+      {probationDue.length > 0 && (
+        <div className="card mb-5 overflow-x-auto">
+          <div className="border-b border-line px-5 py-3">
+            <h2 className="font-semibold text-heading">Probation — a decision is due</h2>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-line bg-brand-paper text-left text-xs uppercase text-muted">
+                <th className="px-4 py-2 font-semibold">Employee</th>
+                <th className="px-4 py-2 font-semibold">Company</th>
+                <th className="px-4 py-2 font-semibold">Joined</th>
+                <th className="px-4 py-2 font-semibold">Probation ends</th>
+                <th className="px-4 py-2 font-semibold">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {probationDue.map(({ e, st }) => (
+                <tr key={e.id} className={st.overdue ? "bg-brand-gold/5" : ""}>
+                  <td className="px-4 py-2 text-ink">
+                    {e.name} <span className="font-mono text-xs text-muted">{e.empNo}</span>
+                  </td>
+                  <td className="px-4 py-2 text-xs text-muted">{companyMap.get(e.companyId) ?? ""}</td>
+                  <td className="px-4 py-2 text-xs text-muted">{fmt(e.joinDate)}</td>
+                  <td className="px-4 py-2 text-ink">{fmt(e.probationEndDate)}</td>
+                  <td className="px-4 py-2">
+                    <span
+                      className={
+                        "rounded px-2 py-0.5 text-xs font-medium " +
+                        (st.overdue ? "bg-brand-gold/15 text-brand-gold" : "bg-brand-blue/10 text-brand-blue-600")
+                      }
+                    >
+                      {st.overdue
+                        ? `Ended ${-st.daysRemaining!}d ago, not confirmed`
+                        : `Ends in ${st.daysRemaining}d`}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="border-t border-line px-5 py-3 text-xs text-muted">
+            Probation is six months at most and cannot be extended. While it runs the notice period is
+            fourteen days; once it has passed the contract&rsquo;s notice applies. Tick &ldquo;Probation
+            cleared&rdquo; on the employee record once a decision has been taken.
+          </p>
+        </div>
+      )}
 
       {/* Document expiry table */}
       <div className="card mb-5 overflow-hidden">

@@ -5,7 +5,7 @@ import { Plus, X, Pencil } from "lucide-react";
 import { createCompany, updateCompany } from "@/app/(app)/companies/actions";
 import LogoField from "@/components/LogoField";
 
-export type EditingCompany = { id: string; name: string; baseCurrency: string; fyStartMonth: number; openingAsOf: string | null; booksLockedTo: string | null; logoUrl: string | null };
+export type EditingCompany = { id: string; name: string; baseCurrency: string; fyStartMonth: number; openingAsOf: string | null; booksLockedTo: string | null; logoUrl: string | null; emiratisationSector: boolean };
 
 export default function CompanyForm({ company }: { company?: EditingCompany }) {
   const [open, setOpen] = useState(false);
@@ -76,6 +76,21 @@ export default function CompanyForm({ company }: { company?: EditingCompany }) {
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">Logo for printed reports</label>
             <LogoField defaultValue={company?.logoUrl ?? ""} />
+
+            {/* At 20 to 49 employees the Emiratisation target applies only to
+                the fourteen sectors MOHRE has named — construction, real
+                estate, healthcare, hospitality and the rest. */}
+            <label className="flex items-start gap-2 rounded-lg border border-line p-3">
+              <input type="checkbox" name="emiratisationSector" defaultChecked={company?.emiratisationSector} className="mt-0.5" />
+              <span>
+                <span className="block text-sm font-medium text-ink">In an Emiratisation priority sector</span>
+                <span className="block text-xs text-muted">
+                  Construction, real estate, healthcare, hospitality, information and communications,
+                  financial activities and the other named sectors. It decides the target between 20 and
+                  49 employees.
+                </span>
+              </span>
+            </label>
           </div>
 
           <div className="flex justify-end gap-2 pt-1">

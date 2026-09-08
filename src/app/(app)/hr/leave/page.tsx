@@ -9,6 +9,7 @@ import { deleteLeaveRequest } from "./actions";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
+import { leaveBalance } from "@/lib/leave";
 import ExportButton from "@/components/ExportButton";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,23 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
   const companyId = accessible.find((c) => c.id === sp.c)?.id ?? accessible[0]?.id ?? "";
 
   const employees = companyId ? await db.employee.findMany({ where: { companyId, status: { not: "Inactive" } }, orderBy: { name: "asc" } }) : [];
+
+  // The balance is worked out, never stored: accrued since joining, less the
+  // annual leave already approved. A stored number drifts from the records it
+  // is meant to summarise, and that drift is paid out in cash on the way out.
+  const takenByEmployee = companyId
+    ? await db.leaveRequest.groupBy({
+        by: ["employeeId"],
+        where: { companyId, type: "Annual", status: "Approved" },
+        _sum: { days: true },
+      })
+    : [];
+  const takenMap = new Map(takenByEmployee.map((t) => [t.employeeId, t._sum.days ?? 0]));
+  const asAt = new Date();
+  const balances = employees.map((e) => ({
+    e,
+    bal: leaveBalance(e.joinDate, asAt, takenMap.get(e.id) ?? 0, e.annualLeaveBalance),
+  }));
   const requests = companyId
     ? await db.leaveRequest.findMany({ where: { companyId }, include: { employee: true }, orderBy: [{ status: "asc" }, { createdAt: "desc" }] })
     : [];
@@ -39,7 +57,7 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
       <PageHeader title="HR & Admin — Leave" subtitle="Leave requests, approvals and balances. Approving annual leave deducts the balance automatically.">
         <div className="flex flex-wrap items-center gap-2">
           {companyId && <ExportButton dataset="leave" companyId={companyId} />}
-          {companyId && <LeaveForm employees={employees.map((e) => ({ id: e.id, label: `${e.empNo} — ${e.name} (${e.annualLeaveBalance}d left)` }))} leaveTypes={leaveTypes} />}
+          {companyId && <LeaveForm employees={balances.map(({ e, bal }) => ({ id: e.id, label: `${e.empNo} — ${e.name} (${bal.accruing ? "accruing from 6 months" : `${bal.balance}d left`})` }))} leaveTypes={leaveTypes} />}
         </div>
       </PageHeader>
       <HrTabs />
@@ -91,12 +109,28 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
           <div className="border-b border-line px-5 py-3"><h2 className="font-semibold text-heading">Annual leave balances</h2></div>
           <div className="max-h-[420px] divide-y divide-line overflow-y-auto">
             {employees.length === 0 && <p className="px-5 py-6 text-sm text-muted">No employees.</p>}
-            {employees.map((e) => (
-              <div key={e.id} className="flex items-center gap-3 px-5 py-2.5">
-                <span className="flex-1 truncate text-sm text-ink">{e.name}</span>
-                <span className={clsx("rounded-full px-2 py-0.5 text-xs font-semibold", e.annualLeaveBalance <= 5 ? "bg-red-50 text-red-600" : "bg-brand-green/10 text-brand-green-700")}>
-                  {e.annualLeaveBalance} days
-                </span>
+            {balances.map(({ e, bal }) => (
+              <div key={e.id} className="px-5 py-2.5">
+                <div className="flex items-center gap-3">
+                  <span className="flex-1 truncate text-sm text-ink">{e.name}</span>
+                  <span
+                    className={clsx(
+                      "rounded-full px-2 py-0.5 text-xs font-semibold",
+                      bal.accruing
+                        ? "bg-line text-muted"
+                        : bal.balance <= 5
+                          ? "bg-red-50 text-red-600"
+                          : "bg-brand-green/10 text-brand-green-700"
+                    )}
+                  >
+                    {bal.accruing ? "not yet" : `${bal.balance} days`}
+                  </span>
+                </div>
+                <div className="mt-0.5 text-xs text-muted">
+                  {bal.accrued > 0 || bal.taken > 0
+                    ? `${bal.accrued} accrued${bal.opening ? ` + ${bal.opening} brought forward` : ""}${bal.taken ? ` − ${bal.taken} taken` : ""}${bal.lapsed ? ` · ${bal.lapsed} lapsed above the ${bal.cap}-day ceiling` : ""}`
+                    : bal.note}
+                </div>
               </div>
             ))}
           </div>

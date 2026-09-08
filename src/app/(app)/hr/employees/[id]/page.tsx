@@ -20,6 +20,18 @@ function Field({ label, name, def = "", type = "text" }: { label: string; name: 
     </div>
   );
 }
+/** A yes/no the form can post — an unchecked box sends nothing, which the
+ *  action reads as false. */
+function Check({ label, name, def }: { label: string; name: string; def?: boolean }) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-muted">&nbsp;</label>
+      <label className="flex h-[38px] items-center gap-2 rounded-lg border border-line px-3 text-sm text-ink">
+        <input type="checkbox" name={name} defaultChecked={!!def} /> {label}
+      </label>
+    </div>
+  );
+}
 function Select({ label, name, def, options }: { label: string; name: string; def?: string | null; options: string[] }) {
   return (
     <div>
@@ -109,6 +121,20 @@ export default async function EmployeeProfilePage({
           {/* A leaver's final month is worked out from this. Without it a man who
               goes on the 12th is paid for the whole month, or for none of it. */}
           <Field label="Last working day" name="lastWorkingDay" def={d(e.lastWorkingDay)} type="date" />
+          {/* Probation: six months at the very most, and it cannot be extended.
+              The date decides the notice period too — fourteen days while it
+              runs, the contract's figure once it has passed. */}
+          <Field label="Probation ends" name="probationEndDate" def={d(e.probationEndDate)} type="date" />
+          <Check label="Probation cleared" name="probationCleared" def={e.probationCleared} />
+          <Field label="Notice period (days)" name="noticePeriodDays" def={e.noticePeriodDays ? String(e.noticePeriodDays) : ""} type="number" />
+          <Field label="Air ticket allowance (AED)" name="airTicketAllowance" def={String(e.airTicketAllowance)} type="number" />
+          {/* Skilled roles are what the 2% Emiratisation target is measured
+              against. MOHRE's skill levels turn on the occupation and the
+              qualification behind it, so this is a judgement, not a lookup. */}
+          <Check label="Skilled role (Emiratisation)" name="skilledRole" def={e.skilledRole} />
+          <Check label="ILOE subscribed" name="iloeSubscribed" def={e.iloeSubscribed} />
+          <Field label="ILOE renews" name="iloeExpiry" def={d(e.iloeExpiry)} type="date" />
+          <Check label="Outside the ILOE scheme" name="iloeExempt" def={e.iloeExempt} />
           <Field label="Manpower supplier" name="supplier" def={e.supplier ?? ""} />
           <Field label="Basic salary (AED)" name="basicSalary" def={String(e.basicSalary)} type="number" />
           <Field label="Allowances (AED)" name="allowances" def={String(e.allowances)} type="number" />
