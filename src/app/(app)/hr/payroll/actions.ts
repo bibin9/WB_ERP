@@ -10,16 +10,12 @@ import { cleanIban, cleanLabourCard, cleanRouting } from "@/lib/uae";
 import { computePayslip, payrollReadiness, sickSplit } from "@/lib/payroll";
 import { postVoucher } from "@/lib/posting";
 import { withDefaults } from "@/lib/hrpolicy";
+import { accountsForPosting } from "@/lib/accounts";
 
-/**
- * Where a month of wages lands in the books.
- *
- * The salary cost, the bank, and the advance the employee is paying back —
- * which is an asset until it is recovered, not a cost the month it is lent.
- */
-const SALARY_EXPENSE_CODE = "6000";
-const BANK_CODE = "1000";
-const ADVANCE_CODE = "1170";
+// Where a month of wages lands is asked for by role — the salary cost, the
+// bank, and the advance the employee is paying back, which is an asset until
+// it is recovered rather than a cost the month it is lent. A company with its
+// own chart maps the three on Finance → Settings.
 import { money } from "@/lib/money";
 
 /** The validators the readiness gate uses, in one place. */
@@ -314,32 +310,21 @@ async function postPayrollToLedger(runId: string, postedBy: string) {
   if (!run) return { ok: false as const, error: "Run not found" };
   if (run.payslips.length === 0) return { ok: true as const };
 
-  const accounts = await db.chartOfAccount.findMany({
-    where: { companyId: run.companyId, code: { in: [SALARY_EXPENSE_CODE, BANK_CODE, ADVANCE_CODE] } },
-    select: { id: true, code: true },
-  });
-  const find = (code: string) => accounts.find((a) => a.code === code);
-  const salary = find(SALARY_EXPENSE_CODE);
-  const bank = find(BANK_CODE);
-  const advances = find(ADVANCE_CODE);
-  if (!salary || !bank) {
-    return {
-      ok: false as const,
-      error: `This company needs accounts ${SALARY_EXPENSE_CODE} and ${BANK_CODE} before payroll can be posted. Add them under Ledgers.`,
-    };
-  }
-
   const net = round2(run.payslips.reduce((t, p) => t + p.netPay, 0));
   const recovered = round2(run.payslips.reduce((t, p) => t + p.advanceRecovery, 0));
   const cost = round2(net + recovered);
   if (cost <= 0) return { ok: true as const };
 
-  if (recovered > 0 && !advances) {
-    return {
-      ok: false as const,
-      error: `Advances were recovered this month, so this company needs account ${ADVANCE_CODE} Employee Advances. Add it under Ledgers.`,
-    };
-  }
+  // The advances account is only needed when something was actually recovered,
+  // so a company that lends nobody money never has to map it.
+  const roles = recovered > 0
+    ? (["salaryExpense", "bank", "employeeAdvances"] as const)
+    : (["salaryExpense", "bank"] as const);
+  const resolved = await accountsForPosting(run.companyId, [...roles]);
+  if (!resolved.ok) return { ok: false as const, error: resolved.error };
+  const salary = { id: resolved.ids.salaryExpense };
+  const bank = { id: resolved.ids.bank };
+  const advances = recovered > 0 ? { id: resolved.ids.employeeAdvances } : null;
 
   // The last day of the month the wages belong to, which is the date an
   // accountant expects the cost to fall on — not the day somebody clicked.

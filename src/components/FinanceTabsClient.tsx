@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { LayoutGrid, BookOpen, ScrollText, FileBarChart, Receipt, RefreshCw, Users, Clock, HardHat, Building2, Scale, Banknote, Lock, Landmark, Percent } from "lucide-react";
+import { LayoutGrid, BookOpen, ScrollText, FileBarChart, Receipt, RefreshCw, Users, Clock, HardHat, Building2, Scale, Banknote, Lock, Landmark, Percent, Settings2 } from "lucide-react";
 
 const TABS = [
   { href: "/finance", label: "Overview", icon: LayoutGrid, screen: "finance.overview" },
@@ -21,6 +21,7 @@ const TABS = [
   { href: "/finance/vat", label: "VAT", icon: Receipt, screen: "finance.vat" },
   { href: "/finance/corporate-tax", label: "Corporate Tax", icon: Percent, screen: "finance.corptax" },
   { href: "/finance/tally", label: "Tally Sync", icon: RefreshCw, screen: "finance.tally" },
+  { href: "/finance/settings", label: "Settings", icon: Settings2, screen: "finance.settings" },
 ];
 
 export default function FinanceTabsClient({ companyId, allowed }: { companyId: string; allowed: string[] }) {

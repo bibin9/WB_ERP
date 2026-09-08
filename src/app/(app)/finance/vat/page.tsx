@@ -7,7 +7,8 @@ import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { resolvePeriod, quarters } from "@/lib/period";
-import { buildVat201, taxOn, OUTPUT_VOUCHERS, INPUT_VOUCHERS, ADJUSTMENT_VOUCHERS, DOCUMENT_VOUCHERS, VAT_INPUT_CODE, VAT_OUTPUT_CODE, type VatLine } from "@/lib/vat";
+import { buildVat201, taxOn, OUTPUT_VOUCHERS, INPUT_VOUCHERS, ADJUSTMENT_VOUCHERS, DOCUMENT_VOUCHERS, type VatLine } from "@/lib/vat";
+import { financePolicyFor } from "@/lib/accounts";
 import { periodMovement } from "@/lib/ledger";
 import { money } from "@/lib/money";
 import PrintHeader from "@/components/finance/PrintHeader";
@@ -114,14 +115,20 @@ export default async function VatPage({
   // Agree the return to the ledger before it is filed. Box 12 less box 13 is
   // what the FTA is being told; the movement on the two VAT control accounts is
   // what the books actually say. They should be the same number.
+  // The VAT control accounts, as this company has mapped them. A customer
+  // with their own chart changes the mapping, not the code.
+  const finPolicy = await financePolicyFor(companyId);
+  const outputCode = finPolicy.accounts.vatOutput;
+  const inputCode = finPolicy.accounts.vatInput;
+
   const vatAccounts = companyId
     ? await db.chartOfAccount.findMany({
-        where: { companyId, code: { in: [VAT_OUTPUT_CODE, VAT_INPUT_CODE] } },
+        where: { companyId, code: { in: [outputCode, inputCode] } },
         include: { lines: { include: { entry: { select: { date: true } } } } },
       })
     : [];
-  const outputAcc = vatAccounts.find((a) => a.code === VAT_OUTPUT_CODE);
-  const inputAcc = vatAccounts.find((a) => a.code === VAT_INPUT_CODE);
+  const outputAcc = vatAccounts.find((a) => a.code === outputCode);
+  const inputAcc = vatAccounts.find((a) => a.code === inputCode);
   // A liability's movement is a credit, so flip it to compare with tax due.
   const ledgerOutput = outputAcc ? -periodMovement(outputAcc, period.from, period.to, company?.openingAsOf) : 0;
   const ledgerInput = inputAcc ? periodMovement(inputAcc, period.from, period.to, company?.openingAsOf) : 0;
@@ -164,7 +171,7 @@ export default async function VatPage({
         <h2 className="mb-1 font-semibold text-heading">Does the return agree with the books?</h2>
         {!recon.available ? (
           <p className="text-sm text-muted">
-            This company has no {VAT_OUTPUT_CODE} VAT Output or {VAT_INPUT_CODE} VAT Input account, so the return
+            This company has no {outputCode} VAT Output or {inputCode} VAT Input account, so the return
             cannot be checked against the ledger. Add them under Ledgers and post the tax on each invoice to them.
           </p>
         ) : (
@@ -175,7 +182,7 @@ export default async function VatPage({
                 <div className="mt-1 text-lg font-semibold tabular-nums text-heading">{money(box.netPayable)}</div>
               </div>
               <div className="rounded-lg border border-line p-3">
-                <div className="text-xs text-muted">Per the ledger &mdash; {VAT_OUTPUT_CODE} less {VAT_INPUT_CODE}</div>
+                <div className="text-xs text-muted">Per the ledger &mdash; {outputCode} less {inputCode}</div>
                 <div className="mt-1 text-lg font-semibold tabular-nums text-heading">{money(recon.ledgerNet)}</div>
                 <div className="mt-0.5 text-xs text-muted">
                   output {money(recon.ledgerOutput)} &minus; input {money(recon.ledgerInput)}
@@ -198,7 +205,7 @@ export default async function VatPage({
             {recon.difference !== 0 && (
               <p className="mt-3 text-xs text-muted">
                 The return and the ledger disagree. The usual causes are tax posted to an account other than{" "}
-                {VAT_OUTPUT_CODE} or {VAT_INPUT_CODE}, a line given a treatment but no tax, or tax entered on a
+                {outputCode} or {inputCode}, a line given a treatment but no tax, or tax entered on a
                 voucher whose lines carry no treatment at all. The unclassified figure and the list of untreated
                 vouchers below are the places to look.
               </p>

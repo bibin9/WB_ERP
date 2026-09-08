@@ -7,7 +7,8 @@ import { allow } from "@/lib/guard";
 import { audit } from "@/lib/audit";
 import { postVoucher } from "@/lib/posting";
 import { toFils } from "@/lib/money";
-import { lineCost, LABOUR_COST_CODE, LABOUR_RECOVERED_CODE } from "@/lib/labour";
+import { lineCost } from "@/lib/labour";
+import { accountsForPosting } from "@/lib/accounts";
 
 /**
  * Absorbing timesheet hours into the ledger.
@@ -80,18 +81,10 @@ export async function postLabourToJobs(
     };
   }
 
-  const accounts = await db.chartOfAccount.findMany({
-    where: { companyId, code: { in: [LABOUR_COST_CODE, LABOUR_RECOVERED_CODE] } },
-    select: { id: true, code: true },
-  });
-  const cost = accounts.find((a) => a.code === LABOUR_COST_CODE);
-  const recovered = accounts.find((a) => a.code === LABOUR_RECOVERED_CODE);
-  if (!cost || !recovered) {
-    return {
-      ok: false,
-      error: `This company needs accounts ${LABOUR_COST_CODE} (Site Labour) and ${LABOUR_RECOVERED_CODE} (Labour Recovered) before labour can be charged to jobs. Add them under Ledgers.`,
-    };
-  }
+  const resolved = await accountsForPosting(companyId, ["labourCost", "labourRecovered"]);
+  if (!resolved.ok) return { ok: false, error: resolved.error };
+  const cost = { id: resolved.ids.labourCost };
+  const recovered = { id: resolved.ids.labourRecovered };
 
   const total = toFils(charged.reduce((s, j) => s + j.amount, 0));
   const lines = [

@@ -7,10 +7,8 @@ import { allow } from "@/lib/guard";
 import { audit } from "@/lib/audit";
 import { postVoucher } from "@/lib/posting";
 import { toFils, money } from "@/lib/money";
-import {
-  DIRECTIONS, STAGES, AR_CODE, AP_CODE,
-  RETENTION_RECEIVABLE_CODE, RETENTION_PAYABLE_CODE,
-} from "@/lib/retention";
+import { DIRECTIONS, STAGES } from "@/lib/retention";
+import { accountsForPosting } from "@/lib/accounts";
 
 /**
  * The retention register.
@@ -143,21 +141,15 @@ export async function releaseRetention(id: string, onDate?: string): Promise<Res
   if (row.status !== "Held") return { ok: false, error: `This retention is already ${row.status.toLowerCase()}.` };
 
   const receivable = row.direction === "Receivable";
-  const retentionCode = receivable ? RETENTION_RECEIVABLE_CODE : RETENTION_PAYABLE_CODE;
-  const ordinaryCode = receivable ? AR_CODE : AP_CODE;
-
-  const accounts = await db.chartOfAccount.findMany({
-    where: { companyId: row.companyId, code: { in: [retentionCode, ordinaryCode] } },
-    select: { id: true, code: true },
-  });
-  const retentionAcc = accounts.find((a) => a.code === retentionCode);
-  const ordinaryAcc = accounts.find((a) => a.code === ordinaryCode);
-  if (!retentionAcc || !ordinaryAcc) {
-    return {
-      ok: false,
-      error: `This company needs accounts ${retentionCode} and ${ordinaryCode} before retention can be released. Add them under Ledgers.`,
-    };
-  }
+  // Roles, not numbers: a customer with their own chart maps these on
+  // Finance → Settings and nothing here has to change.
+  const resolved = await accountsForPosting(row.companyId, [
+    receivable ? "retentionReceivable" : "retentionPayable",
+    receivable ? "accountsReceivable" : "accountsPayable",
+  ]);
+  if (!resolved.ok) return { ok: false, error: resolved.error };
+  const retentionAcc = { id: resolved.ids[receivable ? "retentionReceivable" : "retentionPayable"] };
+  const ordinaryAcc = { id: resolved.ids[receivable ? "accountsReceivable" : "accountsPayable"] };
 
   const dateStr = onDate && /^\d{4}-\d{2}-\d{2}$/.test(onDate) ? onDate : new Date().toISOString().slice(0, 10);
 

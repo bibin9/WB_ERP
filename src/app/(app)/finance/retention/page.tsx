@@ -19,8 +19,9 @@ import { readPaging, pageInfo } from "@/lib/paging";
 import { readSearch, matchAny } from "@/lib/search";
 import { balanceAsAt } from "@/lib/ledger";
 import {
-  retentionState, ageing, RETENTION_RECEIVABLE_CODE, RETENTION_PAYABLE_CODE,
+  retentionState, ageing,
 } from "@/lib/retention";
+import { financePolicyFor } from "@/lib/accounts";
 
 export const dynamic = "force-dynamic";
 
@@ -100,14 +101,19 @@ export default async function RetentionPage({
   // Agree the register to the ledger. The certificate already posted the money;
   // if the two disagree, either something was withheld and never recorded here,
   // or recorded here and never withheld.
+  // The retention control accounts, as this company has mapped them.
+  const finPolicy = await financePolicyFor(companyId);
+  const recvCode = finPolicy.accounts.retentionReceivable;
+  const payCode = finPolicy.accounts.retentionPayable;
+
   const retentionAccounts = companyId
     ? await db.chartOfAccount.findMany({
-        where: { companyId, code: { in: [RETENTION_RECEIVABLE_CODE, RETENTION_PAYABLE_CODE] } },
+        where: { companyId, code: { in: [recvCode, payCode] } },
         include: { lines: { include: { entry: { select: { date: true } } } } },
       })
     : [];
-  const recvAcc = retentionAccounts.find((a) => a.code === RETENTION_RECEIVABLE_CODE);
-  const payAcc = retentionAccounts.find((a) => a.code === RETENTION_PAYABLE_CODE);
+  const recvAcc = retentionAccounts.find((a) => a.code === recvCode);
+  const payAcc = retentionAccounts.find((a) => a.code === payCode);
   const ledgerRecv = recvAcc ? balanceAsAt(recvAcc, today, company?.openingAsOf) : 0;
   // A liability sits as a credit; flip it to compare with what is held.
   const ledgerPay = payAcc ? -balanceAsAt(payAcc, today, company?.openingAsOf) : 0;
@@ -191,12 +197,12 @@ export default async function RetentionPage({
           {recon.recvDiff !== 0 && (
             <>
               Receivable: {money(receivable.total)} recorded here against {money(ledgerRecv)} on{" "}
-              {RETENTION_RECEIVABLE_CODE}, a difference of {money(recon.recvDiff)}.{" "}
+              {recvCode}, a difference of {money(recon.recvDiff)}.{" "}
             </>
           )}
           {recon.payDiff !== 0 && (
             <>
-              Payable: {money(payable.total)} here against {money(ledgerPay)} on {RETENTION_PAYABLE_CODE}, a
+              Payable: {money(payable.total)} here against {money(ledgerPay)} on {payCode}, a
               difference of {money(recon.payDiff)}.{" "}
             </>
           )}

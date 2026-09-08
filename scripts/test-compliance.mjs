@@ -167,10 +167,16 @@ ok("nor a blank nationality", !isEmirati(null) && !isEmirati(""));
   ok("marking a run paid posts a voucher", /postPayrollToLedger\(/.test(src) && /postVoucher\(/.test(src));
   ok("it is tied to the run as its source document", /sourceType: "payroll"/.test(src),
     "so approving twice cannot post twice");
+  // These used to check for the literal codes 6000, 1000 and 1170. They are
+  // gone on purpose: a customer with their own chart maps the roles instead,
+  // so the invariant worth holding is that the posting asks for a role and
+  // never names a number.
   ok("the cost lands on salaries and the money on the bank",
-    /SALARY_EXPENSE_CODE = "6000"/.test(src) && /BANK_CODE = "1000"/.test(src));
+    /"salaryExpense"/.test(src) && /"bank"/.test(src));
   ok("an advance recovered reduces the receivable rather than the cost",
-    /ADVANCE_CODE = "1170"/.test(src));
+    /"employeeAdvances"/.test(src));
+  ok("and no account number is named in the payroll posting",
+    ![...src.matchAll(/(?:^|[^\w"])"(\d{4})"/g)].length, "the chart is the customer's, not ours");
   ok("a posted run cannot quietly go back to draft",
     /Reverse that voucher in the Day Book first/.test(src));
   ok("supplied labour is kept off the company's own payroll",

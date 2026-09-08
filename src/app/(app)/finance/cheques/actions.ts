@@ -8,6 +8,7 @@ import { audit } from "@/lib/audit";
 import { postVoucher } from "@/lib/posting";
 import { toFils, money } from "@/lib/money";
 import { DIRECTIONS, CHEQUE_STATUSES, canMove, settles } from "@/lib/cheques";
+import { accountsForPosting } from "@/lib/accounts";
 
 /**
  * The cheque register.
@@ -20,9 +21,8 @@ import { DIRECTIONS, CHEQUE_STATUSES, canMove, settles } from "@/lib/cheques";
 
 type Result = { ok: boolean; error?: string };
 
-const BANK_CODE = "1000";
-const AR_CODE = "1100";
-const AP_CODE = "2000";
+// The accounts a cheque touches are asked for by role, so a company with its
+// own chart maps them once on Finance → Settings.
 
 async function scoped(companyId: string) {
   const session = await getSession();
@@ -160,18 +160,11 @@ export async function setChequeStatus(id: string, next: string, onDate?: string)
   }
 
   // Cleared: the money has actually moved, so post it.
-  const accounts = await db.chartOfAccount.findMany({
-    where: { companyId: cheque.companyId, code: { in: [BANK_CODE, AR_CODE, AP_CODE] } },
-    select: { id: true, code: true },
-  });
-  const bank = accounts.find((a) => a.code === BANK_CODE);
-  const control = accounts.find((a) => a.code === (cheque.direction === "Received" ? AR_CODE : AP_CODE));
-  if (!bank || !control) {
-    return {
-      ok: false,
-      error: `This company needs accounts ${BANK_CODE} and ${cheque.direction === "Received" ? AR_CODE : AP_CODE} before a cheque can be cleared.`,
-    };
-  }
+  const controlRole = cheque.direction === "Received" ? "accountsReceivable" : "accountsPayable";
+  const resolved = await accountsForPosting(cheque.companyId, ["bank", controlRole]);
+  if (!resolved.ok) return { ok: false, error: resolved.error };
+  const bank = { id: resolved.ids.bank };
+  const control = { id: resolved.ids[controlRole] };
 
   const received = cheque.direction === "Received";
   const posted = await postVoucher({

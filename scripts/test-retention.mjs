@@ -164,8 +164,14 @@ ok("releasing posts through the shared service",
   actions.includes("await postVoucher({") && actions.includes('from "@/lib/posting"'));
 ok("the voucher carries the retention as its source",
   actions.includes('sourceType: "retention"') && actions.includes("sourceId: row.id"));
+// This used to check for the literal codes 1160 and 2200. They are gone on
+// purpose — a customer maps the roles to their own chart — so what is held now
+// is that the release picks the right role for the direction.
 ok("a receivable release debits the ordinary receivable",
-  actions.includes("receivable ? RETENTION_RECEIVABLE_CODE : RETENTION_PAYABLE_CODE"));
+  actions.includes('receivable ? "retentionReceivable" : "retentionPayable"') &&
+  actions.includes('receivable ? "accountsReceivable" : "accountsPayable"'));
+ok("and the retention posting names no account number",
+  ![...actions.matchAll(/(?:^|[^\w"])"(\d{4})"/g)].length);
 ok("an entry already released cannot be released again",
   actions.includes('already ${row.status.toLowerCase()}'));
 ok("a posted entry cannot be edited", actions.includes("Reverse that voucher in the Day Book to change it"));

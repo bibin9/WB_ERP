@@ -105,6 +105,7 @@ model Company {
   leaveRequests       LeaveRequest[]
   createdAt           DateTime             @default(now())
   hrPolicy            HrPolicy?
+  financePolicy       FinancePolicy?
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -1166,6 +1167,50 @@ model HrPolicy {
   airTicketDefault     Float @default(0)
 
   /// Free text: the handbook clause, the board minute, whoever agreed it.
+  notes     String?
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// One company's finance settings.
+///
+/// Two different things, configurable for two different reasons.
+///
+/// The chart of accounts is the customer's own. A contractor who has run Tally
+/// for fifteen years has salaries on 5010, not 6000, and telling them to
+/// renumber their ledger to suit the software is not an answer — so every place
+/// the system posts is a named role pointing at whatever code that company
+/// actually uses. The map is JSON rather than a column per role, because a
+/// column per role means a migration every time a module needs a new posting,
+/// and that friction is exactly what makes somebody reach for a literal code.
+///
+/// The tax rates are the law's, and the law moves. A rate only a developer can
+/// change is a rate that will be wrong the week it changes.
+///
+/// What is not here is arithmetic. Debits equal credits; that is not a setting.
+model FinancePolicy {
+  id        String  @id @default(cuid())
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Role → account code, as JSON. See ACCOUNT_ROLES in lib/financepolicy.ts.
+  accounts String @default("{}")
+
+  // Tax, as the law stands
+  vatRate          Float @default(0.05)
+  corporateTaxRate Float @default(0.09)
+  corporateTaxBand Float @default(375000)
+  sbrRevenueCap    Float @default(3000000)
+  lossReliefCap    Float @default(0.75)
+  filingMonths     Float @default(9)
+
+  // Operations
+  chequeStaleDays         Float @default(180)
+  defaultRetentionPercent Float @default(10)
+  expiryWarningDays       Float @default(60)
+  pageSize                Float @default(50)
+
   notes     String?
   updatedBy String?
   createdAt DateTime @default(now())

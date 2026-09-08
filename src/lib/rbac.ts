@@ -46,6 +46,7 @@ export const SCREENS: ScreenDef[] = [
   { key: "finance.vat", module: "finance", label: "VAT Report", href: "/finance/vat" },
   { key: "finance.corptax", module: "finance", label: "Corporate Tax", href: "/finance/corporate-tax" },
   { key: "finance.tally", module: "finance", label: "Tally Sync", href: "/finance/tally" },
+  { key: "finance.settings", module: "finance", label: "Finance Settings", href: "/finance/settings" },
 
   { key: "hr.employees", module: "hr", label: "Employees", href: "/hr" },
   { key: "hr.onboarding", module: "hr", label: "Onboarding", href: "/hr/onboarding" },
