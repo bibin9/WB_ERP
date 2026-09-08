@@ -41,6 +41,24 @@ export async function toggleCompanyActive(id: string, next: boolean) {
 }
 
 /** Financial-year start and the date opening balances are stated as at. */
+/**
+ * The company's letterhead, as a data URI or an https URL.
+ *
+ * Anything else is dropped rather than stored: a report is printed and sent
+ * outside the business, and a src the browser will fetch is a src somebody else
+ * chose. Size is capped because this sits in a row that is read on every report.
+ */
+function logoFrom(formData: FormData): string | null {
+  const raw = String(formData.get("logoUrl") || "").trim();
+  if (!raw) return null;
+  const isImageData = /^data:image\/(png|jpeg|gif|webp|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(raw);
+  const isHttps = /^https:\/\/[^\s"'<>]+$/i.test(raw);
+  if (!isImageData && !isHttps) return null;
+  // Roughly 400 KB of base64. Larger than any letterhead needs to be.
+  if (raw.length > 550_000) return null;
+  return raw;
+}
+
 function financialYearFrom(formData: FormData): { fyStartMonth: number; openingAsOf: Date | null; booksLockedTo: Date | null } {
   const month = Number(formData.get("fyStartMonth"));
   const asOf = String(formData.get("openingAsOf") || "").trim();
@@ -62,7 +80,10 @@ export async function updateCompany(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const baseCurrency = (String(formData.get("baseCurrency") || "AED").trim().toUpperCase()) || "AED";
   if (!name) return;
-  await db.company.update({ where: { id }, data: { name, baseCurrency, ...financialYearFrom(formData) } });
+  await db.company.update({
+    where: { id },
+    data: { name, baseCurrency, logoUrl: logoFrom(formData), ...financialYearFrom(formData) },
+  });
   await audit({ action: "Updated", entity: "Company", entityId: id, summary: `Updated company ${company.code} — ${name}` });
   revalidatePath("/companies");
 }

@@ -9,6 +9,8 @@ import { deleteParty, setPartyActive } from "./actions";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
+import Pager from "@/components/Pager";
+import { readPaging, pageInfo } from "@/lib/paging";
 
 export const dynamic = "force-dynamic";
 
@@ -18,18 +20,25 @@ const typeColor: Record<string, string> = {
   Both: "bg-brand-green/10 text-brand-green-700",
 };
 
-export default async function PartiesPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
+export default async function PartiesPage({ searchParams }: { searchParams: Promise<{ c?: string; p?: string; per?: string }> }) {
   await requireAccess("finance.parties");
   const session = await getSession();
   const sp = await searchParams;
   const accessible = session?.companies ?? [];
   const companyId = accessible.find((c) => c.id === sp.c)?.id ?? accessible[0]?.id ?? "";
 
+  // A party list grows with the business, so one page is fetched at a time.
+  const paging = readPaging(sp);
+  const partyTotal = companyId ? await db.party.count({ where: { companyId } }) : 0;
+  const info = pageInfo(paging, partyTotal);
+
   const parties = companyId
     ? await db.party.findMany({
         where: { companyId },
         include: { _count: { select: { entries: true } } },
         orderBy: [{ isActive: "desc" }, { code: "asc" }],
+        skip: (info.page - 1) * info.perPage,
+        take: info.perPage,
       })
     : [];
 
@@ -112,6 +121,7 @@ export default async function PartiesPage({ searchParams }: { searchParams: Prom
                 ))}
               </tbody>
             </table>
+            <Pager info={info} label="parties" />
           </div>
         )}
       </div>

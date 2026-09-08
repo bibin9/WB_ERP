@@ -20,7 +20,7 @@ export default function CompanyPicker({
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 print:hidden">
       <span className="text-sm text-muted">Company books:</span>
       <select value={current} onChange={(e) => change(e.target.value)} className="input h-9 w-auto py-1.5">
         {companies.map((c) => (

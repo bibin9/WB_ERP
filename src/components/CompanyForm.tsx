@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { Plus, X, Pencil } from "lucide-react";
 import { createCompany, updateCompany } from "@/app/(app)/companies/actions";
+import LogoField from "@/components/LogoField";
 
-export type EditingCompany = { id: string; name: string; baseCurrency: string; fyStartMonth: number; openingAsOf: string | null; booksLockedTo: string | null };
+export type EditingCompany = { id: string; name: string; baseCurrency: string; fyStartMonth: number; openingAsOf: string | null; booksLockedTo: string | null; logoUrl: string | null };
 
 export default function CompanyForm({ company }: { company?: EditingCompany }) {
   const [open, setOpen] = useState(false);
@@ -72,6 +73,11 @@ export default function CompanyForm({ company }: { company?: EditingCompany }) {
               closed, so the figures behind it cannot change. Leave blank while the books are open.
             </p>
           </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-ink">Logo for printed reports</label>
+            <LogoField defaultValue={company?.logoUrl ?? ""} />
+          </div>
+
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={() => setOpen(false)} className="btn-ghost">Cancel</button>
             <button type="submit" className="btn-primary">{editing ? "Save changes" : "Add company"}</button>

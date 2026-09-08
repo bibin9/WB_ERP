@@ -14,6 +14,7 @@ import PeriodPicker from "@/components/PeriodPicker";
 import { resolvePeriod } from "@/lib/period";
 import { balanceAsAt } from "@/lib/ledger";
 import PrintReport from "@/components/finance/PrintReport";
+import PrintHeader from "@/components/finance/PrintHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -69,11 +70,12 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
 
   return (
     <div>
-      <div className="print-header mb-4 border-b border-line pb-3">
-        <div className="text-lg font-bold text-heading">{companyName}</div>
-        <div className="text-sm text-ink">Trial Balance</div>
-        <div className="text-xs text-muted">{period.label}</div>
-      </div>
+      <PrintHeader
+        companyName={companyName}
+        logoUrl={companyRow?.logoUrl}
+        title="Finance Overview"
+        subtitle={period.label}
+      />
       <PageHeader title="Finance & Accounting" subtitle="Each company keeps its own books. Chart of accounts, journal entries and trial balance.">
         <PrintReport />
         <div className="flex flex-wrap items-center gap-2">

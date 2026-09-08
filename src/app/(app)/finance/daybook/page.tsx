@@ -9,6 +9,8 @@ import { getSession } from "@/lib/auth";
 import PeriodPicker from "@/components/PeriodPicker";
 import { resolvePeriod } from "@/lib/period";
 import ReverseVoucher from "@/components/finance/ReverseVoucher";
+import Pager from "@/components/Pager";
+import { readPaging, pageInfo } from "@/lib/paging";
 
 export const dynamic = "force-dynamic";
 const n = (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -23,7 +25,7 @@ const vColor: Record<string, string> = {
   "Debit Note": "bg-brand-gold/10 text-brand-gold",
 };
 
-export default async function DayBookPage({ searchParams }: { searchParams: Promise<{ c?: string; from?: string; to?: string; t?: string; v?: string; j?: string }> }) {
+export default async function DayBookPage({ searchParams }: { searchParams: Promise<{ c?: string; from?: string; to?: string; t?: string; v?: string; j?: string; p?: string; per?: string }> }) {
   await requireAccess("finance.daybook");
   const session = await getSession();
   const sp = await searchParams;
@@ -38,18 +40,25 @@ export default async function DayBookPage({ searchParams }: { searchParams: Prom
   const type = sp.t && VOUCHER_TYPES.includes(sp.t) ? sp.t : "";
   const focused = sp.v ?? "";
 
+  // Every voucher the company has posted lands here eventually, so the query
+  // fetches one page rather than everything.
+  const where = {
+    companyId,
+    date: { gte: period.from, lte: period.to },
+    ...(type ? { voucherType: type } : {}),
+    // Arrived at from job costing: show only that job's vouchers.
+    ...(sp.j ? { lines: { some: { jobId: sp.j } } } : {}),
+  };
+  const paging = readPaging(sp);
+  const total = companyId ? await db.journalEntry.count({ where }) : 0;
+  const info = pageInfo(paging, total);
   const entries = companyId
     ? await db.journalEntry.findMany({
-        where: {
-          companyId,
-          date: { gte: period.from, lte: period.to },
-          ...(type ? { voucherType: type } : {}),
-          // Arrived at from job costing: show only that job's vouchers.
-          ...(sp.j ? { lines: { some: { jobId: sp.j } } } : {}),
-        },
+        where,
         include: { lines: { include: { account: true } }, reversedBy: { select: { reference: true }, take: 1 } },
         orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-        take: 500,
+        skip: (info.page - 1) * info.perPage,
+        take: info.perPage,
       })
     : [];
 
@@ -140,6 +149,7 @@ export default async function DayBookPage({ searchParams }: { searchParams: Prom
             </tbody>
           </table>
         </div>
+        <Pager info={info} label="vouchers" />
       </div>
     </div>
   );

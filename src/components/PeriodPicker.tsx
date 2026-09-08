@@ -31,7 +31,7 @@ export default function PeriodPicker({
   }
 
   return (
-    <div className="card flex flex-wrap items-end gap-3 p-4">
+    <div className="card flex flex-wrap items-end gap-3 p-4 print:hidden">
       <div className="flex items-center gap-2 text-muted">
         <CalendarRange className="h-4 w-4" />
         <span className="text-xs font-medium uppercase tracking-wide">Period</span>

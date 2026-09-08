@@ -12,6 +12,8 @@ import { requireAccess } from "@/lib/guard";
 import { activeTenant } from "@/config/tenant";
 import ExportButton from "@/components/ExportButton";
 import { money } from "@/lib/money";
+import Pager from "@/components/Pager";
+import { readPaging, pageInfo } from "@/lib/paging";
 
 export const dynamic = "force-dynamic";
 
@@ -30,18 +32,30 @@ const typeColor: Record<string, string> = {
 
 
 
-export default async function EmployeesPage() {
+export default async function EmployeesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ p?: string; per?: string }>;
+}) {
   const session = await requireAccess("hr.employees");
+  const sp = await searchParams;
   const tenant = await db.tenant.findUnique({ where: { key: activeTenant.key } });
   // Only the companies this user is a member of — never the whole tenant.
   const scope = session.companies.map((c) => c.id);
   const companies = tenant
     ? await db.company.findMany({ where: { tenantId: tenant.id, id: { in: scope } }, orderBy: { code: "asc" } })
     : [];
+  // An employee list is one of the few here that reaches four figures.
+  const empWhere = { companyId: { in: companies.map((c) => c.id) } };
+  const paging = readPaging(sp);
+  const empTotal = await db.employee.count({ where: empWhere });
+  const info = pageInfo(paging, empTotal);
   const employees = await db.employee.findMany({
-    where: { companyId: { in: companies.map((c) => c.id) } },
+    where: empWhere,
     include: { company: true },
     orderBy: { empNo: "asc" },
+    skip: (info.page - 1) * info.perPage,
+    take: info.perPage,
   });
   const mi = tenant ? await db.masterItem.findMany({ where: { tenantId: tenant.id, isActive: true }, orderBy: { order: "asc" } }) : [];
   const master = {
@@ -138,6 +152,7 @@ export default async function EmployeesPage() {
               ))}
             </tbody>
           </table>
+          <Pager info={info} label="employees" />
         </div>
       </div>
 

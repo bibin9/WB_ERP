@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Building2, AlertTriangle } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
+import PrintHeader from "@/components/finance/PrintHeader";
 import CompanyPicker from "@/components/CompanyPicker";
 import FinanceTabs from "@/components/FinanceTabs";
 import PeriodPicker from "@/components/PeriodPicker";
@@ -86,11 +87,12 @@ export default async function CostCentresPage({
 
   return (
     <div>
-      <div className="print-header mb-4 border-b border-line pb-3">
-        <div className="text-lg font-bold text-heading">{companyName}</div>
-        <div className="text-sm text-ink">Cost Centres</div>
-        <div className="text-xs text-muted">{period.label}</div>
-      </div>
+      <PrintHeader
+        companyName={companyName}
+        logoUrl={company?.logoUrl}
+        title="Cost Centres"
+        subtitle={period.label}
+      />
 
       <PageHeader
         title="Finance — Cost Centres"

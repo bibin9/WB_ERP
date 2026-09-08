@@ -66,6 +66,15 @@ model Company {
   booksLockedTo    DateTime?
   /// Date the opening balances are stated as at — normally the FY start.
   openingAsOf      DateTime?
+  /// The company's own letterhead logo, shown at the top of every printed
+  /// report for this company.
+  ///
+  /// Held as a data URI rather than a file on disk, because the container's
+  /// filesystem does not survive a deploy and a report that silently loses its
+  /// letterhead is worse than one that never had it. A logo is a few kilobytes,
+  /// which a text column carries comfortably. A plain https:// URL is accepted
+  /// too, for a company that already hosts its mark somewhere.
+  logoUrl          String?
   parties          Party[]
   jobs             Job[]
   costCentres      CostCentre[]

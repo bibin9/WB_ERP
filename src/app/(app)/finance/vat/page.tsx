@@ -10,6 +10,7 @@ import { resolvePeriod, quarters } from "@/lib/period";
 import { buildVat201, taxOn, OUTPUT_VOUCHERS, INPUT_VOUCHERS, ADJUSTMENT_VOUCHERS, DOCUMENT_VOUCHERS, VAT_INPUT_CODE, VAT_OUTPUT_CODE, type VatLine } from "@/lib/vat";
 import { periodMovement } from "@/lib/ledger";
 import { money } from "@/lib/money";
+import PrintHeader from "@/components/finance/PrintHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -135,11 +136,12 @@ export default async function VatPage({
 
   return (
     <div>
-      <div className="print-header mb-4 border-b border-line pb-3">
-        <div className="text-lg font-bold text-heading">{companyName}</div>
-        <div className="text-sm text-ink">VAT Return (VAT 201)</div>
-        <div className="text-xs text-muted">{period.label}</div>
-      </div>
+      <PrintHeader
+        companyName={companyName}
+        logoUrl={company?.logoUrl}
+        title="VAT Return (VAT 201)"
+        subtitle={period.label}
+      />
 
       <PageHeader
         title="Finance — VAT Return"

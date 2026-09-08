@@ -10,6 +10,7 @@ import { getSession } from "@/lib/auth";
 import { resolvePeriod } from "@/lib/period";
 import { broughtForward, periodMovement, balanceAsAt, openingInPeriod } from "@/lib/ledger";
 import { money } from "@/lib/money";
+import PrintHeader from "@/components/finance/PrintHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -105,11 +106,12 @@ export default async function TrialBalancePage({
 
   return (
     <div>
-      <div className="print-header mb-4 border-b border-line pb-3">
-        <div className="text-lg font-bold text-heading">{companyName}</div>
-        <div className="text-sm text-ink">Trial Balance</div>
-        <div className="text-xs text-muted">{period.label}</div>
-      </div>
+      <PrintHeader
+        companyName={companyName}
+        logoUrl={company?.logoUrl}
+        title="Trial Balance"
+        subtitle={period.label}
+      />
 
       <PageHeader
         title="Finance — Trial Balance"

@@ -26,7 +26,7 @@ export default function FinanceTabsClient({ companyId, allowed }: { companyId: s
   const allow = new Set(allowed);
   const tabs = TABS.filter((t) => allow.has(t.screen));
   return (
-    <div className="mb-5 flex flex-wrap gap-1 border-b border-line">
+    <div className="mb-5 flex flex-wrap gap-1 border-b border-line print:hidden">
       {tabs.map((t) => {
         const active = pathname === t.href;
         const Icon = t.icon;

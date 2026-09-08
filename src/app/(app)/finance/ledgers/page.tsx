@@ -10,6 +10,7 @@ import PeriodPicker from "@/components/PeriodPicker";
 import { resolvePeriod } from "@/lib/period";
 import { openingInBalance } from "@/lib/ledger";
 import PrintReport from "@/components/finance/PrintReport";
+import PrintHeader from "@/components/finance/PrintHeader";
 
 export const dynamic = "force-dynamic";
 const n = (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -54,11 +55,12 @@ export default async function LedgersPage({ searchParams }: { searchParams: Prom
 
   return (
     <div>
-      <div className="print-header mb-4 border-b border-line pb-3">
-        <div className="text-lg font-bold text-heading">{companyName}</div>
-        <div className="text-sm text-ink">Ledger</div>
-        <div className="text-xs text-muted">{period.label}</div>
-      </div>
+      <PrintHeader
+        companyName={companyName}
+        logoUrl={company?.logoUrl}
+        title="Ledger"
+        subtitle={period.label}
+      />
       <PageHeader title="Finance — Ledgers" subtitle="Statement of account for the period, with balance brought forward and carried down — Tally's Ledger view." >
         <PrintReport />
       </PageHeader>

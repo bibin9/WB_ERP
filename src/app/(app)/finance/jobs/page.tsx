@@ -1,5 +1,6 @@
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import PrintHeader from "@/components/finance/PrintHeader";
 import CompanyPicker from "@/components/CompanyPicker";
 import FinanceTabs from "@/components/FinanceTabs";
 import PeriodPicker from "@/components/PeriodPicker";
@@ -144,11 +145,12 @@ export default async function JobsPage({
 
   return (
     <div>
-      <div className="print-header mb-4 border-b border-line pb-3">
-        <div className="text-lg font-bold text-heading">{companyName}</div>
-        <div className="text-sm text-ink">Job Costing</div>
-        <div className="text-xs text-muted">{period.label}</div>
-      </div>
+      <PrintHeader
+        companyName={companyName}
+        logoUrl={company?.logoUrl}
+        title="Job Costing"
+        subtitle={period.label}
+      />
 
       <PageHeader
         title="Finance — Job Costing"

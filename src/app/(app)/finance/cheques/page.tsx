@@ -1,5 +1,6 @@
 import { Banknote, AlertTriangle } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
+import PrintHeader from "@/components/finance/PrintHeader";
 import CompanyPicker from "@/components/CompanyPicker";
 import FinanceTabs from "@/components/FinanceTabs";
 import PrintReport from "@/components/finance/PrintReport";
@@ -13,6 +14,8 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { money } from "@/lib/money";
 import { chequeState, forecast, OPEN_STATUSES } from "@/lib/cheques";
+import Pager from "@/components/Pager";
+import { readPaging, pageInfo } from "@/lib/paging";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +33,7 @@ const statusColour: Record<string, string> = {
 export default async function ChequesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ c?: string; show?: string }>;
+  searchParams: Promise<{ c?: string; show?: string; p?: string; per?: string }>;
 }) {
   await requireAccess("finance.cheques");
   const session = await getSession();
@@ -39,14 +42,25 @@ export default async function ChequesPage({
   const companyId = accessible.find((c) => c.id === sp.c)?.id ?? accessible[0]?.id ?? "";
   const companyName = accessible.find((c) => c.id === companyId)?.name ?? "";
 
+  // Only for the letterhead: each company prints on its own.
+  const company = companyId ? await db.company.findUnique({ where: { id: companyId } }) : null;
+
   // Settled cheques are history: kept, but out of the way unless asked for.
   const showAll = sp.show === "all";
 
+  // The register keeps every cheque ever recorded, so it is paged. The forecast
+  // below is deliberately not: it must count them all.
+  const chequeWhere = { companyId, ...(showAll ? {} : { status: { in: [...OPEN_STATUSES] } }) };
+  const paging = readPaging(sp);
+  const chequeTotal = companyId ? await db.cheque.count({ where: chequeWhere }) : 0;
+  const info = pageInfo(paging, chequeTotal);
   const cheques = companyId
     ? await db.cheque.findMany({
-        where: { companyId, ...(showAll ? {} : { status: { in: [...OPEN_STATUSES] } }) },
+        where: chequeWhere,
         include: { entry: { select: { reference: true } } },
         orderBy: [{ chequeDate: "asc" }],
+        skip: (info.page - 1) * info.perPage,
+        take: info.perPage,
       })
     : [];
 
@@ -76,11 +90,12 @@ export default async function ChequesPage({
 
   return (
     <div>
-      <div className="print-header mb-4 border-b border-line pb-3">
-        <div className="text-lg font-bold text-heading">{companyName}</div>
-        <div className="text-sm text-ink">Cheque Register</div>
-        <div className="text-xs text-muted">as at {fmt(today)}</div>
-      </div>
+      <PrintHeader
+        companyName={companyName}
+        logoUrl={company?.logoUrl}
+        title="Cheque Register"
+        subtitle={`as at ${fmt(today)}`}
+      />
 
       <PageHeader
         title="Finance — Cheque Register"
@@ -139,7 +154,7 @@ export default async function ChequesPage({
         <div className="flex items-center gap-2 border-b border-line px-5 py-3">
           <Banknote className="h-5 w-5 text-heading" />
           <h2 className="font-semibold text-heading">{showAll ? "Every cheque" : "Open cheques"}</h2>
-          <span className="ml-auto text-xs text-muted">{cheques.length}</span>
+          <span className="ml-auto text-xs text-muted">{chequeTotal}</span>
         </div>
         <table className="w-full text-sm">
           <thead>
@@ -228,6 +243,7 @@ export default async function ChequesPage({
             })}
           </tbody>
         </table>
+        <Pager info={info} label="cheques" />
       </div>
 
       <p className="mt-3 text-xs text-muted">
