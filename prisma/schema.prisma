@@ -51,16 +51,16 @@ model Tenant {
 
 /// A legal company within a tenant's group (multi-company).
 model Company {
-  id               String              @id @default(cuid())
+  id               String               @id @default(cuid())
   tenantId         String
-  tenant           Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant           Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   code             String
   name             String
-  baseCurrency     String              @default("AED")
+  baseCurrency     String               @default("AED")
   // UAE WPS (Wage Protection System) employer details, used to generate the bank SIF file
   wpsEmployerId    String? // MOL establishment / employer unique ID
   /// Month the financial year starts (1 = January).
-  fyStartMonth     Int                 @default(1)
+  fyStartMonth     Int                  @default(1)
   /// Nothing may be posted on or before this date. Set after a VAT return is
   /// filed or a period is closed, so the figures behind it cannot move.
   booksLockedTo    DateTime?
@@ -75,13 +75,18 @@ model Company {
   /// which a text column carries comfortably. A plain https:// URL is accepted
   /// too, for a company that already hosts its mark somewhere.
   logoUrl          String?
+  /// Corporate Tax Registration Number, issued by the FTA when the company
+  /// registers for corporate tax. Separate from the VAT TRN: a company can be
+  /// registered for one and not the other, and the return quotes this one.
+  corporateTaxTRN  String?
   parties          Party[]
+  taxReturns       CorporateTaxReturn[]
   jobs             Job[]
   costCentres      CostCentre[]
   cheques          Cheque[]
   retentions       Retention[]
   wpsBankRouting   String? // employer bank routing code (agent ID)
-  isActive         Boolean             @default(true)
+  isActive         Boolean              @default(true)
   memberships      CompanyMembership[]
   jobAssignments   JobAssignment[]
   approvalRequests ApprovalRequest[]
@@ -91,7 +96,7 @@ model Company {
   requisitions     Requisition[]
   payrollRuns      PayrollRun[]
   leaveRequests    LeaveRequest[]
-  createdAt        DateTime            @default(now())
+  createdAt        DateTime             @default(now())
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -954,4 +959,67 @@ model CostCentre {
   @@unique([companyId, code])
   @@index([companyId])
   @@index([parentId])
+}
+
+/// A UAE Corporate Tax computation for one company, for one tax period.
+///
+/// Federal Decree-Law 47 of 2022, in force for financial years beginning on or
+/// after 1 June 2023. Nine per cent on taxable income above AED 375,000, nil
+/// below it, and the return is due within nine months of the period end.
+///
+/// This is a working paper, not a filing. The return itself goes to the FTA
+/// through EmaraTax; what this does is take the accounting profit straight from
+/// the ledger, hold the adjustments beside it with a reason for each, and show
+/// the arithmetic the way the FTA lays it out — so the figure typed into
+/// EmaraTax can be traced back to the books that produced it.
+///
+/// One per company per period: a group files separately for each legal entity
+/// unless it has formed a tax group, which is a different thing again.
+model CorporateTaxReturn {
+  id                   String                   @id @default(cuid())
+  companyId            String
+  company              Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// The tax period, normally the financial year.
+  periodFrom           DateTime
+  periodTo             DateTime
+  /// Draft | Filed
+  status               String                   @default("Draft")
+  /// Small Business Relief elected for this period. A business with revenue at
+  /// or under AED 3,000,000 may elect to be treated as having no taxable
+  /// income. Available for periods ending on or before 31 December 2029.
+  sbrElected           Boolean                  @default(false)
+  /// Losses from earlier periods available to set against this one. Capped at
+  /// 75% of taxable income; the remainder carries forward again.
+  lossesBroughtForward Float                    @default(0)
+  /// What was actually submitted, so the working paper can be tied to it.
+  filedOn              DateTime?
+  filedRef             String?
+  notes                String?
+  adjustments          CorporateTaxAdjustment[]
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+
+  @@unique([companyId, periodFrom, periodTo])
+  @@index([companyId])
+  @@index([status])
+}
+
+/// One line of the reconciliation from accounting profit to taxable income.
+///
+/// Each carries its own reason, because in two years' time the question an
+/// auditor or the FTA asks is not what the number was but why.
+model CorporateTaxAdjustment {
+  id       String             @id @default(cuid())
+  returnId String
+  return   CorporateTaxReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  /// Add back | Deduct | Exempt income
+  kind     String
+  /// What it is, in the accountant's words.
+  label    String
+  amount   Float
+  /// The FTA heading it belongs under, so the return can be filled in.
+  category String
+  notes    String?
+
+  @@index([returnId])
 }

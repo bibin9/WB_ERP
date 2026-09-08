@@ -195,5 +195,73 @@ const halfTicked = Number(q(`
   WHERE "statementRef" IS NOT NULL AND "clearedOn" IS NULL`));
 ok("nothing carries a statement reference without being cleared", halfTicked === 0, `${halfTicked} half-ticked`);
 
+/* ------------------------------------------------- corporate tax --------- */
+const ctReturns = Number(q(`SELECT COUNT(*) FROM "CorporateTaxReturn"`));
+ok("a corporate tax period was seeded", ctReturns > 0, `${ctReturns} row(s)`);
+
+const ctBadPeriod = Number(q(`SELECT COUNT(*) FROM "CorporateTaxReturn" WHERE "periodTo" <= "periodFrom"`));
+ok("every tax period ends after it starts", ctBadPeriod === 0, `${ctBadPeriod} inverted`);
+
+// A period longer than a year would be two returns filed as one.
+const ctLongPeriod = Number(q(`
+  SELECT COUNT(*) FROM "CorporateTaxReturn"
+  WHERE "periodTo" > "periodFrom" + INTERVAL '12 months'`));
+ok("no tax period runs longer than twelve months", ctLongPeriod === 0, `${ctLongPeriod} too long`);
+
+// Two overlapping periods would tax the same profit twice.
+const ctOverlap = Number(q(`
+  SELECT COUNT(*) FROM "CorporateTaxReturn" a JOIN "CorporateTaxReturn" b
+    ON a."companyId" = b."companyId" AND a.id < b.id
+  WHERE a."periodFrom" <= b."periodTo" AND b."periodFrom" <= a."periodTo"`));
+ok("no two tax periods overlap for one company", ctOverlap === 0, `${ctOverlap} overlapping`);
+
+const ctOrphanCo = Number(q(`
+  SELECT COUNT(*) FROM "CorporateTaxReturn" r
+  LEFT JOIN "Company" c ON c.id = r."companyId" WHERE c.id IS NULL`));
+ok("every return belongs to a real company", ctOrphanCo === 0, `${ctOrphanCo} orphaned`);
+
+const ctStatus = Number(q(`
+  SELECT COUNT(*) FROM "CorporateTaxReturn" WHERE "status" NOT IN ('Draft','Filed')`));
+ok("every return carries a status the app understands", ctStatus === 0, `${ctStatus} unknown`);
+
+// A return marked filed with no reference cannot be tied to the filing.
+const ctFiledNoRef = Number(q(`
+  SELECT COUNT(*) FROM "CorporateTaxReturn"
+  WHERE "status" = 'Filed' AND (COALESCE("filedRef",'') = '' OR "filedOn" IS NULL)`));
+ok("a filed return carries its EmaraTax reference and date", ctFiledNoRef === 0, `${ctFiledNoRef} without`);
+
+const ctNegLoss = Number(q(`SELECT COUNT(*) FROM "CorporateTaxReturn" WHERE "lossesBroughtForward" < 0`));
+ok("no return carries a negative loss brought forward", ctNegLoss === 0, `${ctNegLoss} negative`);
+
+const ctAdjKind = Number(q(`
+  SELECT COUNT(*) FROM "CorporateTaxAdjustment"
+  WHERE "kind" NOT IN ('Add back','Deduct','Exempt income')`));
+ok("every adjustment uses a kind the computation understands", ctAdjKind === 0, `${ctAdjKind} unknown`);
+
+// The sign belongs to the kind, never to the amount — a negative add-back is a
+// deduction in disguise and makes the return unreadable.
+const ctAdjSign = Number(q(`SELECT COUNT(*) FROM "CorporateTaxAdjustment" WHERE "amount" <= 0`));
+ok("every adjustment is a positive amount", ctAdjSign === 0, `${ctAdjSign} at or below nil`);
+
+const ctAdjFils = Number(q(`
+  SELECT COUNT(*) FROM (SELECT "amount" AS x FROM "CorporateTaxAdjustment") t
+  WHERE ABS(x * 100 - ROUND(x * 100)) > 1e-9`));
+ok("adjustment amounts are whole fils", ctAdjFils === 0, `${ctAdjFils} with more than 2dp`);
+
+const ctAdjOrphan = Number(q(`
+  SELECT COUNT(*) FROM "CorporateTaxAdjustment" a
+  LEFT JOIN "CorporateTaxReturn" r ON r.id = a."returnId" WHERE r.id IS NULL`));
+ok("every adjustment belongs to a real return", ctAdjOrphan === 0, `${ctAdjOrphan} orphaned`);
+
+const ctTrn = Number(q(`
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'Company' AND column_name = 'corporateTaxTRN'`));
+ok("a company can hold a corporate tax registration number", ctTrn === 1, `${ctTrn} of 1 column`);
+
+const ctBadTrn = Number(q(`
+  SELECT COUNT(*) FROM "Company"
+  WHERE "corporateTaxTRN" IS NOT NULL AND "corporateTaxTRN" !~ '^[0-9]{15}$'`));
+ok("any recorded corporate tax TRN is 15 digits", ctBadTrn === 0, `${ctBadTrn} malformed`);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

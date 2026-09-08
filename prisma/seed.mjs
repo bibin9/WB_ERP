@@ -26,7 +26,7 @@ const MODULE_SCREENS = {
   finance: [
     "finance.overview", "finance.daybook", "finance.ledgers", "finance.reports",
     "finance.parties", "finance.outstanding", "finance.cheques", "finance.retention", "finance.bankrec", "finance.jobs", "finance.costcentres",
-    "finance.vat", "finance.tally",
+    "finance.vat", "finance.corptax", "finance.tally",
   ],
   hr: ["hr.employees", "hr.onboarding", "hr.payroll", "hr.leave", "hr.attendance", "hr.certifications", "hr.separation", "hr.reports", "hr.tasks"],
   approvals: ["approvals.inbox"],
@@ -624,7 +624,60 @@ async function main() {
     }
   }
 
-  console.log("Seeded tenant, companies, roles, admin, tasks, chart of accounts, approval routes, employees, certs, supplied worker, sample vouchers, jobs, cost centres, timesheets, cheques, retention.");
+  // A corporate tax period for the year just gone, so the screen opens showing
+  // the shape of the thing rather than an empty page. Two adjustments, because
+  // fines and entertainment are the two every UAE company meets and nobody
+  // expects until somebody explains them.
+  //
+  // Reconciled rather than created blindly: an established database gets the
+  // period added if it is missing, and each adjustment added if it is missing,
+  // without ever duplicating one that is already there.
+  {
+    // The year now running, rather than the one just gone: the sample vouchers
+    // are dated relative to today, so a finished year would compute a nil
+    // profit and show nothing. An accountant building the computation as the
+    // year goes along is the ordinary case anyway.
+    const taxYear = new Date().getUTCFullYear();
+    // The financial year, worked out here rather than imported: this file runs
+    // under plain node on the host, which cannot load a TypeScript module.
+    const m = Math.min(12, Math.max(1, wbeCo.fyStartMonth || 1));
+    const startYear = m === 1 ? taxYear : taxYear - 1;
+    const period = {
+      from: new Date(Date.UTC(startYear, m - 1, 1)),
+      to: new Date(Date.UTC(startYear + 1, m - 1, 0)),
+    };
+    let ret = await db.corporateTaxReturn.findFirst({
+      where: { companyId: wbeCo.id, periodFrom: period.from, periodTo: period.to },
+    });
+    if (!ret) {
+      ret = await db.corporateTaxReturn.create({
+        data: {
+          companyId: wbeCo.id,
+          periodFrom: period.from,
+          periodTo: period.to,
+          status: "Draft",
+          notes: "Sample working paper. Check every figure before anything is filed.",
+        },
+      });
+    }
+    const ADJUSTMENTS = [
+      ["Add back", "Fines and penalties", "Municipality and traffic fines", 3000,
+        "Never deductible, so the whole amount is added back."],
+      ["Add back", "Entertainment (50%)", "Half of client entertainment", 10000,
+        "AED 20,000 spent; only half is deductible."],
+    ];
+    for (const [kind, category, label, amount, notes] of ADJUSTMENTS) {
+      const exists = await db.corporateTaxAdjustment.findFirst({
+        where: { returnId: ret.id, category, label },
+      });
+      if (exists) continue;
+      await db.corporateTaxAdjustment.create({
+        data: { returnId: ret.id, kind, category, label, amount, notes },
+      });
+    }
+  }
+
+  console.log("Seeded tenant, companies, roles, admin, tasks, chart of accounts, approval routes, employees, certs, supplied worker, sample vouchers, jobs, cost centres, timesheets, cheques, retention, corporate tax.");
   console.log("Login:  admin@wandb.ae  /  " + ADMIN_PASSWORD);
 }
 

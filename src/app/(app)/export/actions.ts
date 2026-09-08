@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db";
 import { broughtForward, balanceAsAt, openingInPeriod } from "@/lib/ledger";
+import { compute, profitFrom, dueDate } from "@/lib/corporatetax";
 import { financialYear } from "@/lib/period";
 import { getSession, canAdminister } from "@/lib/auth";
 import { allow } from "@/lib/guard";
@@ -438,6 +439,68 @@ const retention: Dataset = {
   },
 };
 
+/**
+ * The corporate tax computation, one row per tax period.
+ *
+ * The adjustment detail stays on the screen, where each line carries its own
+ * reason; what an auditor or a tax adviser asks for as a file is the
+ * reconciliation itself — accounting profit through to tax payable, with the
+ * filing reference beside it.
+ */
+const corporateTax: Dataset = {
+  screen: "finance.corptax",
+  label: "corporate-tax",
+  async build(companyId) {
+    const returns = await db.corporateTaxReturn.findMany({
+      where: { companyId },
+      include: { adjustments: true },
+      orderBy: [{ periodTo: "desc" }],
+    });
+    const company = await db.company.findUnique({ where: { id: companyId } });
+    const accounts = await db.chartOfAccount.findMany({
+      where: { companyId, type: { in: ["Income", "Expense"] } },
+      include: { lines: { include: { entry: { select: { date: true } } } } },
+    });
+
+    const rows = returns.map((r) => {
+      const pl = profitFrom(accounts, r.periodFrom, r.periodTo, company?.openingAsOf);
+      const c = compute({
+        accountingProfit: pl.accountingProfit,
+        revenue: pl.income,
+        adjustments: r.adjustments,
+        lossesBroughtForward: r.lossesBroughtForward,
+        sbrElected: r.sbrElected,
+        periodTo: r.periodTo,
+      });
+      return { r, c, due: dueDate(r.periodTo) };
+    });
+
+    const columns: Column<(typeof rows)[number]>[] = [
+      { header: "Period From", value: (x) => x.r.periodFrom },
+      { header: "Period To", value: (x) => x.r.periodTo },
+      { header: "Due", value: (x) => x.due },
+      { header: "Status", value: (x) => x.r.status },
+      { header: "Revenue", value: (x) => money(x.c.revenue) },
+      { header: "Accounting Profit", value: (x) => money(x.c.accountingProfit) },
+      { header: "Add Backs", value: (x) => money(x.c.addBacks) },
+      { header: "Deductions", value: (x) => money(x.c.deductions) },
+      { header: "Exempt Income", value: (x) => money(x.c.exemptIncome) },
+      { header: "Taxable Before Losses", value: (x) => money(x.c.adjustedProfit) },
+      { header: "Losses Brought Forward", value: (x) => money(x.c.lossesBroughtForward) },
+      { header: "Loss Relief Used", value: (x) => money(x.c.lossRelief) },
+      { header: "Losses Carried Forward", value: (x) => money(x.c.lossesCarriedForward) },
+      { header: "Taxable Income", value: (x) => money(x.c.taxableIncome) },
+      { header: "Charged At 9%", value: (x) => money(x.c.chargeable) },
+      { header: "Small Business Relief", value: (x) => (x.c.sbrApplied ? "Claimed" : "") },
+      { header: "Tax Payable", value: (x) => money(x.c.taxPayable) },
+      { header: "Filed On", value: (x) => x.r.filedOn },
+      { header: "EmaraTax Reference", value: (x) => x.r.filedRef },
+      { header: "Notes", value: (x) => x.r.notes },
+    ];
+    return { rows, columns: columns as Column<never>[] };
+  },
+};
+
 /** Every dataset the app can export, keyed by the name used in the UI.
  *  Not exported: a "use server" module may only export async functions. */
 const DATASETS: Record<string, Dataset> = {
@@ -453,6 +516,7 @@ const DATASETS: Record<string, Dataset> = {
   trialBalance,
   cheques,
   retention,
+  corporateTax,
   jobs,
   costCentres,
 };

@@ -118,5 +118,45 @@ const wired = ["hr/page.tsx", "hr/payroll/page.tsx", "hr/leave/page.tsx", "hr/at
   .filter((f) => read(path.join("src/app/(app)", f)).includes("ExportButton"));
 ok("export buttons are wired to the list screens", wired.length === 7, `${wired.length}/7`);
 
+/* ------------------------------------------------- the buttons are wired -- */
+/**
+ * An Export button names its dataset as a string, and the dataset list is a
+ * plain object keyed by that name. Nothing connects the two but spelling — a
+ * button pointing at a key that does not exist fails only when a user clicks
+ * it, with "Unknown export", which is exactly the kind of defect that reaches a
+ * client. The same for the screen each dataset is gated by.
+ */
+{
+  const exportSrc = read("src/app/(app)/export/actions.ts");
+  const list = exportSrc.slice(
+    exportSrc.indexOf("const DATASETS: Record<string, Dataset> = {"),
+    exportSrc.indexOf("};", exportSrc.indexOf("const DATASETS: Record<string, Dataset> = {"))
+  );
+  const keys = [...list.matchAll(/^\s{2}([A-Za-z][A-Za-z0-9]*),/gm)].map((m) => m[1]);
+  ok("the dataset list is readable", keys.length > 5, `${keys.length} datasets`);
+
+  const screens = [...read("src/lib/rbac.ts").matchAll(/key:\s*"([^"]+)"/g)].map((m) => m[1]);
+  const gates = [...exportSrc.matchAll(/screen:\s*"([^"]+)"/g)].map((m) => m[1]);
+  const unknownGate = [...new Set(gates)].filter((g) => !screens.includes(g));
+  ok("every dataset is gated by a screen that exists", unknownGate.length === 0,
+    unknownGate.join(", ") || `${gates.length} gates checked`);
+
+  const walk = (dir, out = []) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const f = path.join(dir, e.name).split(path.sep).join("/");
+      if (e.isDirectory()) walk(f, out);
+      else if (f.endsWith(".tsx")) out.push(f);
+    }
+    return out;
+  };
+  const used = [];
+  for (const f of walk("src/app")) {
+    for (const m of read(f).matchAll(/dataset="([^"]+)"/g)) used.push([m[1], f]);
+  }
+  const broken = used.filter(([k]) => !keys.includes(k));
+  ok("every Export button names a dataset that exists", broken.length === 0,
+    broken.map(([k, f]) => `${k} in ${f}`).join(", ") || `${used.length} buttons checked`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
