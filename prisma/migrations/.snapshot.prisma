@@ -79,6 +79,7 @@ model Company {
   jobs             Job[]
   costCentres      CostCentre[]
   cheques          Cheque[]
+  retentions       Retention[]
   wpsBankRouting   String? // employer bank routing code (agent ID)
   isActive         Boolean             @default(true)
   memberships      CompanyMembership[]
@@ -266,6 +267,7 @@ model JournalEntry {
   createdAt    DateTime       @default(now())
   timesheets   Timesheet[]
   cheques      Cheque[]
+  retentions   Retention[]
 
   @@unique([companyId, reference])
   @@unique([companyId, sourceType, sourceId])
@@ -300,10 +302,24 @@ model JournalLine {
   costCentreId String?
   costCentre   CostCentre? @relation(fields: [costCentreId], references: [id])
 
+  /// The date the bank actually showed this line, when it has been reconciled.
+  ///
+  /// A cheque written on the 28th may not leave the account until the 4th, and
+  /// until it does the ledger and the statement disagree for a perfectly good
+  /// reason. Marking the line cleared is what separates "not on the statement
+  /// yet" from "not on the statement because something is wrong" — and without
+  /// that distinction the bank balance can drift for a year before anyone
+  /// notices.
+  clearedOn    DateTime?
+  /// Which statement it was ticked against, so a past reconciliation can be
+  /// reopened and shown to an auditor.
+  statementRef String?
+
   @@index([entryId])
   @@index([accountId])
   @@index([jobId])
   @@index([costCentreId])
+  @@index([clearedOn])
 }
 
 /// Admin-configurable approval routes (per tenant). Replaces the code config:
@@ -765,6 +781,7 @@ model Party {
   entries       JournalEntry[]
   jobs          Job[]
   cheques       Cheque[]
+  retentions    Retention[]
   createdAt     DateTime       @default(now())
 
   @@unique([companyId, code])
@@ -782,6 +799,57 @@ model Party {
 ///
 /// A cheque is a bearer instrument, so where the paper is matters as much as
 /// the figure. `heldBy` is custody, not bookkeeping.
+/// Money withheld against a contract until the work is proven.
+///
+/// Retention is taken out of essentially every certified payment in UAE
+/// contracting — five or ten per cent — and comes back in two pieces: half at
+/// practical completion, half once the defects liability period ends, usually a
+/// year later. It runs in both directions at once: a client holds it from you,
+/// and you hold it from your own subcontractors.
+///
+/// The money is already in the ledger when the certificate is posted; what was
+/// missing was any record of what is held, against which job, and when it can
+/// be asked for. Without that it lives in a spreadsheet and gets forgotten,
+/// which is expensive — this is commonly five to ten per cent of turnover.
+model Retention {
+  id         String        @id @default(cuid())
+  companyId  String
+  company    Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// Receivable: a client holds it from us. Payable: we hold it from a
+  /// subcontractor. Both are live on the same contract at the same time.
+  direction  String // Receivable | Payable
+  /// The certificate or invoice it was withheld from.
+  reference  String
+  jobId      String?
+  job        Job?          @relation(fields: [jobId], references: [id])
+  partyId    String?
+  party      Party?        @relation(fields: [partyId], references: [id])
+  partyName  String?
+  amount     Float
+  /// The rate applied, kept for the record rather than recomputed.
+  percent    Float?
+  /// When it can be asked for. The question the register exists to answer.
+  dueDate    DateTime
+  /// Practical completion | Defects liability | Other
+  stage      String        @default("Defects liability")
+  /// Held | Released | Written off
+  status     String        @default("Held")
+  releasedOn DateTime?
+  /// The voucher that moved it out of retention once released.
+  entryId    String?
+  entry      JournalEntry? @relation(fields: [entryId], references: [id])
+  notes      String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([jobId])
+  @@index([partyId])
+  @@index([entryId])
+}
+
 model Cheque {
   id          String        @id @default(cuid())
   companyId   String
@@ -852,6 +920,7 @@ model Job {
   notes         String?
   lines         JournalLine[]
   timesheets    Timesheet[]
+  retentions    Retention[]
   isActive      Boolean       @default(true)
   createdAt     DateTime      @default(now())
 

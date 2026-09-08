@@ -411,6 +411,33 @@ const cheques: Dataset = {
   },
 };
 
+const retention: Dataset = {
+  screen: "finance.retention",
+  label: "retention-register",
+  async build(companyId) {
+    const rows = await db.retention.findMany({
+      where: { companyId },
+      include: { job: { select: { code: true } }, entry: { select: { reference: true } } },
+      orderBy: [{ dueDate: "asc" }],
+    });
+    const columns: Column<(typeof rows)[number]>[] = [
+      { header: "Releasable On", value: (r) => r.dueDate },
+      { header: "Direction", value: (r) => r.direction },
+      { header: "Certificate", value: (r) => r.reference },
+      { header: "Job", value: (r) => r.job?.code },
+      { header: "Party", value: (r) => r.partyName },
+      { header: "Stage", value: (r) => r.stage },
+      { header: "Rate %", value: (r) => r.percent },
+      { header: "Amount", value: (r) => money(r.amount) },
+      { header: "Status", value: (r) => r.status },
+      { header: "Released On", value: (r) => r.releasedOn },
+      { header: "Voucher", value: (r) => r.entry?.reference },
+      { header: "Notes", value: (r) => r.notes },
+    ];
+    return { rows, columns: columns as Column<never>[] };
+  },
+};
+
 /** Every dataset the app can export, keyed by the name used in the UI.
  *  Not exported: a "use server" module may only export async functions. */
 const DATASETS: Record<string, Dataset> = {
@@ -425,6 +452,7 @@ const DATASETS: Record<string, Dataset> = {
   accounts,
   trialBalance,
   cheques,
+  retention,
   jobs,
   costCentres,
 };

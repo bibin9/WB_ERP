@@ -144,5 +144,56 @@ ok("every charged timesheet points at a real voucher", orphanCharge === 0, `${or
 const labourAccts = Number(q(`SELECT COUNT(*) FROM "ChartOfAccount" WHERE "code" IN ('5100','6900')`));
 ok("the labour absorption accounts exist", labourAccts > 0, `${labourAccts} across all companies`);
 
+/* ------------------------------------------------ retention holds up ----- */
+const rets = Number(q(`SELECT COUNT(*) FROM "Retention"`));
+ok("retention was seeded", rets > 0, `${rets} rows`);
+
+const badRetAmount = Number(q(`SELECT COUNT(*) FROM "Retention" WHERE "amount" <= 0`));
+ok("every retention entry holds a real amount", badRetAmount === 0, `${badRetAmount} at or below nil`);
+
+const retFils = Number(q(`
+  SELECT COUNT(*) FROM (SELECT "amount" AS x FROM "Retention") t
+  WHERE ABS(x * 100 - ROUND(x * 100)) > 1e-9`));
+ok("retention amounts are whole fils", retFils === 0, `${retFils} with more than 2dp`);
+
+const crossRet = Number(q(`
+  SELECT COUNT(*) FROM "Retention" r JOIN "Job" j ON j.id = r."jobId"
+  WHERE j."companyId" <> r."companyId"`));
+ok("no retention points at another company's job", crossRet === 0, `${crossRet} cross-company`);
+
+const orphanRet = Number(q(`
+  SELECT COUNT(*) FROM "Retention" r LEFT JOIN "JournalEntry" e ON e.id = r."entryId"
+  WHERE r."entryId" IS NOT NULL AND e.id IS NULL`));
+ok("every released retention points at a real voucher", orphanRet === 0, `${orphanRet} orphaned`);
+
+const retAccounts = Number(q(`SELECT COUNT(*) FROM "ChartOfAccount" WHERE "code" IN ('1160','2200')`));
+ok("both retention accounts exist", retAccounts > 0, `${retAccounts} across all companies`);
+
+// The register and the ledger must agree, or the screen warns on a fresh
+// install and everyone learns to ignore it.
+{
+  const heldRecv = Number(q(`
+    SELECT COALESCE(SUM("amount"),0) FROM "Retention"
+    WHERE "direction" = 'Receivable' AND "status" = 'Held'`));
+  const ledgerRecv = Number(q(`
+    SELECT COALESCE(SUM(l."debit" - l."credit"),0)
+    FROM "JournalLine" l JOIN "ChartOfAccount" a ON a.id = l."accountId"
+    WHERE a."code" = '1160'`));
+  ok("the retention register agrees with the ledger",
+    Math.abs(heldRecv - ledgerRecv) < 0.005, `register ${heldRecv} vs ledger ${ledgerRecv}`);
+}
+
+/* --------------------------------------- bank reconciliation columns ----- */
+const recCols = Number(q(`
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'JournalLine'
+    AND column_name IN ('clearedOn','statementRef')`));
+ok("a journal line can be ticked against a statement", recCols === 2, `${recCols} of 2 columns`);
+
+const halfTicked = Number(q(`
+  SELECT COUNT(*) FROM "JournalLine"
+  WHERE "statementRef" IS NOT NULL AND "clearedOn" IS NULL`));
+ok("nothing carries a statement reference without being cleared", halfTicked === 0, `${halfTicked} half-ticked`);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

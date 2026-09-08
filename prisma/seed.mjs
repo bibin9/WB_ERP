@@ -25,7 +25,7 @@ const MODULE_SCREENS = {
   // than silently reaching only the admin roles that bypass this list.
   finance: [
     "finance.overview", "finance.daybook", "finance.ledgers", "finance.reports",
-    "finance.parties", "finance.outstanding", "finance.cheques", "finance.jobs", "finance.costcentres",
+    "finance.parties", "finance.outstanding", "finance.cheques", "finance.retention", "finance.bankrec", "finance.jobs", "finance.costcentres",
     "finance.vat", "finance.tally",
   ],
   hr: ["hr.employees", "hr.onboarding", "hr.payroll", "hr.leave", "hr.attendance", "hr.certifications", "hr.separation", "hr.reports", "hr.tasks"],
@@ -169,6 +169,9 @@ async function main() {
     ["2000", "Accounts Payable", "Liability", -50000, "Payable"],
     ["2100", "Accruals & Provisions", "Liability"],
     ["2150", "VAT Output (Payable)", "Liability"],
+    // Retention runs both ways on a contract at the same time: the client
+    // holds it from us, and we hold it from our subcontractors.
+    ["1160", "Retention Receivable", "Asset"],
     ["2200", "Retention Payable", "Liability"],
     ["3000", "Share Capital", "Equity", -100000],
     ["3100", "Retained Earnings", "Equity"],
@@ -384,6 +387,15 @@ async function main() {
       vatAmount: 500, memo: "Rate variation on progress invoice #1", days: -8,
       lines: [["4000", 10000, 0, "Standard"], ["2150", 500, 0], ["1100", 0, 10500]],
     },
+    // Retention withheld to date, moved out of the ordinary receivable and
+    // payable into the retention accounts. A reclassification, so it changes no
+    // revenue and no tax — it just puts the money where the retention register
+    // says it is, which is what lets that screen reconcile.
+    {
+      reference: "JV/WBE/RET1", voucherType: "Journal", partyName: null,
+      vatAmount: 0, memo: "Retention withheld on certificates to date", days: -6,
+      lines: [["1160", 55000, 0], ["2000", 6300, 0], ["1100", 0, 55000], ["2200", 0, 6300]],
+    },
     // Salary payment: a settlement, so no VAT treatment on any line.
     {
       reference: "PAY/WBE/0001", voucherType: "Payment", partyName: "Payroll \u2014 Aug 2026",
@@ -582,7 +594,37 @@ async function main() {
     }
   }
 
-  console.log("Seeded tenant, companies, roles, admin, tasks, chart of accounts, approval routes, employees, certs, supplied worker, sample vouchers, jobs, cost centres, timesheets, cheques.");
+  // Retention on the ADNOC job, the way a real contract runs it: ten per cent
+  // withheld on each certificate, half releasable at handover and half a year
+  // after. One tranche is deliberately past its date, so the register opens
+  // showing the thing it exists to catch.
+  {
+    const job = await db.job.findFirst({ where: { companyId: wbeCo.id, code: "J-0001" } });
+    const client = await db.party.findFirst({ where: { companyId: wbeCo.id, code: "C0001" } });
+    const sub = await db.party.findFirst({ where: { companyId: wbeCo.id, code: "S0001" } });
+    const day = (n) => new Date(Date.now() + n * 86400000);
+    const HELD = [
+      ["Receivable", "IPC-03", -20, 20000, 10, "Practical completion", client],
+      ["Receivable", "IPC-03", 330, 20000, 10, "Defects liability", client],
+      ["Receivable", "IPC-04", 400, 15000, 10, "Defects liability", client],
+      ["Payable", "SUB-INV-011", 120, 6300, 5, "Defects liability", sub],
+    ];
+    for (const [direction, reference, days, amount, percent, stage, party] of HELD) {
+      const exists = await db.retention.findFirst({
+        where: { companyId: wbeCo.id, direction, reference, stage },
+      });
+      if (exists) continue;
+      await db.retention.create({
+        data: {
+          companyId: wbeCo.id, direction, reference, amount, percent, stage,
+          dueDate: day(days), jobId: job?.id ?? null,
+          partyId: party?.id ?? null, partyName: party?.name ?? null, status: "Held",
+        },
+      });
+    }
+  }
+
+  console.log("Seeded tenant, companies, roles, admin, tasks, chart of accounts, approval routes, employees, certs, supplied worker, sample vouchers, jobs, cost centres, timesheets, cheques, retention.");
   console.log("Login:  admin@wandb.ae  /  " + ADMIN_PASSWORD);
 }
 

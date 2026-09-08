@@ -209,22 +209,48 @@ try {
   // migration control, and a newly written migration has to be applied.
   // Rehearse it by forgetting the most recent one, so there is something pending.
   const written = readdirSync("prisma/migrations").filter((d) => /^\d+_/.test(d)).sort();
-  if (written.length > 1) {
-    const newest = written[written.length - 1];
+
+  /**
+   * The migrations this release is about to add.
+   *
+   * Anything git already tracks has been deployed before and rehearsed then.
+   * What matters now is everything new, because a release often carries more
+   * than one and only testing the last of them leaves the others proven against
+   * an empty database — which is no proof at all.
+   */
+  const unreleased = (() => {
+    try {
+      const out = execFileSync("git", ["status", "--porcelain", "--", "prisma/migrations"], {
+        encoding: "utf8",
+        shell: process.platform === "win32",
+      });
+      const found = written.filter((d) => out.includes(d));
+      return found.length ? found : [written[written.length - 1]];
+    } catch {
+      // No git, or not a repository: fall back to the newest one.
+      return [written[written.length - 1]];
+    }
+  })();
+
+  if (written.length > unreleased.length) {
+    const newest = unreleased[unreleased.length - 1];
     console.log(`\n${"=".repeat(66)}\n  an established database receiving a new migration\n${"=".repeat(66)}`);
 
     // Build the database at the *previous* migration, so the new one has real
     // work to do. Simply forgetting the history row would leave the schema
     // already changed, and the migration would fail on its own success.
     wipe();
-    const live = `prisma/migrations/${newest}`;
-    const parked = `prisma/.parked-${newest}`;
-    renameSync(live, parked);
+    const moved = unreleased.map((d) => [`prisma/migrations/${d}`, `prisma/.parked-${d}`]);
+    for (const [live, parked] of moved) renameSync(live, parked);
     try {
-      console.log(`  (building the database without ${newest})\n`);
+      console.log(
+        `  (building the database without ${unreleased.length === 1 ? unreleased[0] : `${unreleased.length} unreleased migrations`})\n`
+      );
       quiet("npx", ["prisma", "migrate", "deploy"]);
     } finally {
-      renameSync(parked, live);
+      // Always put them back, whatever happened, or the working tree is left
+      // missing migrations that are about to be committed.
+      for (const [live, parked] of moved) renameSync(parked, live);
     }
     // Put real rows in before the migration runs. An empty table proves very
     // little: the risk in a schema change is what it does to existing data, and
@@ -258,16 +284,19 @@ try {
       console.log(`  vouchers intact: ${rowsAfter}`);
     }
 
-    const applied =
-      Number(
-        sql(
-          `SELECT COUNT(*) FROM _prisma_migrations WHERE migration_name = '${newest}' AND finished_at IS NOT NULL`
-        )
-      ) > 0;
+    const names = unreleased.map((d) => `'${d}'`).join(", ");
+    const appliedCount = Number(
+      sql(
+        `SELECT COUNT(*) FROM _prisma_migrations WHERE migration_name IN (${names}) AND finished_at IS NOT NULL`
+      )
+    );
     const end = state();
-    console.log(`\n  after: ${end.tables} tables, ${newest} applied: ${applied}`);
-    if (!applied) {
-      console.error("  FAIL — the pending migration was not applied.");
+    console.log(
+      `\n  after: ${end.tables} tables, ${appliedCount} of ${unreleased.length} pending migration(s) applied`
+    );
+    for (const d of unreleased) console.log(`     ${d}`);
+    if (appliedCount !== unreleased.length) {
+      console.error("  FAIL — not every pending migration was applied to the established database.");
       failed = true;
     }
     if (end.tables < 30) {

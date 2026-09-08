@@ -39,6 +39,8 @@ export const SCREENS: ScreenDef[] = [
   { key: "finance.parties", module: "finance", label: "Customers & Suppliers", href: "/finance/parties" },
   { key: "finance.outstanding", module: "finance", label: "Outstanding & Ageing", href: "/finance/outstanding" },
   { key: "finance.cheques", module: "finance", label: "Cheque Register (PDC)", href: "/finance/cheques" },
+  { key: "finance.retention", module: "finance", label: "Retention", href: "/finance/retention" },
+  { key: "finance.bankrec", module: "finance", label: "Bank Reconciliation", href: "/finance/bank-rec" },
   { key: "finance.jobs", module: "finance", label: "Job Costing", href: "/finance/jobs" },
   { key: "finance.costcentres", module: "finance", label: "Cost Centres", href: "/finance/cost-centres" },
   { key: "finance.vat", module: "finance", label: "VAT Report", href: "/finance/vat" },
