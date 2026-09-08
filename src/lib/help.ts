@@ -322,6 +322,32 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "Margin only tells the truth if every cost was charged to the job. If some were missed, the job looks more profitable than it really is — the Cost Centres screen shows you how much cost has nothing on it at all.",
   },
   {
+    id: "cheque-register", category: "Finance & Accounting", screens: ["/finance/cheques"],
+    title: "Post-dated cheques — keeping track of what is due to be banked",
+    summary: "Record the cheques you hold and the ones you have written, and see what is coming.",
+    body: "A customer hands you six cheques dated one a month. Until each date arrives you cannot bank them, but you still need to know they exist, what they are worth and when they land. The register holds them. Recording a cheque does not change your accounts at all — it is a promise, not money. Your accounts only change on the day you mark a cheque Cleared, because that is the day the bank actually paid it.",
+    steps: [
+      "Open Finance -> Cheques and click Record a cheque. Choose whether you received it or issued it, put in the number, the bank, the amount, and the date written on the cheque — not today's date.",
+      "Say who is holding the paper. A cheque can be banked by whoever has it, so this matters.",
+      "When you take it to the bank, click Update and mark it Deposited. When the bank pays it, mark it Cleared.",
+      "Marking it Cleared posts the receipt or payment for you, dated the day it cleared.",
+    ],
+    tip: "Watch the amber box at the top. It counts cheques whose date has already passed that are still sitting with you — that is money nobody banked, and it will not remind you itself.",
+  },
+  {
+    id: "cheque-bounced", category: "Finance & Accounting", screens: ["/finance/cheques"],
+    title: "When a cheque bounces",
+    summary: "Mark it Bounced. Nothing needs unwinding, because nothing was posted.",
+    body: "If the bank returns a cheque unpaid, click Update on that cheque and mark it Bounced. Because the accounts were never touched when you recorded it, there is nothing to reverse — the invoice simply stays owed, which is the truth. If the customer gives you a replacement cheque, record that as a new one and mark the old one Returned.",
+    steps: [
+      "Find the cheque on Finance -> Cheques and click Update.",
+      "Choose Bounced and give the date the bank returned it.",
+      "The invoice stays outstanding on the Outstanding screen, because you have not been paid.",
+      "Charge any bank fee as a normal expense voucher, and record a replacement cheque if you are given one.",
+    ],
+    tip: "A customer whose cheques bounce more than once is a credit decision, not just an accounting one. Set Show settled ones too on the register to see their history.",
+  },
+  {
     id: "trial-balance", category: "Finance & Accounting", screens: ["/finance/trial-balance"],
     title: "Trial balance \u2014 proving the books add up",
     summary: "Every account's opening, its movement in the period, and its closing, in four columns.",

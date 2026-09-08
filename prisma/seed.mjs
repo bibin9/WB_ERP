@@ -25,7 +25,7 @@ const MODULE_SCREENS = {
   // than silently reaching only the admin roles that bypass this list.
   finance: [
     "finance.overview", "finance.daybook", "finance.ledgers", "finance.reports",
-    "finance.parties", "finance.outstanding", "finance.jobs", "finance.costcentres",
+    "finance.parties", "finance.outstanding", "finance.cheques", "finance.jobs", "finance.costcentres",
     "finance.vat", "finance.tally",
   ],
   hr: ["hr.employees", "hr.onboarding", "hr.payroll", "hr.leave", "hr.attendance", "hr.certifications", "hr.separation", "hr.reports", "hr.tasks"],
@@ -554,7 +554,35 @@ async function main() {
     }
   }
 
-  console.log("Seeded tenant, companies, roles, admin, tasks, chart of accounts, approval routes, employees, certs, supplied worker, sample vouchers, jobs, cost centres, timesheets.");
+  // A handful of post-dated cheques, the way a UAE client actually settles: one
+  // already past its date and still in the drawer, so the register opens with
+  // the warning it exists to give. Declared per cheque, so an install made by an
+  // older version picks up any added later.
+  {
+    const customer = await db.party.findFirst({ where: { companyId: wbeCo.id, code: "C0001" } });
+    const supplier = await db.party.findFirst({ where: { companyId: wbeCo.id, code: "S0001" } });
+    const day = (n) => new Date(Date.now() + n * 86400000);
+    const CHEQUES = [
+      ["Received", "000451", "Emirates NBD", -4, 60000, customer, "Accounts safe"],
+      ["Received", "000452", "Emirates NBD", 9, 60000, customer, "Accounts safe"],
+      ["Received", "000453", "Emirates NBD", 40, 60000, customer, "Accounts safe"],
+      ["Issued", "778001", "Mashreq Bank", 12, 42000, supplier, "Sent to supplier"],
+    ];
+    for (const [direction, chequeNo, bankName, days, amount, party, heldBy] of CHEQUES) {
+      const exists = await db.cheque.findFirst({
+        where: { companyId: wbeCo.id, direction, bankName, chequeNo },
+      });
+      if (exists) continue;
+      await db.cheque.create({
+        data: {
+          companyId: wbeCo.id, direction, chequeNo, bankName, chequeDate: day(days), amount,
+          partyId: party?.id ?? null, partyName: party?.name ?? null, status: "In hand", heldBy,
+        },
+      });
+    }
+  }
+
+  console.log("Seeded tenant, companies, roles, admin, tasks, chart of accounts, approval routes, employees, certs, supplied worker, sample vouchers, jobs, cost centres, timesheets, cheques.");
   console.log("Login:  admin@wandb.ae  /  " + ADMIN_PASSWORD);
 }
 

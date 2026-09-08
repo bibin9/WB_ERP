@@ -384,6 +384,33 @@ const trialBalance: Dataset = {
   },
 };
 
+const cheques: Dataset = {
+  screen: "finance.cheques",
+  label: "cheque-register",
+  async build(companyId) {
+    const rows = await db.cheque.findMany({
+      where: { companyId },
+      include: { entry: { select: { reference: true } } },
+      orderBy: [{ chequeDate: "asc" }],
+    });
+    const columns: Column<(typeof rows)[number]>[] = [
+      { header: "Cheque Date", value: (c) => c.chequeDate },
+      { header: "Direction", value: (c) => c.direction },
+      { header: "Cheque No", value: (c) => c.chequeNo },
+      { header: "Bank", value: (c) => c.bankName },
+      { header: "Party", value: (c) => c.partyName },
+      { header: "Amount", value: (c) => money(c.amount) },
+      { header: "Status", value: (c) => c.status },
+      { header: "Held By", value: (c) => c.heldBy },
+      { header: "Deposited", value: (c) => c.depositedOn },
+      { header: "Settled", value: (c) => c.settledOn },
+      { header: "Voucher", value: (c) => c.entry?.reference },
+      { header: "Notes", value: (c) => c.notes },
+    ];
+    return { rows, columns: columns as Column<never>[] };
+  },
+};
+
 /** Every dataset the app can export, keyed by the name used in the UI.
  *  Not exported: a "use server" module may only export async functions. */
 const DATASETS: Record<string, Dataset> = {
@@ -397,6 +424,7 @@ const DATASETS: Record<string, Dataset> = {
   journals,
   accounts,
   trialBalance,
+  cheques,
   jobs,
   costCentres,
 };

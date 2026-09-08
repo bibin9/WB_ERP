@@ -69,6 +69,7 @@ model Company {
   parties          Party[]
   jobs             Job[]
   costCentres      CostCentre[]
+  cheques          Cheque[]
   wpsBankRouting   String? // employer bank routing code (agent ID)
   isActive         Boolean             @default(true)
   memberships      CompanyMembership[]
@@ -255,6 +256,7 @@ model JournalEntry {
   lines        JournalLine[]
   createdAt    DateTime       @default(now())
   timesheets   Timesheet[]
+  cheques      Cheque[]
 
   @@unique([companyId, reference])
   @@unique([companyId, sourceType, sourceId])
@@ -753,10 +755,61 @@ model Party {
   isActive      Boolean        @default(true)
   entries       JournalEntry[]
   jobs          Job[]
+  cheques       Cheque[]
   createdAt     DateTime       @default(now())
 
   @@unique([companyId, code])
   @@index([companyId])
+}
+
+/// A cheque held or issued, most of them post-dated.
+///
+/// A large share of UAE business settles this way: a client hands over six
+/// cheques dated monthly, and they sit in a drawer until each date comes round.
+/// With nowhere to record them there are only two options and both are wrong —
+/// post them on receipt and the bank balance is overstated for months, or keep
+/// them out of the books and every one of those invoices reads as overdue while
+/// nobody can see what cash is actually coming.
+///
+/// A cheque is a bearer instrument, so where the paper is matters as much as
+/// the figure. `heldBy` is custody, not bookkeeping.
+model Cheque {
+  id          String        @id @default(cuid())
+  companyId   String
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// Received from a customer, or issued to a supplier.
+  direction   String // Received | Issued
+  chequeNo    String
+  bankName    String?
+  /// The date it can be banked. The whole point of a post-dated cheque, and
+  /// what every question about one is really asking.
+  chequeDate  DateTime
+  amount      Float
+  partyId     String?
+  party       Party?        @relation(fields: [partyId], references: [id])
+  /// Snapshotted, so a printed list still names the party.
+  partyName   String?
+  /// In hand | Deposited | Cleared | Bounced | Returned
+  status      String        @default("In hand")
+  /// Who physically holds the paper.
+  heldBy      String?
+  depositedOn DateTime?
+  settledOn   DateTime?
+  /// The voucher that moved it out of Cheques in Hand once it settled.
+  entryId     String?
+  entry       JournalEntry? @relation(fields: [entryId], references: [id])
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  /// One cheque number per bank per direction — the same number can legitimately
+  /// appear again from a different bank.
+  @@unique([companyId, direction, bankName, chequeNo])
+  @@index([companyId])
+  @@index([status])
+  @@index([chequeDate])
+  @@index([partyId])
+  @@index([entryId])
 }
 
 /// A job, contract or project — the thing the MD asks about by name.
