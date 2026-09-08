@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { Users, ClipboardList, UserPlus, Wallet, CalendarDays, CalendarCheck, BadgeCheck, ShieldAlert, UserMinus } from "lucide-react";
+import { Users, ClipboardList, UserPlus, Wallet, CalendarDays, CalendarCheck, BadgeCheck, ShieldAlert, UserMinus, Scale } from "lucide-react";
 
 const TABS = [
   { href: "/hr", label: "Employees", icon: Users, screen: "hr.employees" },
@@ -14,6 +14,7 @@ const TABS = [
   { href: "/hr/certifications", label: "Certifications", icon: BadgeCheck, screen: "hr.certifications" },
   { href: "/hr/separation", label: "Separation", icon: UserMinus, screen: "hr.separation" },
   { href: "/hr/reports", label: "Compliance", icon: ShieldAlert, screen: "hr.reports" },
+  { href: "/hr/policy", label: "HR Policy", icon: Scale, screen: "hr.policy" },
   { href: "/hr/tasks", label: "Job Assignments", icon: ClipboardList, screen: "hr.tasks" },
 ];
 

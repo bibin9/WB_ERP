@@ -17,6 +17,12 @@
  * as it is edited and the server action computes the same numbers.
  */
 
+import { type HrPolicy, withDefaults } from "./hrpolicy";
+
+/**
+ * The statutory figures. They are the default a company gets before it sets a
+ * policy of its own, and they are what the validator holds a policy to.
+ */
 /** A normal working day. Art. 17: eight hours, forty-eight a week. */
 export const NORMAL_HOURS_PER_DAY = 8;
 
@@ -63,8 +69,10 @@ const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 const DAY_MS = 86_400_000;
 
 /** One hour of basic pay — what overtime is priced from. */
-export const hourlyBasic = (basic: number): number =>
-  (Number(basic) || 0) / DAYS_PER_MONTH / NORMAL_HOURS_PER_DAY;
+export const hourlyBasic = (basic: number, policy?: Partial<HrPolicy> | null): number => {
+  const p = withDefaults(policy);
+  return (Number(basic) || 0) / p.daysPerMonth / p.normalHoursPerDay;
+};
 
 /** One day of full pay, used for absence and unpaid leave. */
 export const dailyRate = (basic: number, allowances: number, daysInPeriod: number): number =>
@@ -76,11 +84,24 @@ export const dailyRate = (basic: number, allowances: number, daysInPeriod: numbe
  * A man who cannot see how his overtime was arrived at assumes he has been
  * short-changed, and on a site that becomes everybody's problem by lunchtime.
  */
-export function overtimePay(basic: number, otHours: number, otPremiumHours: number) {
-  const rate = hourlyBasic(basic);
-  const normal = round2(Math.max(0, Number(otHours) || 0) * rate * OT_NORMAL_RATE);
-  const premium = round2(Math.max(0, Number(otPremiumHours) || 0) * rate * OT_PREMIUM_RATE);
-  return { hourlyRate: round2(rate), normal, premium, total: round2(normal + premium) };
+export function overtimePay(
+  basic: number,
+  otHours: number,
+  otPremiumHours: number,
+  policy?: Partial<HrPolicy> | null
+) {
+  const p = withDefaults(policy);
+  const rate = hourlyBasic(basic, p);
+  const normal = round2(Math.max(0, Number(otHours) || 0) * rate * p.otNormalRate);
+  const premium = round2(Math.max(0, Number(otPremiumHours) || 0) * rate * p.otPremiumRate);
+  return {
+    hourlyRate: round2(rate),
+    normal,
+    premium,
+    total: round2(normal + premium),
+    normalRate: p.otNormalRate,
+    premiumRate: p.otPremiumRate,
+  };
 }
 
 /**
@@ -94,11 +115,13 @@ export function overtimePay(basic: number, otHours: number, otPremiumHours: numb
 export function splitDayHours(
   hours: number,
   firstIn?: Date | null,
-  lastOut?: Date | null
+  lastOut?: Date | null,
+  policy?: Partial<HrPolicy> | null
 ): { normal: number; ot: number; otPremium: number } {
+  const full = withDefaults(policy).normalHoursPerDay;
   const worked = Math.max(0, Number(hours) || 0);
-  const normal = Math.min(worked, NORMAL_HOURS_PER_DAY);
-  const ot = round2(Math.max(0, worked - NORMAL_HOURS_PER_DAY));
+  const normal = Math.min(worked, full);
+  const ot = round2(Math.max(0, worked - full));
   if (ot <= 0 || !firstIn || !lastOut) return { normal: round2(normal), ot, otPremium: 0 };
 
   const night = round2(Math.min(ot, nightHours(firstIn, lastOut)));
@@ -181,7 +204,12 @@ const iso = (d: Date) => d.toISOString().slice(0, 10);
  * unpaid. A man who has already had twenty days this year and takes ten more
  * gets none at full pay and all ten at half.
  */
-export function sickSplit(alreadyTaken: number, days: number) {
+export function sickSplit(alreadyTaken: number, days: number, policy?: Partial<HrPolicy> | null) {
+  const p = withDefaults(policy);
+  const FULL = p.sickFullDays;
+  const HALF = p.sickHalfDays;
+  const UNPAID = p.sickUnpaidDays;
+  const TOTAL = FULL + HALF + UNPAID;
   const before = Math.max(0, Number(alreadyTaken) || 0);
   const take = Math.max(0, Number(days) || 0);
 
@@ -191,19 +219,23 @@ export function sickSplit(alreadyTaken: number, days: number) {
     return Math.max(0, end - start);
   };
 
-  const full = band(0, SICK_FULL_DAYS);
-  const half = band(SICK_FULL_DAYS, SICK_HALF_DAYS);
-  const unpaid = band(SICK_FULL_DAYS + SICK_HALF_DAYS, SICK_UNPAID_DAYS);
-  // Past ninety days there is no entitlement, so those days are unpaid too.
-  const beyond = Math.max(0, before + take - SICK_TOTAL_DAYS) - Math.max(0, before - SICK_TOTAL_DAYS);
+  const full = band(0, FULL);
+  const half = band(FULL, HALF);
+  const unpaid = band(FULL + HALF, UNPAID);
+  // Past the entitlement there is nothing left, so those days are unpaid too.
+  const beyond = Math.max(0, before + take - TOTAL) - Math.max(0, before - TOTAL);
 
   return {
     full: round2(full),
     half: round2(half),
     unpaid: round2(unpaid + beyond),
-    /** Days that cost the employee pay, counted in whole-day equivalents. */
-    unpaidEquivalent: round2(half * 0.5 + unpaid + beyond),
-    exhausted: before + take > SICK_TOTAL_DAYS,
+    /**
+     * Days that cost the employee pay, in whole-day equivalents. The middle
+     * band costs whatever the policy does not pay — half by law, less where a
+     * company pays more generously.
+     */
+    unpaidEquivalent: round2(half * (1 - p.sickHalfPayRate) + unpaid + beyond),
+    exhausted: before + take > TOTAL,
   };
 }
 
@@ -225,6 +257,8 @@ export type PayslipInput = {
   /** Fines, recoveries and anything else HR enters by hand. */
   otherDeductions?: number;
   advanceRecovery?: number;
+  /** The company's handbook. Statutory figures where it says nothing. */
+  policy?: Partial<HrPolicy> | null;
 };
 
 /**
@@ -235,6 +269,7 @@ export type PayslipInput = {
  * wrong without the system knowing.
  */
 export function computePayslip(i: PayslipInput) {
+  const p = withDefaults(i.policy);
   const days = payableDays(i.periodStart, i.periodEnd, i.joinDate, i.lastWorkingDay);
   const share = days.daysInPeriod > 0 ? days.daysPaid / days.daysInPeriod : 0;
 
@@ -243,7 +278,7 @@ export function computePayslip(i: PayslipInput) {
 
   // Overtime is priced on the contractual basic, not the prorated one: an hour
   // worked is an hour worked regardless of when in the month somebody joined.
-  const ot = overtimePay(i.basic, i.otHours ?? 0, i.otPremiumHours ?? 0);
+  const ot = overtimePay(i.basic, i.otHours ?? 0, i.otPremiumHours ?? 0, p);
 
   const unpaidDays = round2(
     Math.max(0, i.unpaidLeaveDays ?? 0) +

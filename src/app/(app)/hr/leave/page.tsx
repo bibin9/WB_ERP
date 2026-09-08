@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
 import { leaveBalance } from "@/lib/leave";
+import { withDefaults } from "@/lib/hrpolicy";
 import ExportButton from "@/components/ExportButton";
 
 export const dynamic = "force-dynamic";
@@ -41,9 +42,14 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
     : [];
   const takenMap = new Map(takenByEmployee.map((t) => [t.employeeId, t._sum.days ?? 0]));
   const asAt = new Date();
+  // This company's handbook. A company that has set none runs on the statutory
+  // figures, so it is compliant by default.
+  const policy = withDefaults(
+    companyId ? await db.hrPolicy.findUnique({ where: { companyId } }) : null
+  );
   const balances = employees.map((e) => ({
     e,
-    bal: leaveBalance(e.joinDate, asAt, takenMap.get(e.id) ?? 0, e.annualLeaveBalance),
+    bal: leaveBalance(e.joinDate, asAt, takenMap.get(e.id) ?? 0, e.annualLeaveBalance, policy),
   }));
   const requests = companyId
     ? await db.leaveRequest.findMany({ where: { companyId }, include: { employee: true }, orderBy: [{ status: "asc" }, { createdAt: "desc" }] })

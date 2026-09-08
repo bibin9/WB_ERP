@@ -104,6 +104,7 @@ model Company {
   payrollRuns         PayrollRun[]
   leaveRequests       LeaveRequest[]
   createdAt           DateTime             @default(now())
+  hrPolicy            HrPolicy?
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -1109,4 +1110,64 @@ model CorporateTaxAdjustment {
   notes    String?
 
   @@index([returnId])
+}
+
+/// One company's HR policy.
+///
+/// Federal Decree-Law 33/2021 sets a floor, not a rule: thirty days of annual
+/// leave is the least an employer may give, and plenty give more. Holding those
+/// numbers in code was fine for one company and wrong for a product — three
+/// companies in this group need not run the same handbook, and the next
+/// customer certainly will not.
+///
+/// What cannot be configured is compliance. A policy below the statutory floor
+/// is refused when it is saved, with the article that refuses it, because an
+/// ERP that lets somebody set a twenty-day leave entitlement has not given them
+/// flexibility — it has helped them into a labour claim.
+///
+/// Every field defaults to the law, so a company that never opens the settings
+/// screen is compliant.
+model HrPolicy {
+  id        String  @id @default(cuid())
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Annual leave
+  annualLeaveDays         Float @default(30)
+  leaveAccrualAfterMonths Float @default(6)
+  partYearDaysPerMonth    Float @default(2)
+  carryForwardDays        Float @default(30)
+
+  // Probation and notice
+  probationMonths     Float @default(6)
+  probationNoticeDays Float @default(14)
+  noticeDays          Float @default(30)
+
+  // Working time and overtime
+  normalHoursPerDay Float @default(8)
+  daysPerMonth      Float @default(30)
+  otNormalRate      Float @default(1.25)
+  otPremiumRate     Float @default(1.5)
+
+  // Sick pay
+  sickFullDays    Float @default(15)
+  sickHalfDays    Float @default(30)
+  sickUnpaidDays  Float @default(45)
+  sickHalfPayRate Float @default(0.5)
+
+  // End of service
+  gratuityFirst5Days Float @default(21)
+  gratuityAfter5Days Float @default(30)
+  gratuityCapYears   Float @default(2)
+  gratuityMinYears   Float @default(1)
+
+  // Repatriation ticket — not statutory, whatever the contract says
+  airTicketEveryMonths Float @default(24)
+  airTicketDefault     Float @default(0)
+
+  /// Free text: the handbook clause, the board minute, whoever agreed it.
+  notes     String?
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

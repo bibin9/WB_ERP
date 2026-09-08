@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { allow } from "@/lib/guard";
 import { leaveBalance, canBook } from "@/lib/leave";
+import { withDefaults } from "@/lib/hrpolicy";
 
 /**
  * What somebody has actually earned, today.
@@ -22,7 +23,10 @@ async function balanceFor(employeeId: string) {
     where: { employeeId, type: "Annual", status: "Approved" },
     _sum: { days: true },
   });
-  return leaveBalance(emp.joinDate, new Date(), taken._sum.days ?? 0, emp.annualLeaveBalance);
+  // The company's handbook, not the code's idea of one.
+  const policy = withDefaults(await db.hrPolicy.findUnique({ where: { companyId: emp.companyId } }));
+  const bal = leaveBalance(emp.joinDate, new Date(), taken._sum.days ?? 0, emp.annualLeaveBalance, policy);
+  return { bal, policy };
 }
 
 function daysBetween(from: string, to: string) {
@@ -46,9 +50,9 @@ export async function createLeaveRequest(formData: FormData) {
 
   // Annual leave has to have been earned. Sick leave has its own entitlement,
   // unpaid leave is unpaid by definition, and time off in lieu was worked for.
-  const bal = await balanceFor(employeeId);
-  if (bal) {
-    const check = canBook(type, days, bal);
+  const found = await balanceFor(employeeId);
+  if (found) {
+    const check = canBook(type, days, found.bal, found.policy);
     if (!check.ok) return { ok: false, error: check.note };
   }
 
@@ -73,9 +77,9 @@ export async function decideLeaveRequest(id: string, decision: "Approved" | "Rej
   // Approving somebody past their balance is how a balance goes negative and
   // stays there. The request may have been raised when there were days left.
   if (decision === "Approved" && lr.type === "Annual") {
-    const bal = await balanceFor(lr.employeeId);
-    if (bal) {
-      const check = canBook("Annual", lr.days, bal);
+    const found = await balanceFor(lr.employeeId);
+    if (found) {
+      const check = canBook("Annual", lr.days, found.bal, found.policy);
       if (!check.ok) return { ok: false, error: check.note };
     }
   }

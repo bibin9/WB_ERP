@@ -607,6 +607,32 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "A run that has been posted cannot go back to being a draft \u2014 the voucher would still be sitting in the ledger and the two would disagree. To undo it, reverse the voucher in the Day Book first.",
   },
   {
+    id: "hr-policy", category: "Human Resources", screens: ["/hr/policy", "/hr"],
+    title: "Setting your own HR policy",
+    summary: "Leave, notice, probation, overtime, sick pay, gratuity and the ticket \u2014 your handbook, not ours.",
+    body: "UAE labour law is a floor, not a rule. Thirty days of annual leave is the least you may give and plenty of companies give more; the same goes for overtime rates, sick pay and gratuity. HR -> Policy is where you put what YOUR handbook says, per company \u2014 the three companies in a group do not have to match. Every other screen then follows it: leave balances, payslips, overtime, absence deductions, the final settlement.",
+    steps: [
+      "Open HR -> Policy and pick the company.",
+      "Each box shows what the law requires beside it, so you can see whether a change is allowed before you make it.",
+      "Fill in 'Where this comes from' \u2014 the handbook clause or the board minute. In two years somebody will ask why the notice period is sixty days.",
+      "Save. Everything calculated from that moment uses your figures.",
+      "'Copy this policy to' puts the same handbook onto another company, so a group does not key twenty numbers three times.",
+    ],
+    tip: "A company that never opens this screen runs on the statutory minimums, so it is compliant by default. Changing a figure does not rewrite payslips or settlements already produced \u2014 those are the record of what was actually paid.",
+  },
+  {
+    id: "hr-policy-limits", category: "Human Resources", screens: ["/hr/policy"],
+    title: "\u201cThat is below what the law allows\u201d",
+    summary: "You can be more generous than the law. You cannot be less.",
+    body: "Some settings have a floor and some have a ceiling, and both exist to protect the employee. You cannot set annual leave below 30 days, overtime below 125%, gratuity below 21 days a year, or notice below 30 days \u2014 those are minimums. You cannot set probation above six months or a normal working day above eight hours \u2014 those are maximums. If you try, the screen refuses and tells you which article says so. Saving is held until it is fixed.",
+    steps: [
+      "Read the message under the box. It names the limit and the reason.",
+      "If your handbook genuinely says something the law does not allow, the handbook is the thing to change \u2014 an unlawful clause is unenforceable anyway.",
+      "'Reset to the law' puts a company back on the statutory minimums if the settings have got into a mess.",
+    ],
+    tip: "The daily-wage divisor is a good example of a limit that looks backwards. It cannot go ABOVE 30, because a larger divisor makes every day of pay smaller \u2014 so 26 is allowed and generous, and 31 is not.",
+  },
+  {
     id: "leave-accrual", category: "Human Resources", screens: ["/hr/leave", "/hr"],
     title: "How annual leave builds up",
     summary: "Nothing for six months, then 2 days a month, then 30 days a year. It is worked out, not typed in.",

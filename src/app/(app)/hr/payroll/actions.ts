@@ -9,6 +9,7 @@ import { allow } from "@/lib/guard";
 import { cleanIban, cleanLabourCard, cleanRouting } from "@/lib/uae";
 import { computePayslip, payrollReadiness, sickSplit } from "@/lib/payroll";
 import { postVoucher } from "@/lib/posting";
+import { withDefaults } from "@/lib/hrpolicy";
 
 /**
  * Where a month of wages lands in the books.
@@ -120,6 +121,10 @@ export async function createPayrollRun(formData: FormData) {
 
   const ids = employees.map((e) => e.id);
 
+  // Overtime rates, the working day, the daily-wage divisor and the sick-pay
+  // ladder all come from this company's handbook rather than from the code.
+  const policy = withDefaults(await db.hrPolicy.findUnique({ where: { companyId } }));
+
   // Overtime comes off the muster, so nobody keys it twice.
   const attendance = await db.attendance.findMany({
     where: { employeeId: { in: ids }, date: { gte: start, lte: end } },
@@ -158,7 +163,7 @@ export async function createPayrollRun(formData: FormData) {
     const sickNow = mineLeave
       .filter((l) => l.type === "Sick")
       .reduce((t, l) => t + overlapDays(l.fromDate, l.toDate, start, end), 0);
-    const sickUnpaidDays = sickNow > 0 ? sickSplit(sickBefore, sickNow).unpaidEquivalent : 0;
+    const sickUnpaidDays = sickNow > 0 ? sickSplit(sickBefore, sickNow, policy).unpaidEquivalent : 0;
 
     const adv = e.advances[0];
     const c = computePayslip({
@@ -174,6 +179,7 @@ export async function createPayrollRun(formData: FormData) {
       sickUnpaidDays,
       absentDays,
       advanceRecovery: adv ? Math.min(adv.monthlyRecovery, adv.balance) : 0,
+      policy,
     });
 
     return {

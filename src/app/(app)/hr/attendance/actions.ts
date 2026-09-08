@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { parsePunchLog, aggregateDaily, dayToAttendance } from "@/lib/punch";
 import { splitDayHours } from "@/lib/payroll";
+import { withDefaults } from "@/lib/hrpolicy";
 import { allow } from "@/lib/guard";
 import { hourlyCostFor } from "@/lib/labour";
 import { toFils } from "@/lib/money";
@@ -106,6 +107,9 @@ export async function importPunchLog(companyId: string, formData: FormData): Pro
   const emps = await db.employee.findMany({ where: { companyId, biometricId: { not: null } }, select: { id: true, biometricId: true } });
   const byBio = new Map(emps.map((e) => [String(e.biometricId), e.id]));
 
+  // A company whose normal day is not eight hours splits overtime differently.
+  const policy = withDefaults(await db.hrPolicy.findUnique({ where: { companyId } }));
+
   let imported = 0;
   const unmatched = new Set<string>();
   for (const d of days) {
@@ -116,7 +120,7 @@ export async function importPunchLog(companyId: string, formData: FormData): Pro
     // there to be read rather than re-keyed from a paper sheet — and because
     // the in and out times are known, the hours that fall between 22:00 and
     // 04:00 can be priced at the higher rate without anyone deciding.
-    const split = splitDayHours(hours, d.firstIn, d.lastOut);
+    const split = splitDayHours(hours, d.firstIn, d.lastOut, policy);
     const date = new Date(d.ymd);
     const window = `${d.firstIn.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}–${d.lastOut.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
     const ot = split.ot + split.otPremium;

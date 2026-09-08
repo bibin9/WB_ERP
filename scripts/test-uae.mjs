@@ -7,7 +7,9 @@
  * days per year thereafter, on a daily wage of basic / 30, payable only after
  * one completed year, capped at two years' remuneration.
  */
-import { computeGratuity, computeSettlement, serviceLength } from "../src/lib/settlement.ts";
+import { importLibs } from "./lib-shim.mjs";
+const { settlement } = await importLibs(["hrpolicy", "settlement"]);
+const { computeGratuity, computeSettlement, serviceLength } = settlement;
 import { taxOn } from "../src/lib/vat.ts";
 import { cleanIban, cleanEmiratesId, cleanTrn, cleanLabourCard, cleanRouting } from "../src/lib/uae.ts";
 import fs from "node:fs";

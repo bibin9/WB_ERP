@@ -27,6 +27,13 @@
  * action all arrive at the same figure.
  */
 
+import { type HrPolicy, STATUTORY_POLICY, withDefaults, fullYearDaysPerMonth } from "./hrpolicy";
+
+/**
+ * The statutory figures, kept as named constants because they are what a
+ * company gets when it has set no policy of its own — and because a reader
+ * needs to see what the law says next to what the handbook says.
+ */
 /** Days a year, once a full year of service is behind you. */
 export const ANNUAL_LEAVE_DAYS = 30;
 
@@ -71,12 +78,17 @@ export function monthsOfService(join: Date, asAt: Date): number {
  * the join date rather than from the anniversary — otherwise the first year's
  * accrual would be thrown away on the day it finally became worth thirty.
  */
-export function accruedDays(join: Date | null | undefined, asAt: Date): number {
+export function accruedDays(
+  join: Date | null | undefined,
+  asAt: Date,
+  policy?: Partial<HrPolicy> | null
+): number {
   if (!join) return 0;
+  const p = withDefaults(policy);
   const months = monthsOfService(join, asAt);
-  if (months < ACCRUAL_STARTS_AFTER_MONTHS) return 0;
-  if (months < 12) return round1(months * PART_YEAR_DAYS_PER_MONTH);
-  return round1(months * FULL_YEAR_DAYS_PER_MONTH);
+  if (months < p.leaveAccrualAfterMonths) return 0;
+  if (months < 12) return round1(months * p.partYearDaysPerMonth);
+  return round1(months * fullYearDaysPerMonth(p));
 }
 
 export type LeaveBalance = {
@@ -112,28 +124,29 @@ export function leaveBalance(
   asAt: Date,
   takenDays: number,
   openingDays = 0,
-  carryForwardDays = DEFAULT_CARRY_FORWARD_DAYS
+  policy?: Partial<HrPolicy> | null
 ): LeaveBalance {
+  const p = withDefaults(policy);
   const months = join ? monthsOfService(join, asAt) : 0;
-  const accrued = accruedDays(join, asAt);
+  const accrued = accruedDays(join, asAt, p);
   const opening = round1(openingDays);
   const taken = round1(Math.max(0, takenDays));
 
   const raw = round1(accrued + opening - taken);
-  const cap = ANNUAL_LEAVE_DAYS + Math.max(0, carryForwardDays);
+  const cap = p.annualLeaveDays + Math.max(0, p.carryForwardDays);
   const balance = round1(Math.min(raw, cap));
   const lapsed = round1(Math.max(0, raw - cap));
 
-  const accruing = !!join && months < ACCRUAL_STARTS_AFTER_MONTHS;
+  const accruing = !!join && months < p.leaveAccrualAfterMonths;
   const note = !join
     ? "No join date on the record, so nothing can be worked out."
     : accruing
-      ? `${months} month${months === 1 ? "" : "s"} of service — annual leave starts accruing at six months.`
+      ? `${months} month${months === 1 ? "" : "s"} of service — annual leave starts accruing at ${p.leaveAccrualAfterMonths} months.`
       : months < 12
-        ? `${months} months of service, accruing ${PART_YEAR_DAYS_PER_MONTH} days a month until the first year is complete.`
+        ? `${months} months of service, accruing ${p.partYearDaysPerMonth} days a month until the first year is complete.`
         : lapsed > 0
           ? `${lapsed} day${lapsed === 1 ? "" : "s"} above the carry-forward ceiling of ${cap} and no longer available.`
-          : `${ANNUAL_LEAVE_DAYS} days a year, accrued from ${join.toISOString().slice(0, 10)}.`;
+          : `${p.annualLeaveDays} days a year, accrued from ${join.toISOString().slice(0, 10)}.`;
 
   return { months, accrued, opening, taken, balance, cap, lapsed, accruing, note };
 }
@@ -145,12 +158,13 @@ export function leaveBalance(
  * its own pay ladder, unpaid leave is unpaid by definition, and time off in
  * lieu was earned by working for it.
  */
-export function canBook(type: string, days: number, bal: LeaveBalance) {
+export function canBook(type: string, days: number, bal: LeaveBalance, policy?: Partial<HrPolicy> | null) {
   if (type !== "Annual") return { ok: true as const, note: "" };
+  const p = withDefaults(policy);
   if (bal.accruing) {
     return {
       ok: false as const,
-      note: `Annual leave does not accrue until six months of service. ${bal.months} months so far.`,
+      note: `Annual leave does not accrue until ${p.leaveAccrualAfterMonths} months of service. ${bal.months} months so far.`,
     };
   }
   if (days > bal.balance) {
@@ -198,23 +212,33 @@ export function probationState(probationEnd: Date | null | undefined, asAt: Date
   };
 }
 
-/** The longest probation the law allows from a given start. */
-export function maxProbationEnd(join: Date): Date {
-  return new Date(
-    Date.UTC(join.getUTCFullYear(), join.getUTCMonth() + MAX_PROBATION_MONTHS, join.getUTCDate())
-  );
+/**
+ * The probation end a company's policy gives from a given start.
+ *
+ * The policy cannot exceed the statutory six months — validatePolicy refuses
+ * that — so this is a shorter probation where a company chose one, never a
+ * longer one than the law allows.
+ */
+export function maxProbationEnd(join: Date, policy?: Partial<HrPolicy> | null): Date {
+  const months = Math.min(MAX_PROBATION_MONTHS, withDefaults(policy).probationMonths);
+  const whole = Math.floor(months);
+  return new Date(Date.UTC(join.getUTCFullYear(), join.getUTCMonth() + whole, join.getUTCDate()));
 }
 
 /** Notice owed today: fourteen days on probation, the contract's figure after. */
 export function noticeDaysFor(
   probationEnd: Date | null | undefined,
   contractNoticeDays: number | null | undefined,
-  asAt: Date
+  asAt: Date,
+  policy?: Partial<HrPolicy> | null
 ): { days: number; reason: string } {
+  const p = withDefaults(policy);
   if (probationState(probationEnd, asAt).onProbation) {
-    return { days: PROBATION_NOTICE_DAYS, reason: "on probation" };
+    return { days: p.probationNoticeDays, reason: "on probation" };
   }
-  const d = Number(contractNoticeDays) || DEFAULT_NOTICE_DAYS;
+  // The employee's own contract wins; the policy is what a contract that says
+  // nothing falls back to.
+  const d = Number(contractNoticeDays) || p.noticeDays;
   const clamped = Math.min(MAX_NOTICE_DAYS, Math.max(MIN_NOTICE_DAYS, d));
-  return { days: clamped, reason: "per the contract" };
+  return { days: clamped, reason: contractNoticeDays ? "per the contract" : "per company policy" };
 }

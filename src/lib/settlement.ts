@@ -16,6 +16,8 @@
  * compute identical numbers.
  */
 
+import { type HrPolicy, withDefaults } from "./hrpolicy";
+
 export type SeparationType = "Resignation" | "Termination" | "Termination (Misconduct)";
 
 export type SettlementInput = {
@@ -40,6 +42,8 @@ export type SettlementInput = {
   otherAdditions?: number;
   deductions?: number; // loans/advances/notice shortfall (−)
   adjustment?: number; // HR manual adjustment to the final amount, + or − (with a note)
+  /** The company's handbook. A company may be more generous than the law. */
+  policy?: Partial<HrPolicy> | null;
 };
 
 const DAY = 86_400_000;
@@ -91,19 +95,45 @@ export function serviceLength(join: Date, last: Date) {
   return { years: wholeYears, months: Math.max(0, months), days: Math.max(0, days), decimalYears, totalDays, text };
 }
 
-/** Gratuity per the 21/30-day rule, min 1 year, capped at 2 years' basic pay. */
-export function computeGratuity(basicSalary: number, decimalYears: number, forfeit = false) {
-  const dailyBasic = basicSalary / 30;
-  if (forfeit || decimalYears < 1) {
-    return { eligible: false, days: 0, amount: 0, note: forfeit ? "Forfeited (gross misconduct)" : "Under 1 year of service — not eligible" };
+/**
+ * Gratuity: 21 days a year for the first five and 30 after, a year of service
+ * before any is earned, capped at two years' basic pay.
+ *
+ * Every one of those is a statutory MINIMUM, and a company may promise better —
+ * so they come from the policy, which validatePolicy refuses to let anybody set
+ * below the law.
+ */
+export function computeGratuity(
+  basicSalary: number,
+  decimalYears: number,
+  forfeit = false,
+  policy?: Partial<HrPolicy> | null
+) {
+  const p = withDefaults(policy);
+  const dailyBasic = basicSalary / p.daysPerMonth;
+  if (forfeit || decimalYears < p.gratuityMinYears) {
+    return {
+      eligible: false,
+      days: 0,
+      amount: 0,
+      note: forfeit
+        ? "Forfeited (gross misconduct)"
+        : `Under ${p.gratuityMinYears} year${p.gratuityMinYears === 1 ? "" : "s"} of service — not eligible`,
+    };
   }
   const first5 = Math.min(decimalYears, 5);
   const after5 = Math.max(0, decimalYears - 5);
-  const days = first5 * 21 + after5 * 30;
+  const days = first5 * p.gratuityFirst5Days + after5 * p.gratuityAfter5Days;
   const raw = days * dailyBasic;
-  const cap = basicSalary * 24; // two years' basic pay
+  const cap = basicSalary * 12 * p.gratuityCapYears;
   const amount = Math.min(raw, cap);
-  return { eligible: true, days: round2(days), amount: round2(amount), capped: raw > cap, note: raw > cap ? "Capped at 2 years' basic pay" : "" };
+  return {
+    eligible: true,
+    days: round2(days),
+    amount: round2(amount),
+    capped: raw > cap,
+    note: raw > cap ? `Capped at ${p.gratuityCapYears} years' basic pay` : "",
+  };
 }
 
 export type Settlement = ReturnType<typeof computeSettlement>;
@@ -117,10 +147,11 @@ export function computeSettlement(i: SettlementInput) {
   const effectiveLast = unpaid > 0
     ? new Date(i.lastWorkingDay.getTime() - unpaid * DAY)
     : i.lastWorkingDay;
+  const p = withDefaults(i.policy);
   const svc = serviceLength(i.joinDate, effectiveLast);
-  const dailyBasic = i.basicSalary / 30;
+  const dailyBasic = i.basicSalary / p.daysPerMonth;
   const forfeit = i.forfeitGratuity ?? i.separationType === "Termination (Misconduct)";
-  const gratuity = computeGratuity(i.basicSalary, svc.decimalYears, forfeit);
+  const gratuity = computeGratuity(i.basicSalary, svc.decimalYears, forfeit, p);
 
   const leaveDays = Math.max(0, i.leaveBalanceDays || 0);
   const leaveAmount = round2(dailyBasic * leaveDays);

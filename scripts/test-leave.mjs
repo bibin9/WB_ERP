@@ -12,14 +12,16 @@
  */
 import { PrismaClient } from "@prisma/client";
 import fs from "node:fs";
-import {
+import { importLibs } from "./lib-shim.mjs";
+const L = await importLibs(["hrpolicy", "leave", "settlement"]);
+const {
   ANNUAL_LEAVE_DAYS, ACCRUAL_STARTS_AFTER_MONTHS, PART_YEAR_DAYS_PER_MONTH,
   FULL_YEAR_DAYS_PER_MONTH, DEFAULT_CARRY_FORWARD_DAYS,
   MAX_PROBATION_MONTHS, PROBATION_NOTICE_DAYS, MIN_NOTICE_DAYS, MAX_NOTICE_DAYS,
   monthsOfService, accruedDays, leaveBalance, canBook,
   probationState, maxProbationEnd, noticeDaysFor,
-} from "../src/lib/leave.ts";
-import { computeSettlement } from "../src/lib/settlement.ts";
+} = L.leave;
+const { computeSettlement } = L.settlement;
 
 const db = new PrismaClient();
 let pass = 0, fail = 0;
@@ -69,7 +71,7 @@ ok("no join date accrues nothing rather than throwing", accruedDays(null, day("2
   // showing a bare nil.
   const b = leaveBalance(day("2026-07-01"), day("2026-09-01"), 0);
   ok("a new joiner has no balance", b.balance === 0 && b.accruing);
-  ok("and is told when it starts", /six months/.test(b.note), b.note);
+  ok("and is told when it starts", /accruing at \d+ months/.test(b.note), b.note);
 }
 {
   // A year and a half, ten days taken: 45 accrued − 10 = 35.
@@ -114,7 +116,7 @@ ok("no join date accrues nothing rather than throwing", accruedDays(null, day("2
   const bal = leaveBalance(day("2026-07-01"), day("2026-09-01"), 0);
   const r = canBook("Annual", 5, bal);
   ok("annual leave before six months is refused", !r.ok);
-  ok("with the reason", /six months/.test(r.note), r.note);
+  ok("with the reason", /does not accrue until \d+ months/.test(r.note), r.note);
 }
 {
   const bal = leaveBalance(day("2026-07-01"), day("2026-09-01"), 0);

@@ -15,12 +15,14 @@
  */
 import { PrismaClient } from "@prisma/client";
 import fs from "node:fs";
-import {
+import { importLibs } from "./lib-shim.mjs";
+const { payroll } = await importLibs(["hrpolicy", "payroll"]);
+const {
   NORMAL_HOURS_PER_DAY, DAYS_PER_MONTH, OT_NORMAL_RATE, OT_PREMIUM_RATE,
   SICK_FULL_DAYS, SICK_HALF_DAYS, SICK_UNPAID_DAYS, SICK_TOTAL_DAYS,
   hourlyBasic, dailyRate, overtimePay, splitDayHours, nightHours,
   payableDays, sickSplit, computePayslip, payrollReadiness,
-} from "../src/lib/payroll.ts";
+} = payroll;
 import { cleanIban, cleanLabourCard, cleanRouting } from "../src/lib/uae.ts";
 
 const db = new PrismaClient();

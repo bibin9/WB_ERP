@@ -54,6 +54,7 @@ export const SCREENS: ScreenDef[] = [
   { key: "hr.attendance", module: "hr", label: "Attendance & Muster", href: "/hr/attendance" },
   { key: "hr.certifications", module: "hr", label: "Certifications", href: "/hr/certifications" },
   { key: "hr.reports", module: "hr", label: "Compliance & Expiry", href: "/hr/reports" },
+  { key: "hr.policy", module: "hr", label: "HR Policy", href: "/hr/policy" },
   { key: "hr.separation", module: "hr", label: "Separation & Settlement", href: "/hr/separation" },
   { key: "hr.tasks", module: "hr", label: "Job Assignments", href: "/hr/tasks" },
 

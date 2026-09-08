@@ -1,0 +1,39 @@
+-- CreateTable
+CREATE TABLE "HrPolicy" (
+    "id" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "annualLeaveDays" DOUBLE PRECISION NOT NULL DEFAULT 30,
+    "leaveAccrualAfterMonths" DOUBLE PRECISION NOT NULL DEFAULT 6,
+    "partYearDaysPerMonth" DOUBLE PRECISION NOT NULL DEFAULT 2,
+    "carryForwardDays" DOUBLE PRECISION NOT NULL DEFAULT 30,
+    "probationMonths" DOUBLE PRECISION NOT NULL DEFAULT 6,
+    "probationNoticeDays" DOUBLE PRECISION NOT NULL DEFAULT 14,
+    "noticeDays" DOUBLE PRECISION NOT NULL DEFAULT 30,
+    "normalHoursPerDay" DOUBLE PRECISION NOT NULL DEFAULT 8,
+    "daysPerMonth" DOUBLE PRECISION NOT NULL DEFAULT 30,
+    "otNormalRate" DOUBLE PRECISION NOT NULL DEFAULT 1.25,
+    "otPremiumRate" DOUBLE PRECISION NOT NULL DEFAULT 1.5,
+    "sickFullDays" DOUBLE PRECISION NOT NULL DEFAULT 15,
+    "sickHalfDays" DOUBLE PRECISION NOT NULL DEFAULT 30,
+    "sickUnpaidDays" DOUBLE PRECISION NOT NULL DEFAULT 45,
+    "sickHalfPayRate" DOUBLE PRECISION NOT NULL DEFAULT 0.5,
+    "gratuityFirst5Days" DOUBLE PRECISION NOT NULL DEFAULT 21,
+    "gratuityAfter5Days" DOUBLE PRECISION NOT NULL DEFAULT 30,
+    "gratuityCapYears" DOUBLE PRECISION NOT NULL DEFAULT 2,
+    "gratuityMinYears" DOUBLE PRECISION NOT NULL DEFAULT 1,
+    "airTicketEveryMonths" DOUBLE PRECISION NOT NULL DEFAULT 24,
+    "airTicketDefault" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "notes" TEXT,
+    "updatedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "HrPolicy_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "HrPolicy_companyId_key" ON "HrPolicy"("companyId");
+
+-- AddForeignKey
+ALTER TABLE "HrPolicy" ADD CONSTRAINT "HrPolicy_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+

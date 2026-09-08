@@ -7,6 +7,7 @@ import { can } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { computeSettlement, type SeparationType } from "@/lib/settlement";
 import { leaveBalance } from "@/lib/leave";
+import { withDefaults } from "@/lib/hrpolicy";
 import { allow } from "@/lib/guard";
 import { aed } from "@/lib/money";
 
@@ -33,11 +34,17 @@ export async function createSeparation(formData: FormData) {
     where: { employeeId: emp.id, type: "Annual", status: "Approved" },
     _sum: { days: true },
   });
+  // Gratuity days, the cap, the qualifying period and the daily-wage divisor
+  // are all statutory minimums a contract may better, so they come from the
+  // company's policy rather than from the code.
+  const policy = withDefaults(await db.hrPolicy.findUnique({ where: { companyId: emp.companyId } }));
+
   const bal = leaveBalance(
     emp.joinDate,
     lastWorkingDay,
     takenAgg._sum.days ?? 0,
-    emp.annualLeaveBalance
+    emp.annualLeaveBalance,
+    policy
   );
 
   const s = computeSettlement({
@@ -46,8 +53,9 @@ export async function createSeparation(formData: FormData) {
     lastWorkingDay,
     leaveBalanceDays: Math.max(0, bal.balance),
     unpaidLeaveDays: emp.unpaidLeaveDays,
-    airTicket: num(formData, "airTicket") || emp.airTicketAllowance,
+    airTicket: num(formData, "airTicket") || emp.airTicketAllowance || policy.airTicketDefault,
     separationType: type,
+    policy,
     forfeitGratuity: formData.get("forfeitGratuity") === "on",
     pendingSalary: num(formData, "pendingSalary"),
     noticePay: num(formData, "noticePay"),
