@@ -46,11 +46,49 @@ export default async function DashboardPage() {
   let pnl: { income: number; expense: number; netProfit: number; cash: number } | null = null;
   let netVat: number | null = null;
   if (g.finReports) {
-    const accounts = await db.chartOfAccount.findMany({ where: { companyId: { in: companyIds } }, include: { lines: { include: { entry: { select: { date: true } } } } } });
-    const bal = (a: (typeof accounts)[number]) => a.lines.reduce((s, l) => s + l.debit - l.credit, 0);
-    const income = accounts.filter((a) => a.type === "Income").reduce((s, a) => s + a.lines.reduce((t, l) => (l.entry.date >= yearStart ? t + l.credit - l.debit : t), 0), 0);
-    const expense = accounts.filter((a) => a.type === "Expense").reduce((s, a) => s + a.lines.reduce((t, l) => (l.entry.date >= yearStart ? t + l.debit - l.credit : t), 0), 0);
-    const cash = accounts.filter((a) => a.type === "Asset" && /cash|bank|receiv/i.test(a.name)).reduce((s, a) => s + bal(a), 0);
+    // The dashboard spans every company the user can see, so this was the worst
+    // of the full-ledger reads: one row into Node for every journal line in the
+    // group. Two grouped aggregates instead — one for the year to date, one
+    // cumulative for the cash position.
+    const accounts = await db.chartOfAccount.findMany({
+      where: { companyId: { in: companyIds } },
+      select: { id: true, name: true, type: true },
+    });
+    const ids = accounts.map((a) => a.id);
+    const byId = new Map(accounts.map((a) => [a.id, a]));
+
+    const [ytd, everything] = ids.length
+      ? await Promise.all([
+          db.journalLine.groupBy({
+            by: ["accountId"],
+            where: { accountId: { in: ids }, entry: { date: { gte: yearStart } } },
+            _sum: { debit: true, credit: true },
+          }),
+          db.journalLine.groupBy({
+            by: ["accountId"],
+            where: { accountId: { in: ids } },
+            _sum: { debit: true, credit: true },
+          }),
+        ])
+      : [[], []];
+
+    let income = 0;
+    let expense = 0;
+    for (const row of ytd) {
+      const a = byId.get(row.accountId);
+      if (!a) continue;
+      const dr = row._sum.debit ?? 0;
+      const cr = row._sum.credit ?? 0;
+      if (a.type === "Income") income += cr - dr;
+      else if (a.type === "Expense") expense += dr - cr;
+    }
+
+    let cash = 0;
+    for (const row of everything) {
+      const a = byId.get(row.accountId);
+      if (!a || a.type !== "Asset" || !/cash|bank|receiv/i.test(a.name)) continue;
+      cash += (row._sum.debit ?? 0) - (row._sum.credit ?? 0);
+    }
     pnl = { income, expense, netProfit: income - expense, cash };
   }
   if (g.finVat) {

@@ -132,7 +132,11 @@ ok("it shows the four figures a reconciliation ends with",
   page.includes("So the statement should read") && page.includes("Difference"));
 ok("it says when the difference is unexplained", page.includes("unexplained"));
 ok("it warns about items too old to still be timing differences", page.includes("outstanding more than"));
-ok("the ledger balance includes the opening balance", page.includes("balanceAsAt("));
+// Named the helper rather than the behaviour. The balance is now asked of
+// the database instead of summed from every line the account carries, and
+// balanceOf applies the same opening-balance rule — lib/ledger-query.ts
+// uses openingInBalance, and test-ledgerquery proves the two agree.
+ok("the ledger balance includes the opening balance", page.includes("balanceOf("));
 ok("the reconciliation is worked over every line, not just the page",
   page.includes("not just the\n  // page") || page.includes("every uncleared line"));
 ok("it can be printed", page.includes("PrintReport") && page.includes("PrintHeader"));

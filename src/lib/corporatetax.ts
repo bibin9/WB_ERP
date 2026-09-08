@@ -31,8 +31,6 @@
  * typed, before anything is saved.
  */
 
-import { periodMovement, type AccountBalances } from "./ledger";
-
 /** Nine per cent, on taxable income above the band. */
 export const CT_RATE = 0.09;
 
@@ -427,40 +425,5 @@ export function financialYear(fyStartMonth: number, endingIn: number) {
     from: new Date(Date.UTC(startYear, m - 1, 1)),
     // Day 0 of the start month, one year on: the last day before it comes round.
     to: new Date(Date.UTC(startYear + 1, m - 1, 0)),
-  };
-}
-
-/* ------------------------------------------------------ from the ledger -- */
-
-/**
- * Accounting profit and revenue for a period, read straight from the books.
- *
- * The one figure nobody should retype. Every screen that needs it — the
- * computation, the export, and the carry-forward when a new period is opened —
- * comes through here, so all three agree by construction rather than by three
- * people writing the same loop.
- *
- * Revenue is gross income, not profit: it is what the Small Business Relief
- * threshold is measured against, and a company can turn over five million while
- * making nothing.
- */
-export function profitFrom(
-  accounts: (AccountBalances & { type: string })[],
-  from: Date,
-  to: Date,
-  openingAsOf?: Date | null
-): { income: number; expense: number; accountingProfit: number } {
-  let income = 0;
-  let expense = 0;
-  for (const a of accounts) {
-    const net = periodMovement(a, from, to, openingAsOf);
-    // Income carries a credit balance, so its movement comes back negative.
-    if (a.type === "Income") income += -net;
-    else if (a.type === "Expense") expense += net;
-  }
-  return {
-    income: round2(income),
-    expense: round2(expense),
-    accountingProfit: round2(income - expense),
   };
 }

@@ -17,7 +17,7 @@ import { getSession } from "@/lib/auth";
 import { money } from "@/lib/money";
 import { readPaging, pageInfo } from "@/lib/paging";
 import { readSearch, matchAny } from "@/lib/search";
-import { balanceAsAt } from "@/lib/ledger";
+import { balanceOf } from "@/lib/ledger-query";
 import {
   retentionState, ageing,
 } from "@/lib/retention";
@@ -106,19 +106,18 @@ export default async function RetentionPage({
   const recvCode = finPolicy.accounts.retentionReceivable;
   const payCode = finPolicy.accounts.retentionPayable;
 
-  const retentionAccounts = companyId
-    ? await db.chartOfAccount.findMany({
-        where: { companyId, code: { in: [recvCode, payCode] } },
-        include: { lines: { include: { entry: { select: { date: true } } } } },
-      })
-    : [];
-  const recvAcc = retentionAccounts.find((a) => a.code === recvCode);
-  const payAcc = retentionAccounts.find((a) => a.code === payCode);
-  const ledgerRecv = recvAcc ? balanceAsAt(recvAcc, today, company?.openingAsOf) : 0;
+  // Two single-account aggregates rather than every line on both accounts.
+  const [recvBal, payBal] = companyId
+    ? await Promise.all([
+        balanceOf(companyId, recvCode, today, company?.openingAsOf),
+        balanceOf(companyId, payCode, today, company?.openingAsOf),
+      ])
+    : [{ found: false, balance: 0 }, { found: false, balance: 0 }];
+  const ledgerRecv = recvBal.balance;
   // A liability sits as a credit; flip it to compare with what is held.
-  const ledgerPay = payAcc ? -balanceAsAt(payAcc, today, company?.openingAsOf) : 0;
+  const ledgerPay = -payBal.balance;
   const recon = {
-    available: !!recvAcc && !!payAcc,
+    available: recvBal.found && payBal.found,
     recvDiff: Math.round((receivable.total - ledgerRecv) * 100) / 100,
     payDiff: Math.round((payable.total - ledgerPay) * 100) / 100,
   };

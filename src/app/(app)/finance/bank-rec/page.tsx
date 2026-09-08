@@ -11,7 +11,7 @@ import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { money } from "@/lib/money";
-import { balanceAsAt } from "@/lib/ledger";
+import { balanceOf } from "@/lib/ledger-query";
 import { reconcile, daysOutstanding, isStale, STALE_DAYS } from "@/lib/bankrec";
 
 export const dynamic = "force-dynamic";
@@ -50,13 +50,15 @@ export default async function BankRecPage({
   const showCleared = sp.show === "all";
 
   // The ledger balance as at the statement date, opening balance included.
-  const accountWithLines = accountId
-    ? await db.chartOfAccount.findUnique({
-        where: { id: accountId },
-        include: { lines: { include: { entry: { select: { date: true } } } } },
-      })
+  // Asked of the database rather than worked out from every line the account
+  // has ever carried — a bank account is the busiest in the chart, and this
+  // page only ever needed the one number.
+  const chosen = accountId
+    ? await db.chartOfAccount.findUnique({ where: { id: accountId }, select: { code: true } })
     : null;
-  const perBooks = accountWithLines ? balanceAsAt(accountWithLines, asAt, company?.openingAsOf) : 0;
+  const perBooks = chosen
+    ? (await balanceOf(companyId, chosen.code, asAt, company?.openingAsOf)).balance
+    : 0;
 
   // Every line up to the statement date. Reconciling means explaining the ones
   // the bank has not shown, so cleared lines are hidden unless asked for.

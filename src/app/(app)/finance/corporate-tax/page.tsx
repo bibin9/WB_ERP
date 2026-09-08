@@ -18,8 +18,9 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { money } from "@/lib/money";
 import {
-  compute, profitFrom, filingState, CT_BAND, CT_RATE, LOSS_RELIEF_CAP,
+  compute, filingState, CT_BAND, CT_RATE, LOSS_RELIEF_CAP,
 } from "@/lib/corporatetax";
+import { profitAndLoss } from "@/lib/ledger-query";
 
 export const dynamic = "force-dynamic";
 
@@ -71,14 +72,8 @@ export default async function CorporateTaxPage({
   // and the export and the carry-forward read it through the same helper, so
   // all three agree by construction rather than by three people writing the
   // same loop.
-  const plAccounts = current
-    ? await db.chartOfAccount.findMany({
-        where: { companyId, type: { in: ["Income", "Expense"] } },
-        include: { lines: { include: { entry: { select: { date: true } } } } },
-      })
-    : [];
   const pl = current
-    ? profitFrom(plAccounts, current.periodFrom, current.periodTo, company?.openingAsOf)
+    ? await profitAndLoss(companyId, current.periodFrom, current.periodTo, company?.openingAsOf)
     : { income: 0, expense: 0, accountingProfit: 0 };
 
   const c = current

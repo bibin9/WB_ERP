@@ -7,7 +7,7 @@ import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { resolvePeriod } from "@/lib/period";
-import { balanceAsAt, periodMovement } from "@/lib/ledger";
+import { accountBalances } from "@/lib/ledger-query";
 import PrintReport from "@/components/finance/PrintReport";
 import PrintHeader from "@/components/finance/PrintHeader";
 
@@ -48,22 +48,22 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const period = resolvePeriod(sp, company?.fyStartMonth ?? 1);
   const openingAsOf = company?.openingAsOf ?? null;
 
+  // The database sums; this used to load every journal line the company had
+  // and add them up in a loop. Same figures, one round trip, and the cost stops
+  // growing with the ledger.
   const accounts = companyId
-    ? await db.chartOfAccount.findMany({
-        where: { companyId },
-        include: { lines: { select: { debit: true, credit: true, entry: { select: { date: true } } } } },
-        orderBy: { code: "asc" },
-      })
+    ? await accountBalances(companyId, period.from, period.to, openingAsOf)
     : [];
 
-  // P&L is the movement in the period; the Balance Sheet is cumulative to its end.
+  // P&L is the movement in the period; the Balance Sheet is cumulative to its
+  // end. Both come off the same pair of aggregates.
   const byType = (t: string, cumulative: boolean) =>
     accounts
       .filter((a) => a.type === t)
       .map((a) => ({
         id: a.id,
         name: `${a.code} ${a.name}`,
-        net: cumulative ? balanceAsAt(a, period.to, openingAsOf) : periodMovement(a, period.from, period.to, openingAsOf),
+        net: cumulative ? a.closing : a.moved,
       }))
       .filter((x) => Math.abs(x.net) > 0.001);
 

@@ -8,8 +8,9 @@ import { audit } from "@/lib/audit";
 import { toFils, money } from "@/lib/money";
 import { cleanTrn } from "@/lib/uae";
 import {
-  ADJUSTMENT_KINDS, CATEGORY_KEYS, categoryKind, compute, profitFrom, dueDate,
+  ADJUSTMENT_KINDS, CATEGORY_KEYS, categoryKind, compute, dueDate,
 } from "@/lib/corporatetax";
+import { profitAndLoss } from "@/lib/ledger-query";
 
 /**
  * The corporate tax working paper.
@@ -87,11 +88,7 @@ export async function openReturn(formData: FormData): Promise<Result> {
   let lossesBroughtForward = 0;
   if (previous) {
     const company = await db.company.findUnique({ where: { id: companyId } });
-    const accounts = await db.chartOfAccount.findMany({
-      where: { companyId, type: { in: ["Income", "Expense"] } },
-      include: { lines: { include: { entry: { select: { date: true } } } } },
-    });
-    const pl = profitFrom(accounts, previous.periodFrom, previous.periodTo, company?.openingAsOf);
+    const pl = await profitAndLoss(companyId, previous.periodFrom, previous.periodTo, company?.openingAsOf);
     const prev = compute({
       accountingProfit: pl.accountingProfit,
       revenue: pl.income,

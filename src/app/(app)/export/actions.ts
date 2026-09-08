@@ -2,7 +2,8 @@
 
 import { db } from "@/lib/db";
 import { broughtForward, balanceAsAt, openingInPeriod } from "@/lib/ledger";
-import { compute, profitFrom, dueDate } from "@/lib/corporatetax";
+import { compute, dueDate } from "@/lib/corporatetax";
+import { profitAndLoss, accountBalances } from "@/lib/ledger-query";
 import { financialYear } from "@/lib/period";
 import { getSession, canAdminister } from "@/lib/auth";
 import { allow } from "@/lib/guard";
@@ -363,26 +364,20 @@ const trialBalance: Dataset = {
     // The financial year to date, which is what an auditor asks for. A narrower
     // range is available on screen; the file is the standard one.
     const fy = financialYear(company?.fyStartMonth ?? 1, new Date());
-    const accounts = await db.chartOfAccount.findMany({
-      where: { companyId },
-      include: { lines: { include: { entry: { select: { date: true } } } } },
-      orderBy: { code: "asc" },
-    });
+    const balances = await accountBalances(companyId, fy.from, fy.to, company?.openingAsOf);
     const dr = (v: number) => (v > 0 ? v : 0);
     const cr = (v: number) => (v < 0 ? -v : 0);
-    const rows = accounts.map((a) => {
-      const opening = broughtForward(a, fy.from, company?.openingAsOf);
-      const closing = balanceAsAt(a, fy.to, company?.openingAsOf);
-      const inPeriod = a.lines.filter((l) => l.entry.date >= fy.from && l.entry.date <= fy.to);
-      const openingHere = openingInPeriod(company?.openingAsOf, fy.from, fy.to) ? a.openingBalance : 0;
+    const rows = balances.map((a) => {
+      const opening = a.brought;
+      const closing = a.closing;
       return {
         code: a.code,
         name: a.name,
         type: a.type,
         openingDr: dr(opening),
         openingCr: cr(opening),
-        periodDr: inPeriod.reduce((t, l) => t + l.debit, 0) + dr(openingHere),
-        periodCr: inPeriod.reduce((t, l) => t + l.credit, 0) + cr(openingHere),
+        periodDr: a.periodDr,
+        periodCr: a.periodCr,
         closingDr: dr(closing),
         closingCr: cr(closing),
       };
@@ -474,13 +469,12 @@ const corporateTax: Dataset = {
       orderBy: [{ periodTo: "desc" }],
     });
     const company = await db.company.findUnique({ where: { id: companyId } });
-    const accounts = await db.chartOfAccount.findMany({
-      where: { companyId, type: { in: ["Income", "Expense"] } },
-      include: { lines: { include: { entry: { select: { date: true } } } } },
-    });
 
-    const rows = returns.map((r) => {
-      const pl = profitFrom(accounts, r.periodFrom, r.periodTo, company?.openingAsOf);
+    // One aggregate pair per return rather than the whole ledger once. A
+    // handful of tiny queries beats one that grows with the company's history,
+    // and it is the same code path the screen uses.
+    const rows = await Promise.all(returns.map(async (r) => {
+      const pl = await profitAndLoss(companyId, r.periodFrom, r.periodTo, company?.openingAsOf);
       const c = compute({
         accountingProfit: pl.accountingProfit,
         revenue: pl.income,
@@ -490,7 +484,7 @@ const corporateTax: Dataset = {
         periodTo: r.periodTo,
       });
       return { r, c, due: dueDate(r.periodTo) };
-    });
+    }));
 
     const columns: Column<(typeof rows)[number]>[] = [
       { header: "Period From", value: (x) => x.r.periodFrom },

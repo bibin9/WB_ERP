@@ -186,10 +186,15 @@ export function canBook(type: string, days: number, bal: LeaveBalance, policy?: 
 export const MAX_PROBATION_MONTHS = 6;
 export const PROBATION_NOTICE_DAYS = 14;
 
-/** Notice outside probation: between thirty and ninety days, thirty by default. */
+/**
+ * Notice outside probation runs from thirty to ninety days.
+ *
+ * These are the bounds the law sets, so a company's own figure is clamped
+ * between them; what the company prefers inside that range lives on its HR
+ * policy rather than here.
+ */
 export const MIN_NOTICE_DAYS = 30;
 export const MAX_NOTICE_DAYS = 90;
-export const DEFAULT_NOTICE_DAYS = 30;
 
 /**
  * Where somebody stands against their probation date.

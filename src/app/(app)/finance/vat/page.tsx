@@ -9,7 +9,7 @@ import { getSession } from "@/lib/auth";
 import { resolvePeriod, quarters } from "@/lib/period";
 import { buildVat201, taxOn, OUTPUT_VOUCHERS, INPUT_VOUCHERS, ADJUSTMENT_VOUCHERS, DOCUMENT_VOUCHERS, type VatLine } from "@/lib/vat";
 import { financePolicyFor } from "@/lib/accounts";
-import { periodMovement } from "@/lib/ledger";
+import { accountBalances } from "@/lib/ledger-query";
 import { money } from "@/lib/money";
 import PrintHeader from "@/components/finance/PrintHeader";
 
@@ -121,17 +121,18 @@ export default async function VatPage({
   const outputCode = finPolicy.accounts.vatOutput;
   const inputCode = finPolicy.accounts.vatInput;
 
+  // The two control accounts only, aggregated — this used to load every line
+  // that had ever touched either of them.
   const vatAccounts = companyId
-    ? await db.chartOfAccount.findMany({
-        where: { companyId, code: { in: [outputCode, inputCode] } },
-        include: { lines: { include: { entry: { select: { date: true } } } } },
-      })
+    ? (await accountBalances(companyId, period.from, period.to, company?.openingAsOf)).filter(
+        (a) => a.code === outputCode || a.code === inputCode
+      )
     : [];
   const outputAcc = vatAccounts.find((a) => a.code === outputCode);
   const inputAcc = vatAccounts.find((a) => a.code === inputCode);
   // A liability's movement is a credit, so flip it to compare with tax due.
-  const ledgerOutput = outputAcc ? -periodMovement(outputAcc, period.from, period.to, company?.openingAsOf) : 0;
-  const ledgerInput = inputAcc ? periodMovement(inputAcc, period.from, period.to, company?.openingAsOf) : 0;
+  const ledgerOutput = outputAcc ? -outputAcc.moved : 0;
+  const ledgerInput = inputAcc ? inputAcc.moved : 0;
   const ledgerNet = ledgerOutput - ledgerInput;
   const recon = {
     available: !!outputAcc && !!inputAcc,

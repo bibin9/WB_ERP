@@ -91,9 +91,3 @@ export async function accountsForPosting(
   for (const r of roles) ids[r] = byRole[r]!.id;
   return { ok: true, policy, ids };
 }
-
-/** The code a role points at, for a screen that has to show one. */
-export async function codeFor(companyId: string, role: AccountRole): Promise<string> {
-  const policy = await financePolicyFor(companyId);
-  return policy.accounts[role];
-}

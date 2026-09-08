@@ -12,7 +12,7 @@ import { requireAccess } from "@/lib/guard";
 import ExportButton from "@/components/ExportButton";
 import PeriodPicker from "@/components/PeriodPicker";
 import { resolvePeriod } from "@/lib/period";
-import { balanceAsAt } from "@/lib/ledger";
+import { accountBalances } from "@/lib/ledger-query";
 import PrintReport from "@/components/finance/PrintReport";
 import PrintHeader from "@/components/finance/PrintHeader";
 
@@ -35,12 +35,10 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const period = resolvePeriod(sp, companyRow?.fyStartMonth ?? 1);
   const openingAsOf = companyRow?.openingAsOf ?? null;
 
+  // Aggregated rather than loaded: the overview only ever shows a balance per
+  // account, and it used to read every journal line to get there.
   const accounts = companyId
-    ? await db.chartOfAccount.findMany({
-        where: { companyId },
-        include: { lines: { select: { debit: true, credit: true, entry: { select: { date: true } } } } },
-        orderBy: { code: "asc" },
-      })
+    ? await accountBalances(companyId, period.from, period.to, openingAsOf)
     : [];
 
   const parties = companyId
@@ -64,7 +62,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
 
   // Trial balance: cumulative balance as at the end of the period, including
   // any opening balance carried in when the books were migrated.
-  const tb = accounts.map((a) => ({ ...a, net: balanceAsAt(a, period.to, openingAsOf) }));
+  const tb = accounts.map((a) => ({ ...a, net: a.closing }));
   const totalDebit = tb.reduce((s, a) => s + (a.net > 0 ? a.net : 0), 0);
   const totalCredit = tb.reduce((s, a) => s + (a.net < 0 ? -a.net : 0), 0);
 

@@ -109,11 +109,20 @@ const screens = ["reports", "daybook", "ledgers", "vat"];
 const missing = screens.filter((f) => !read(`src/app/(app)/finance/${f}/page.tsx`).includes("PeriodPicker"));
 ok("every finance report has a period picker", missing.length === 0, missing.join(", ") || screens.join(", "));
 
+// This named the helper rather than the behaviour. The overview's trial balance
+// is still a cumulative position at the period end, including any migrated
+// opening balance — it now comes off the aggregate as .closing, which is what
+// accountBalances computes and test-ledgerquery proves equivalent.
 ok("trial balance is an 'as at' figure including opening",
-  read("src/app/(app)/finance/page.tsx").includes("balanceAsAt(a, period.to, openingAsOf)"));
+  read("src/app/(app)/finance/page.tsx").includes("net: a.closing") &&
+  read("src/app/(app)/finance/page.tsx").includes("accountBalances(companyId, period.from, period.to, openingAsOf)"));
 
 const reports = read("src/app/(app)/finance/reports/page.tsx");
-ok("P&L uses period movement, Balance Sheet uses cumulative", reports.includes("periodMovement(") && reports.includes("balanceAsAt("));
+// This named the old helpers. What matters is the distinction, not the call:
+// the P&L shows movement inside the period, the Balance Sheet the position
+// at its end. Both now come off one aggregate as .moved and .closing.
+ok("P&L uses period movement, Balance Sheet uses cumulative",
+  reports.includes("cumulative ? a.closing : a.moved"));
 ok("retained earnings are cumulative, so the sheet keeps balancing", reports.includes("cumulativeIncome") && reports.includes("retained"));
 
 const form = read("src/components/AccountForm.tsx");

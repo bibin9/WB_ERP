@@ -29,7 +29,7 @@ const {
   CT_RATE, CT_BAND, SBR_REVENUE_CAP, SBR_AVAILABLE_UNTIL, LOSS_RELIEF_CAP,
   FILING_MONTHS, LATE_PENALTY_FIRST_YEAR, LATE_PENALTY_THEREAFTER,
   CT_STATUSES, ADJUSTMENT_KINDS, ADJUSTMENT_CATEGORIES, CATEGORY_KEYS,
-  categoryHelp, categoryKind, compute, profitFrom, sbrEligibility, dueDate, filingState,
+  categoryHelp, categoryKind, compute, sbrEligibility, dueDate, filingState,
   financialYear,
 } = CT;
 
@@ -311,40 +311,6 @@ ok("help is retrievable by key", categoryHelp("Entertainment (50%)").includes("h
 ok("an unknown key gives nothing rather than throwing", categoryHelp("nope") === "");
 ok("a category suggests its own kind", categoryKind("Dividends from UAE companies") === "Exempt income");
 
-/* ================================================ profit from the ledger == */
-{
-  const line = (d, dr, cr) => ({ debit: dr, credit: cr, entry: { date: day(d) } });
-  const accounts = [
-    // Income carries a credit balance.
-    { type: "Income", openingBalance: 0, lines: [line("2026-03-01", 0, 250000), line("2025-06-01", 0, 90000)] },
-    { type: "Expense", openingBalance: 0, lines: [line("2026-04-01", 170000, 0), line("2025-06-01", 40000, 0)] },
-    // A balance-sheet account must not reach the P&L at all.
-    { type: "Asset", openingBalance: 500000, lines: [line("2026-05-01", 800000, 0)] },
-  ];
-  const pl = profitFrom(accounts, day("2026-01-01"), day("2026-12-31"));
-  ok("revenue is the income credited in the period", pl.income === 250000, `got ${pl.income}`);
-  ok("expenses are the debits in the period", pl.expense === 170000, `got ${pl.expense}`);
-  ok("accounting profit is the difference", pl.accountingProfit === 80000, `got ${pl.accountingProfit}`);
-  ok("assets and liabilities stay out of the P&L", pl.accountingProfit === 80000);
-
-  const earlier = profitFrom(accounts, day("2025-01-01"), day("2025-12-31"));
-  ok("a different period reads only its own vouchers",
-    earlier.income === 90000 && earlier.accountingProfit === 50000,
-    `${earlier.income} / ${earlier.accountingProfit}`);
-
-  const none = profitFrom(accounts, day("2020-01-01"), day("2020-12-31"));
-  ok("a period with no vouchers is nil, not a crash", none.accountingProfit === 0);
-}
-{
-  // Opening balances belong in the P&L only when the books were migrated
-  // inside the period — the same rule the reports use.
-  const accounts = [{ type: "Income", openingBalance: -100000, lines: [] }];
-  const inside = profitFrom(accounts, day("2026-01-01"), day("2026-12-31"), day("2026-06-01"));
-  const outside = profitFrom(accounts, day("2026-01-01"), day("2026-12-31"), day("2024-06-01"));
-  ok("a migration inside the period brings its opening income in", inside.income === 100000);
-  ok("a migration before it does not", outside.income === 0);
-}
-
 /* ============================ one reading of the ledger, not three ======== */
 {
   // The screen, the export and the carry-forward must agree by construction.
@@ -356,10 +322,12 @@ ok("a category suggests its own kind", categoryKind("Dividends from UAE companie
   ];
   for (const [what, file] of uses) {
     const src = fs.readFileSync(file, "utf8");
-    ok(`${what} reads the profit through the shared helper`, /profitFrom\(/.test(src));
+    ok(`${what} reads the profit through the shared helper`, /profitAndLoss\(/.test(src));
   }
-  // The bug this replaced: carrying losses forward from the adjustments alone,
-  // with the previous year's profit taken as nil.
+  // Two bugs this replaced. First, carrying losses forward from the
+  // adjustments alone with the previous year's profit taken as nil. Second,
+  // three separate copies of the same ledger loop — now one aggregate, in
+  // lib/ledger-query.ts, whose equivalence is proved in test-ledgerquery.
   const actions = fs.readFileSync("src/app/(app)/finance/corporate-tax/actions.ts", "utf8");
   ok("the carry-forward no longer assumes last year made nothing",
     !/accountingProfit:\s*0/.test(actions));

@@ -144,6 +144,7 @@ model CompanyMembership {
 
   @@unique([userId, companyId])
   @@index([companyId])
+  @@index([roleId])
 }
 
 model Role {
@@ -286,6 +287,10 @@ model JournalEntry {
   @@unique([companyId, reference])
   @@unique([companyId, sourceType, sourceId])
   @@index([companyId])
+  /// The access path every report uses: one company, one date range. Without
+  /// the date in the index the database reads all of a company's history to
+  /// answer a question about one year, and that is the cost that grows.
+  @@index([companyId, date])
 }
 
 model JournalLine {
@@ -672,6 +677,7 @@ model Attendance {
 
   @@unique([employeeId, date])
   @@index([companyId])
+  @@index([companyId, date])
 }
 
 /// HR — Employee separation (resignation / termination) + UAE end-of-service settlement

@@ -120,8 +120,6 @@ export const STATUTORY_POLICY: HrPolicy = {
   airTicketDefault: 0,
 };
 
-/** Kept for the call sites that have no company in hand. */
-export const DEFAULT_POLICY = STATUTORY_POLICY;
 
 type Rule = {
   key: keyof HrPolicy;
