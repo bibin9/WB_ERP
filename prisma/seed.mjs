@@ -1,10 +1,26 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
 
 const db = new PrismaClient();
 // First-run admin password. Set ADMIN_PASSWORD in the host env for the pilot/production;
 // falls back to a demo value for local dev. Only applied when the admin is first created.
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
+/**
+ * The first administrator's password.
+ *
+ * "admin123" is fine for a laptop and indefensible on a public URL, so in
+ * production it is only used when somebody has deliberately set it. Otherwise a
+ * random one is generated, printed once into the deploy log, and the account is
+ * marked as needing a reset — an install nobody configured ends up with a
+ * password nobody can guess rather than one everybody knows.
+ *
+ * An administrator that already exists is never touched either way.
+ */
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const GENERATED_PASSWORD = !process.env.ADMIN_PASSWORD && IS_PRODUCTION
+  ? randomBytes(12).toString("base64url")
+  : null;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || GENERATED_PASSWORD || "admin123";
 
 // Mirrors src/config/tenant.ts (White & Bright default tenant)
 const TENANT = { key: "wandb", name: "White & Bright Group" };
@@ -120,8 +136,23 @@ async function main() {
   const admin = await db.user.upsert({
     where: { tenantId_email: { tenantId: tenant.id, email: "admin@wandb.ae" } },
     update: {}, // never reset an existing admin's password on redeploy
-    create: { tenantId: tenant.id, email: "admin@wandb.ae", name: "Administrator", passwordHash },
+    create: {
+      tenantId: tenant.id,
+      email: "admin@wandb.ae",
+      name: "Administrator",
+      passwordHash,
+      // A generated password is a first-login credential, not a permanent one.
+      mustReset: !!GENERATED_PASSWORD,
+    },
   });
+  if (GENERATED_PASSWORD && admin.mustReset) {
+    console.log("\n" + "=".repeat(64));
+    console.log("  ADMIN_PASSWORD was not set, so one was generated for this install.");
+    console.log("  Sign in once with it, then change it — you will be asked to.");
+    console.log(`  admin@wandb.ae  /  ${GENERATED_PASSWORD}`);
+    console.log("  This is the only time it is printed.");
+    console.log("=".repeat(64) + "\n");
+  }
   for (const company of companies) {
     await db.companyMembership.upsert({
       where: { userId_companyId: { userId: admin.id, companyId: company.id } },

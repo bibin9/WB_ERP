@@ -75,9 +75,24 @@ export async function resetUserPassword(id: string): Promise<{ ok: boolean; erro
   const passwordHash = await bcrypt.hash(tempPassword, 10);
   await db.user.update({
     where: { id },
-    data: { passwordHash, mustReset: true, failedAttempts: 0, lockedUntil: null },
+    data: {
+      passwordHash,
+      mustReset: true,
+      // The reason an administrator resets a password is usually that somebody
+      // else has it. Stamping the change is what actually signs that person
+      // out — without it the new password locks the door while the old session
+      // is still inside.
+      passwordChangedAt: new Date(),
+      failedAttempts: 0,
+      lockedUntil: null,
+    },
   });
-  await audit({ action: "Updated", entity: "User", entityId: id, summary: `Reset password for ${user.name} (temporary, must change on next sign-in)` });
+  await audit({
+    action: "Updated",
+    entity: "User",
+    entityId: id,
+    summary: `Reset password for ${user.name} (temporary, must change on next sign-in; existing sessions signed out)`,
+  });
   revalidatePath("/users");
   return { ok: true, tempPassword };
 }

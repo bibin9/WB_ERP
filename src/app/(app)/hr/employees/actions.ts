@@ -11,6 +11,7 @@ import { allow } from "@/lib/guard";
 import { redirect } from "next/navigation";
 import { EMPLOYEE_VALIDATORS } from "@/lib/uae";
 import { normalisePhone } from "@/lib/search";
+import { identify, MAX_UPLOAD_BYTES } from "@/lib/uploads";
 
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
 const STR_FIELDS = [
@@ -117,15 +118,34 @@ export async function uploadDocument(formData: FormData): Promise<{ ok: boolean;
   const file = formData.get("file") as File | null;
   const category = String(formData.get("category") || "Other");
   if (!file || file.size === 0) return { ok: false, error: "No file" };
-  if (file.size > 10 * 1024 * 1024) return { ok: false, error: "File exceeds 10MB" };
+  if (file.size > MAX_UPLOAD_BYTES) return { ok: false, error: "File exceeds 10MB" };
 
-  const ext = path.extname(file.name).slice(0, 10);
-  const storedName = randomBytes(16).toString("hex") + ext;
+  // What the file IS, not what it says it is. The declared type and the
+  // extension are both written by whoever uploaded it; the first bytes are not.
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const kind = identify(file.name, bytes);
+  if (!kind.ok) return { ok: false, error: kind.error };
+
+  // The name on disk is random, so nothing an uploader writes reaches the
+  // filesystem — no traversal, no collision, no shell surprises. The extension
+  // comes from what was detected rather than from the name.
+  const storedName = randomBytes(16).toString("hex") + kind.type.extensions[0];
   await fs.mkdir(UPLOAD_DIR, { recursive: true });
-  await fs.writeFile(path.join(UPLOAD_DIR, storedName), Buffer.from(await file.arrayBuffer()));
+  await fs.writeFile(path.join(UPLOAD_DIR, storedName), Buffer.from(bytes));
 
   await db.employeeDocument.create({
-    data: { companyId: s.emp.companyId, employeeId, category, fileName: file.name, storedName, mimeType: file.type || "application/octet-stream", size: file.size, uploadedBy: s.session.user.name },
+    data: {
+      companyId: s.emp.companyId,
+      employeeId,
+      category,
+      fileName: file.name,
+      storedName,
+      // The detected type, so the download route can never be talked into
+      // serving something as text/html.
+      mimeType: kind.type.mime,
+      size: file.size,
+      uploadedBy: s.session.user.name,
+    },
   });
   await audit({ action: "Created", entity: "EmployeeDocument", summary: `Uploaded ${category} for ${s.emp.empNo}` });
   revalidatePath(`/hr/employees/${employeeId}`);

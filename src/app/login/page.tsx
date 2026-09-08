@@ -35,9 +35,13 @@ export default function LoginPage() {
 
           <LoginForm />
 
-          <p className="mt-6 rounded-lg bg-brand-blue/5 px-3 py-2 text-center text-xs text-muted">
-            Demo login is pre-filled: <span className="font-medium text-ink">admin@wandb.ae / admin123</span>
-          </p>
+          {/* Only on a demo build. Printing a working administrator password above
+              the box it goes in is not a convenience, it is an open door. */}
+          {process.env.NEXT_PUBLIC_DEMO_LOGIN === "1" && (
+            <p className="mt-6 rounded-lg bg-brand-blue/5 px-3 py-2 text-center text-xs text-muted">
+              Demo login is pre-filled: <span className="font-medium text-ink">admin@wandb.ae / admin123</span>
+            </p>
+          )}
         </div>
       </div>
     </div>

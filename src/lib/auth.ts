@@ -26,6 +26,21 @@ export async function getSession() {
   });
   if (!user || !user.isActive) return null;
 
+  // A password change ends every session that predates it.
+  //
+  // The token lives seven days and carries no server-side state, so before this
+  // a stolen one survived the reset meant to kill it: the victim changed their
+  // password, felt safe, and the attacker stayed signed in for the rest of the
+  // week. Comparing the token's issue time against passwordChangedAt costs one
+  // field comparison on a record already loaded, and no extra query.
+  //
+  // A second of slack absorbs the rounding — jose stores whole seconds, the
+  // column stores milliseconds — so the session created BY a password change is
+  // not immediately invalidated by it.
+  if (user.passwordChangedAt && typeof t.iat === "number") {
+    if (t.iat * 1000 < user.passwordChangedAt.getTime() - 1000) return null;
+  }
+
   const isAdmin = user.memberships.some((m) => m.role.approvalLevel >= 80 || m.role.name === "Group Admin");
   const perms = mergePerms(user.memberships.map((m) => parsePerms(m.role.permissions)));
 
