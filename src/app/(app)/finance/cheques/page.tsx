@@ -16,6 +16,8 @@ import { money } from "@/lib/money";
 import { chequeState, forecast, OPEN_STATUSES } from "@/lib/cheques";
 import Pager from "@/components/Pager";
 import { readPaging, pageInfo } from "@/lib/paging";
+import SearchBox from "@/components/SearchBox";
+import { readSearch, matchAny } from "@/lib/search";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +35,7 @@ const statusColour: Record<string, string> = {
 export default async function ChequesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ c?: string; show?: string; p?: string; per?: string }>;
+  searchParams: Promise<{ c?: string; show?: string; p?: string; per?: string; q?: string }>;
 }) {
   await requireAccess("finance.cheques");
   const session = await getSession();
@@ -50,7 +52,14 @@ export default async function ChequesPage({
 
   // The register keeps every cheque ever recorded, so it is paged. The forecast
   // below is deliberately not: it must count them all.
-  const chequeWhere = { companyId, ...(showAll ? {} : { status: { in: [...OPEN_STATUSES] } }) };
+  const term = readSearch(sp);
+  const chequeWhere = {
+    companyId,
+    ...(showAll ? {} : { status: { in: [...OPEN_STATUSES] } }),
+    // A cheque is nearly always hunted for by its number, sometimes by who gave
+    // it, occasionally by the bank it is drawn on.
+    ...(matchAny(term, ["chequeNo", "partyName", "bankName", "heldBy", "notes"]) ?? {}),
+  };
   const paging = readPaging(sp);
   const chequeTotal = companyId ? await db.cheque.count({ where: chequeWhere }) : 0;
   const info = pageInfo(paging, chequeTotal);
@@ -148,6 +157,10 @@ export default async function ChequesPage({
           <div className="mt-1 text-2xl font-bold tabular-nums text-heading">{money(f.later)}</div>
           <div className="mt-0.5 text-xs text-muted">beyond 30 days</div>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <SearchBox placeholder="Search cheques…" hint="Cheque number, party, bank, or who is holding it." />
       </div>
 
       <div className="card overflow-x-auto">

@@ -11,6 +11,8 @@ import { resolvePeriod } from "@/lib/period";
 import ReverseVoucher from "@/components/finance/ReverseVoucher";
 import Pager from "@/components/Pager";
 import { readPaging, pageInfo } from "@/lib/paging";
+import SearchBox from "@/components/SearchBox";
+import { readSearch, like, numericTerm } from "@/lib/search";
 
 export const dynamic = "force-dynamic";
 const n = (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -25,7 +27,7 @@ const vColor: Record<string, string> = {
   "Debit Note": "bg-brand-gold/10 text-brand-gold",
 };
 
-export default async function DayBookPage({ searchParams }: { searchParams: Promise<{ c?: string; from?: string; to?: string; t?: string; v?: string; j?: string; p?: string; per?: string }> }) {
+export default async function DayBookPage({ searchParams }: { searchParams: Promise<{ c?: string; from?: string; to?: string; t?: string; v?: string; j?: string; p?: string; per?: string; q?: string }> }) {
   await requireAccess("finance.daybook");
   const session = await getSession();
   const sp = await searchParams;
@@ -42,12 +44,30 @@ export default async function DayBookPage({ searchParams }: { searchParams: Prom
 
   // Every voucher the company has posted lands here eventually, so the query
   // fetches one page rather than everything.
+  // An accountant hunting one voucher types a reference, a party, a few words of
+  // the narration — or the amount, which is why a number is matched against the
+  // lines as well as the text against the header.
+  const term = readSearch(sp);
+  const amount = numericTerm(term);
+  const searchWhere = term
+    ? {
+        OR: [
+          { reference: like(term) },
+          { partyName: like(term) },
+          { memo: like(term) },
+          { postedBy: like(term) },
+          ...(amount === null ? [] : [{ lines: { some: { OR: [{ debit: amount }, { credit: amount }] } } }]),
+        ],
+      }
+    : {};
+
   const where = {
     companyId,
     date: { gte: period.from, lte: period.to },
     ...(type ? { voucherType: type } : {}),
     // Arrived at from job costing: show only that job's vouchers.
     ...(sp.j ? { lines: { some: { jobId: sp.j } } } : {}),
+    ...searchWhere,
   };
   const paging = readPaging(sp);
   const total = companyId ? await db.journalEntry.count({ where }) : 0;
@@ -67,6 +87,13 @@ export default async function DayBookPage({ searchParams }: { searchParams: Prom
       <PageHeader title="Finance — Day Book" subtitle="Every voucher in date order for the selected period — Tally's Day Book." />
       <FinanceTabs companyId={companyId} />
       <div className="mb-5"><CompanyPicker companies={accessible.map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={companyId} /></div>
+
+      <div className="mb-4">
+        <SearchBox
+          placeholder="Search vouchers…"
+          hint="Reference, party, narration, who posted it — or an amount, which matches either side of the voucher."
+        />
+      </div>
       <div className="mb-5">
         <PeriodPicker from={period.fromStr} to={period.toStr} label={`${period.label} · ${entries.length} voucher${entries.length === 1 ? "" : "s"}`} />
       </div>

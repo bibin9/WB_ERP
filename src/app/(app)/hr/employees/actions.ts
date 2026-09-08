@@ -10,6 +10,7 @@ import { audit } from "@/lib/audit";
 import { allow } from "@/lib/guard";
 import { redirect } from "next/navigation";
 import { EMPLOYEE_VALIDATORS } from "@/lib/uae";
+import { normalisePhone } from "@/lib/search";
 
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
 const STR_FIELDS = [
@@ -33,7 +34,11 @@ export async function updateEmployeeProfile(formData: FormData) {
   const s = await scoped(id);
   if (!s) return;
   const data: Record<string, unknown> = {};
-  for (const f of STR_FIELDS) { const v = String(formData.get(f) ?? "").trim(); data[f] = v || null; }
+  for (const f of STR_FIELDS) {
+    const v = String(formData.get(f) ?? "").trim();
+    // Phone numbers are stored without separators, or nobody can search for one.
+    data[f] = v ? (f === "phone" || f === "emergencyPhone" ? normalisePhone(v) : v) : null;
+  }
   if (!data.name) return;
 
   // The identifiers that something downstream will reject. A malformed IBAN is

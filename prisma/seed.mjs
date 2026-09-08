@@ -239,25 +239,25 @@ async function main() {
   // UAE document expiries use a spread of statuses (expired / expiring ≤60d / valid) for the compliance report.
   const d = (days) => new Date(Date.now() + days * 86400000);
   const EMPLOYEES = [
-    { empNo: "EMP-0001", name: "Rajesh Kumar", department: "Projects", designation: "Project Manager", grade: "M2", basicSalary: 18000, allowances: 6000,
+    { empNo: "EMP-0001", name: "Rajesh Kumar", phone: "0504128837", department: "Projects", designation: "Project Manager", grade: "M2", basicSalary: 18000, allowances: 6000,
       biometricId: "101", nationality: "Indian",
       emiratesIdNo: "784-1988-1234567-1", emiratesIdExpiry: d(45),   // amber
       visaNo: "VIS-2024-0091", visaType: "Employment", visaExpiry: d(500),
       labourCardNo: "78412345601234", labourCardExpiry: d(500),
       passportNo: "Z1234567", passportExpiry: d(900) },
-    { empNo: "EMP-0002", name: "Ahmed Al Balushi", department: "Operations", designation: "Operations Manager", grade: "M3", basicSalary: 22000, allowances: 8000,
+    { empNo: "EMP-0002", name: "Ahmed Al Balushi", phone: "0526631140", department: "Operations", designation: "Operations Manager", grade: "M3", basicSalary: 22000, allowances: 8000,
       biometricId: "102", nationality: "Omani",
       emiratesIdNo: "784-1985-7654321-2", emiratesIdExpiry: d(700),
       visaNo: "VIS-2023-0042", visaType: "Employment", visaExpiry: d(650),
       labourCardNo: "78412345602345", labourCardExpiry: d(650),
       passportNo: "OM998877", passportExpiry: d(1200) },
-    { empNo: "EMP-0003", name: "Maria Santos", department: "Finance", designation: "Accountant", grade: "S2", basicSalary: 9000, allowances: 3000,
+    { empNo: "EMP-0003", name: "Maria Santos", phone: "0552087742", department: "Finance", designation: "Accountant", grade: "S2", basicSalary: 9000, allowances: 3000,
       biometricId: "103", nationality: "Filipino",
       emiratesIdNo: "784-1990-2223334-3", emiratesIdExpiry: d(-8),    // expired
       visaNo: "VIS-2022-0310", visaType: "Employment", visaExpiry: d(-5),   // expired
       labourCardNo: "78412345603456", labourCardExpiry: d(20),   // amber
       passportNo: "P7788990", passportExpiry: d(55) },       // amber
-    { empNo: "EMP-0004", name: "John Mathew", department: "Fabrication", designation: "6G Welder", grade: "W1", employmentType: "Contract", basicSalary: 4500, allowances: 1500,
+    { empNo: "EMP-0004", name: "John Mathew", phone: "0567713908", department: "Fabrication", designation: "6G Welder", grade: "W1", employmentType: "Contract", basicSalary: 4500, allowances: 1500,
       biometricId: "104", nationality: "Indian",
       emiratesIdNo: "784-1992-4445556-4", emiratesIdExpiry: d(320),
       visaNo: "VIS-2024-0155", visaType: "Employment", visaExpiry: d(300),
@@ -298,7 +298,7 @@ async function main() {
   await db.employee.upsert({
     where: { companyId_empNo: { companyId: wbeCo.id, empNo: "SUP-0001" } },
     update: { ...supDocs },
-    create: { companyId: wbeCo.id, empNo: "SUP-0001", name: "Salim Ansari", department: "Fabrication", designation: "Helper",
+    create: { companyId: wbeCo.id, empNo: "SUP-0001", name: "Salim Ansari", phone: "0583309165", department: "Fabrication", designation: "Helper",
       employmentType: "Supplied", supplier: "Gulf Manpower Supply LLC", basicSalary: 2500, allowances: 500, ...supDocs },
   });
 

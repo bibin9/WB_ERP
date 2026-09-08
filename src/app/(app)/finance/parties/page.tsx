@@ -11,6 +11,8 @@ import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
 import Pager from "@/components/Pager";
 import { readPaging, pageInfo } from "@/lib/paging";
+import SearchBox from "@/components/SearchBox";
+import { readSearch, matchAny } from "@/lib/search";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +22,7 @@ const typeColor: Record<string, string> = {
   Both: "bg-brand-green/10 text-brand-green-700",
 };
 
-export default async function PartiesPage({ searchParams }: { searchParams: Promise<{ c?: string; p?: string; per?: string }> }) {
+export default async function PartiesPage({ searchParams }: { searchParams: Promise<{ c?: string; p?: string; per?: string; q?: string }> }) {
   await requireAccess("finance.parties");
   const session = await getSession();
   const sp = await searchParams;
@@ -28,13 +30,18 @@ export default async function PartiesPage({ searchParams }: { searchParams: Prom
   const companyId = accessible.find((c) => c.id === sp.c)?.id ?? accessible[0]?.id ?? "";
 
   // A party list grows with the business, so one page is fetched at a time.
+  const term = readSearch(sp);
+  const partyWhere = {
+    companyId,
+    ...(matchAny(term, ["name", "code", "trn", "contactPerson", "phone", "email"]) ?? {}),
+  };
   const paging = readPaging(sp);
-  const partyTotal = companyId ? await db.party.count({ where: { companyId } }) : 0;
+  const partyTotal = companyId ? await db.party.count({ where: partyWhere }) : 0;
   const info = pageInfo(paging, partyTotal);
 
   const parties = companyId
     ? await db.party.findMany({
-        where: { companyId },
+        where: partyWhere,
         include: { _count: { select: { entries: true } } },
         orderBy: [{ isActive: "desc" }, { code: "asc" }],
         skip: (info.page - 1) * info.perPage,
@@ -56,6 +63,10 @@ export default async function PartiesPage({ searchParams }: { searchParams: Prom
       <FinanceTabs companyId={companyId} />
 
       <div className="mb-5"><CompanyPicker companies={accessible.map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={companyId} /></div>
+
+      <div className="mb-4">
+        <SearchBox placeholder="Search customers and suppliers…" hint="Name, code, TRN, contact person, phone or email." />
+      </div>
 
       <div className="card">
         <div className="flex items-center gap-2 border-b border-line px-5 py-3">

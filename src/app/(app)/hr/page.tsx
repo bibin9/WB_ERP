@@ -14,6 +14,8 @@ import ExportButton from "@/components/ExportButton";
 import { money } from "@/lib/money";
 import Pager from "@/components/Pager";
 import { readPaging, pageInfo } from "@/lib/paging";
+import SearchBox from "@/components/SearchBox";
+import { readSearch, matchAny, like, looksLikePhone, normalisePhone } from "@/lib/search";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +37,7 @@ const typeColor: Record<string, string> = {
 export default async function EmployeesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ p?: string; per?: string }>;
+  searchParams: Promise<{ p?: string; per?: string; q?: string }>;
 }) {
   const session = await requireAccess("hr.employees");
   const sp = await searchParams;
@@ -45,8 +47,29 @@ export default async function EmployeesPage({
   const companies = tenant
     ? await db.company.findMany({ where: { tenantId: tenant.id, id: { in: scope } }, orderBy: { code: "asc" } })
     : [];
-  // An employee list is one of the few here that reaches four figures.
-  const empWhere = { companyId: { in: companies.map((c) => c.id) } };
+  // An employee list is one of the few here that reaches four figures, so it
+  // is searched and paged rather than rendered whole. The fields are the ones
+  // somebody actually has to hand: a name, a mobile number, or the number on a
+  // document they are holding.
+  const term = readSearch(sp);
+  // A number is matched with its separators stripped as well as as typed, so
+  // "0504128837" finds someone stored as "050 412 8837" and the other way round.
+  const digits = looksLikePhone(term) ? normalisePhone(term) : "";
+  const textMatch = matchAny(term, [
+    "name", "empNo", "email", "phone", "department", "designation",
+    "emiratesIdNo", "passportNo", "visaNo", "labourCardNo",
+  ]);
+  const empWhere = {
+    companyId: { in: companies.map((c) => c.id) },
+    ...(term
+      ? {
+          OR: [
+            ...(textMatch ? textMatch.OR : []),
+            ...(digits ? [{ phone: like(digits) }] : []),
+          ],
+        }
+      : {}),
+  };
   const paging = readPaging(sp);
   const empTotal = await db.employee.count({ where: empWhere });
   const info = pageInfo(paging, empTotal);
@@ -94,6 +117,13 @@ export default async function EmployeesPage({
           <div className="text-2xl font-bold text-ink">AED {money(totalPayroll)}</div>
           <div className="text-sm text-muted">Monthly payroll (gross)</div>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <SearchBox
+          placeholder="Search employees…"
+          hint="Name, employee number, mobile, email, department, or a number from their Emirates ID, passport, visa or labour card."
+        />
       </div>
 
       <div className="card overflow-hidden">
