@@ -28,7 +28,7 @@ for (const line of fs.existsSync(".env") ? fs.readFileSync(".env", "utf8").split
   if (!process.env[k]) process.env[k] = t.slice(i + 1).trim().replace(/^["']|["']$/g, "");
 }
 
-const EXTRA = ["/dashboard", "/account", "/help", "/notifications", "/companies", "/audit", "/settings"];
+const EXTRA = ["/dashboard", "/account", "/help", "/notifications", "/companies", "/audit", "/settings", "/reports"];
 const paths = [...new Set([...SCREENS.map((s) => s.href), ...EXTRA])].sort();
 
 async function sweep(label, user) {

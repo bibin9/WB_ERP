@@ -46,6 +46,10 @@ const OPEN = new Set([
   "src/app/(app)/dashboard/page.tsx",
   "src/app/(app)/help/page.tsx",
   "src/app/(app)/notifications/page.tsx",
+  // The Report Centre lists only reports whose own screens the visitor may
+  // already open, so a separate grant would add nothing but a way to be locked
+  // out of a directory of things you can already reach.
+  "src/app/(app)/reports/page.tsx",
 ]);
 
 const ungated = pages.filter((p) => !OPEN.has(p) && !read(p).includes("requireAccess("));
@@ -77,14 +81,31 @@ const stale = [...granted].filter((k) => !screens.includes(k));
 ok("no role is granted a screen that does not exist", stale.length === 0, stale.join(", "));
 
 /* --------------------------------------- the tabs point at real screens -- */
+// Both modules' tab groups live in one file now, and the report index reads
+// the same screen keys, so a renamed screen has three places to break and this
+// is the one that notices.
 for (const [file, label] of [
-  ["src/components/FinanceTabsClient.tsx", "finance"],
-  ["src/components/HrTabs.tsx", "hr"],
+  ["src/lib/moduletabs.ts", "module tab"],
+  ["src/lib/reports.ts", "report card"],
 ]) {
   if (!fs.existsSync(file)) continue;
   const tabKeys = [...read(file).matchAll(/screen:\s*"([^"]+)"/g)].map((m) => m[1]);
   const bad = tabKeys.filter((k) => !screens.includes(k));
-  ok(`every ${label} tab names a declared screen`, bad.length === 0, bad.join(", ") || `${tabKeys.length} tabs`);
+  ok(`every ${label} names a declared screen`, bad.length === 0, bad.join(", ") || `${tabKeys.length} checked`);
+}
+
+// A screen nobody can navigate to is a screen nobody uses. Settings-only and
+// detail pages are reached from elsewhere; the rest must be on a tab.
+{
+  const tabbed = new Set([...read("src/lib/moduletabs.ts").matchAll(/screen:\s*"([^"]+)"/g)].map((m) => m[1]));
+  // Everywhere a person can be handed a link: the sidebar, the module tabs,
+  // and the Settings hub, which is the only landing page that navigates onward.
+  const nav = read("src/lib/data.ts") + read("src/app/(app)/settings/page.tsx");
+  // key and href travel together on each SCREENS entry, so read them as a pair.
+  const pairs = [...block.matchAll(/key:\s*"([^"]+)"[\s\S]*?href:\s*"([^"]+)"/g)].map((m) => [m[1], m[2]]);
+  const orphans = pairs.filter(([key, href]) => !tabbed.has(key) && !nav.includes(`"${href}"`)).map(([k]) => k);
+  ok("every screen is reachable from a menu or a tab", orphans.length === 0,
+    orphans.join(", ") || `${pairs.length} checked`);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

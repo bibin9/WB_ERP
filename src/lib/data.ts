@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard, Building2, Boxes, Users, Handshake,
   HardHat, ShieldCheck, Wallet, ClipboardList, Settings, UserCog, ScrollText,
-  Database, KeyRound, LifeBuoy,
+  Database, KeyRound, LifeBuoy, LibraryBig,
 } from "lucide-react";
 import { activeTenant, type TenantCompany } from "@/config/tenant";
 
@@ -39,6 +39,10 @@ export const NAV: NavItem[] = [
   // Workspace
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, phase: 1, module: "dashboard", screen: "dashboard.home", group: "workspace" },
   { label: "Approvals", href: "/approvals", icon: ClipboardList, phase: 1, module: "approvals", screen: "approvals.inbox", group: "workspace" },
+  // Cross-module by nature, and always shown: the page lists only the reports
+  // whose own screens the visitor may already open, so it can reveal nothing
+  // they could not already reach by typing the address.
+  { label: "Reports", href: "/reports", icon: LibraryBig, phase: 1, module: "reports", screen: "reports.centre", alwaysShow: true, group: "workspace" },
   // Finance (multi-screen module)
   { label: "Finance & Accounting", href: "/finance", icon: Wallet, phase: 1, module: "finance", screen: "finance.overview", moduleLanding: true, group: "finance" },
   // Human Resources (multi-screen module)

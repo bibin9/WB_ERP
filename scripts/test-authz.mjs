@@ -32,6 +32,8 @@ const OPEN_PAGES = new Set([
   "src/app/(app)/account/page.tsx",     // own profile / password
   "src/app/(app)/help/page.tsx",        // help centre
   "src/app/(app)/notifications/page.tsx", // own notifications
+  // Lists only reports whose own screens the visitor may already open.
+  "src/app/(app)/reports/page.tsx",
 ]);
 const pages = files.filter((f) => /src\/app\/\(app\)\/.*page\.tsx$/.test(f));
 const ungated = pages.filter((f) => !OPEN_PAGES.has(f) && !read(f).includes("requireAccess("));

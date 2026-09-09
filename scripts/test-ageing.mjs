@@ -133,7 +133,7 @@ ok("control accounts are set on the account form", read("src/components/AccountF
 
 const screens = read("src/lib/rbac.ts");
 ok("both new screens are in the access-control list", screens.includes("finance.parties") && screens.includes("finance.outstanding"));
-ok("both appear as finance tabs", read("src/components/FinanceTabsClient.tsx").includes("finance.outstanding"));
+ok("both appear as finance tabs", read("src/lib/moduletabs.ts").includes("finance.outstanding"));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -143,7 +143,7 @@ ok("it can be printed", page.includes("PrintReport") && page.includes("PrintHead
 
 ok("the screen is registered for access control", read("src/lib/rbac.ts").includes('"finance.bankrec"'));
 ok("and granted to the finance roles", read("prisma/seed.mjs").includes('"finance.bankrec"'));
-ok("the tab is wired", read("src/components/FinanceTabsClient.tsx").includes("/finance/bank-rec"));
+ok("the tab is wired", read("src/lib/moduletabs.ts").includes("/finance/bank-rec"));
 
 const schema = read("prisma/schema.prisma");
 ok("a line records when the bank showed it", /clearedOn\s+DateTime\?/.test(schema));

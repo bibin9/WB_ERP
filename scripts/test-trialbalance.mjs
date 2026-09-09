@@ -138,7 +138,7 @@ ok("the screen is permission-gated", page.includes('requireAccess("finance.repor
 ok("it shows four column pairs, not two", page.includes("Opening") && page.includes("In the period") && page.includes("Closing"));
 ok("it says plainly when it does not balance", page.includes("Out of balance"));
 ok("it can be printed and exported", page.includes("PrintReport") && page.includes("trialBalance"));
-ok("the tab is registered", read("src/components/FinanceTabsClient.tsx").includes("/finance/trial-balance"));
+ok("the tab is registered", read("src/lib/moduletabs.ts").includes("/finance/trial-balance"));
 ok("the export is registered", read("src/app/(app)/export/actions.ts").includes("trialBalance,"));
 
 await clean();

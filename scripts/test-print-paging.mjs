@@ -22,8 +22,7 @@ const ok = (name, cond, extra = "") => {
 // every button. What it could not know about is chrome built from plain divs.
 const CHROME = {
   "src/components/PageHeader.tsx": "the page heading and its action buttons",
-  "src/components/FinanceTabsClient.tsx": "the finance tab strip",
-  "src/components/HrTabsClient.tsx": "the HR tab strip",
+  "src/components/ModuleTabsClient.tsx": "the finance and HR tab strips",
   "src/components/CompanyPicker.tsx": "the company switcher",
   "src/components/PeriodPicker.tsx": "the date-range picker",
 };

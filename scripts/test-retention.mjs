@@ -192,7 +192,7 @@ ok("it can be searched, paged, printed and exported",
 
 ok("the screen is registered for access control", read("src/lib/rbac.ts").includes('"finance.retention"'));
 ok("and granted to the finance roles", read("prisma/seed.mjs").includes('"finance.retention"'));
-ok("the tab is wired", read("src/components/FinanceTabsClient.tsx").includes("/finance/retention"));
+ok("the tab is wired", read("src/lib/moduletabs.ts").includes("/finance/retention"));
 ok("the export is registered", read("src/app/(app)/export/actions.ts").includes("  retention,"));
 
 await clean();

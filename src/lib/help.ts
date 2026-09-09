@@ -47,6 +47,30 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "If a screen looks empty, check the company switcher — you may be looking at a company that has no data yet.",
   },
   {
+    id: "reports-centre", category: "Getting Started", screens: ["/reports"],
+    title: "Finding the right report",
+    summary: "One place that lists every report, searchable by what you want to know.",
+    body: "Click Reports in the left menu. Every report you are allowed to open is there, grouped by what it is about, and each card says the question it answers rather than only its official name. Search by the plain word you would use out loud — type 'owes' to find the outstanding customer balances, 'expire' for visa and Emirates ID renewals, 'bounced' for returned cheques.",
+    steps: [
+      "Type in the search box at the top. It looks at the question on each card, not just the title.",
+      "Use the round buttons beside it to show only Finance or only People.",
+      "Click any card to open the report itself.",
+    ],
+    tip: "You only see the reports your role can open, so the list is shorter for some people than others. If a colleague can see one you cannot, ask an administrator to grant you that screen in Access Control.",
+  },
+  {
+    id: "module-tabs", category: "Getting Started", screens: ["/finance", "/hr"],
+    title: "The tabs across the top of Finance and HR",
+    summary: "A top row of areas, and a second row for the screens inside the one you are in.",
+    body: "Finance and HR each hold a lot of screens, so the tabs come in two levels. The top row is the area — Entry, Registers, Job Costing, Reports, Tax, Setup. When the area you have opened contains more than one screen, a smaller second row appears underneath listing them. Areas with only one screen, such as Job Costing, show no second row.",
+    steps: [
+      "Click an area in the top row. It opens the first screen in that area.",
+      "Use the small round buttons underneath to move between the screens in that area.",
+      "'All reports' at the right-hand end jumps to the full list across every module.",
+    ],
+    tip: "The company you are looking at travels with you between tabs, so you will not find yourself reading the wrong company's figures after clicking around.",
+  },
+  {
     id: "roles-access", category: "Getting Started", screens: [],
     title: "Why some screens are hidden",
     summary: "Your role decides what you can see and do.",
