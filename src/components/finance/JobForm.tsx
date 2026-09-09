@@ -14,6 +14,7 @@ export type EditingJob = {
   parentId: string | null;
   contractValue: number;
   budgetCost: number;
+  budgetHours: number;
   startDate: string | null;
   endDate: string | null;
   status: string;
@@ -123,6 +124,14 @@ export default function JobForm({
             <div>
               <label className="mb-1 block text-sm font-medium text-ink">Budget cost</label>
               <input name="budgetCost" type="number" step="0.01" min="0" className="input" defaultValue={job?.budgetCost || ""} placeholder="0.00" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-ink">Budget manhours</label>
+              <input name="budgetHours" type="number" step="0.5" min="0" className="input" defaultValue={job?.budgetHours || ""} placeholder="0" />
+              <p className="mt-1 text-xs text-muted">
+                What the job was priced for in labour hours. The Manhours report measures against it;
+                leave it blank and the job simply shows no budget.
+              </p>
               <p className="mt-1 text-xs text-muted">What you expect it to cost you.</p>
             </div>
           </div>

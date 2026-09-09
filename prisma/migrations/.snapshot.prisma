@@ -1054,6 +1054,9 @@ model Job {
   /// What the job was sold for, and what it was expected to cost.
   contractValue Float         @default(0)
   budgetCost    Float         @default(0)
+  /// Manhours the job was priced for. Zero means none was set, which the
+  /// manhours report shows as "no budget" rather than as nought per cent used.
+  budgetHours   Float         @default(0)
   startDate     DateTime?
   endDate       DateTime?
   status        String        @default("Open") // Open | On hold | Completed | Closed
@@ -1191,10 +1194,14 @@ model HrPolicy {
   noticeDays          Float @default(30)
 
   // Working time and overtime
-  normalHoursPerDay Float @default(8)
-  daysPerMonth      Float @default(30)
-  otNormalRate      Float @default(1.25)
-  otPremiumRate     Float @default(1.5)
+  normalHoursPerDay      Float @default(8)
+  daysPerMonth           Float @default(30)
+  otNormalRate           Float @default(1.25)
+  otPremiumRate          Float @default(1.5)
+  /// Article 19 caps, held as policy so a company may be stricter than the
+  /// law but never looser. The overtime report measures against these.
+  maxOvertimeHoursPerDay Float @default(2)
+  maxHoursPerThreeWeeks  Float @default(144)
 
   // Sick pay
   sickFullDays    Float @default(15)

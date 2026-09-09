@@ -834,6 +834,32 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "Gratuity = 21 days' basic pay per year for the first 5 years, 30 days per year after that, minimum 1 year of service, capped at 2 years' basic pay. Under the current law resignation and termination earn the same gratuity; gross-misconduct dismissal can forfeit it.",
   },
   {
+    id: "overtime-report", category: "Human Resources", screens: ["/hr/overtime"],
+    title: "Overtime — what it costs and where it broke the rules",
+    summary: "Overtime by person, and the days somebody worked more of it than the law allows.",
+    body: "Two different things on one screen. The money comes from approved payslips: how many overtime hours each person worked and what they were paid for them. The legality comes from the attendance record: UAE law allows two hours of overtime a day, and no more than 144 hours of work in any three weeks. Both counts are hours worked — paying some of them at the night rate does not make them fewer hours.",
+    steps: [
+      "Open HR → Reports → Overtime and set the dates at the top.",
+      "Read the sentence at the top: it says whether anybody is over the legal cap.",
+      "If a red panel appears, it lists exactly who, on which day, and by how much.",
+      "The 'Of basic' column shows overtime as a share of a person's basic pay. Above half is legal but usually means the crew is short-handed.",
+    ],
+    tip: "A labour inspection reads the attendance record, not the payslip. If somebody is over the cap the fix is the roster, not the pay run — paying correctly for an over-long day does not make it lawful.",
+  },
+  {
+    id: "manhours-report", category: "Human Resources", screens: ["/hr/manhours"],
+    title: "Manhours — where the labour went",
+    summary: "Hours on each job against the hours it was priced for.",
+    body: "Job Costing tells you a job lost money, which you find out at the end. This tells you a job is eating its hours, which you find out while you can still do something. It reads the timesheets logged on Attendance, priced at the cost rate captured when each entry was made — so a pay rise later does not rewrite what last year's work cost.",
+    steps: [
+      "Open HR → Reports → Manhours and set the dates.",
+      "The 'Used' column is hours spent as a share of the job's budget. Amber from 90%, red past 100%.",
+      "Set a job's budget hours on Finance → Job Costing, edit the job, 'Budget manhours'. A job without one simply shows 'not set'.",
+      "'By person' at the bottom shows who is carrying the hours and across how many jobs.",
+    ],
+    tip: "Watch two figures. 'Against no job' is time nobody booked to anything — it is missing from every job's cost. 'Not yet charged' is time booked to a job but not yet put into the accounts, so Job Costing's margin does not include it yet; run 'Post labour' on Job Costing to clear it.",
+  },
+  {
     id: "compliance", category: "Human Resources", screens: ["/hr/reports"],
     title: "Compliance & expiry report",
     summary: "All expiring visas, IDs and cards in one place.",

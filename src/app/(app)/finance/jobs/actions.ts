@@ -35,6 +35,7 @@ function read(formData: FormData) {
     partyId: String(formData.get("partyId") || "").trim() || null,
     contractValue: num("contractValue"),
     budgetCost: num("budgetCost"),
+    budgetHours: num("budgetHours"),
     startDate: date("startDate"),
     endDate: date("endDate"),
     status: JOB_STATUSES.includes(status as never) ? status : "Open",

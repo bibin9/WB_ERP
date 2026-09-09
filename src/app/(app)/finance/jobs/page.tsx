@@ -303,7 +303,7 @@ export default async function JobsPage({
                       job={{
                       id: j.id, code: j.code, name: j.name, partyId: j.partyId,
                       type: j.type, parentId: j.parentId,
-                      contractValue: j.contractValue, budgetCost: j.budgetCost,
+                      contractValue: j.contractValue, budgetCost: j.budgetCost, budgetHours: j.budgetHours,
                       startDate: j.startDate ? j.startDate.toISOString().slice(0, 10) : null,
                       endDate: j.endDate ? j.endDate.toISOString().slice(0, 10) : null,
                       status: j.status, notes: j.notes,

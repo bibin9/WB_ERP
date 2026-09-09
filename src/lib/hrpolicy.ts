@@ -58,6 +58,10 @@ export type HrPolicy = {
   otNormalRate: number;
   /** Night, rest-day and holiday overtime. At least 1.5. */
   otPremiumRate: number;
+  /** Most overtime anybody may work in a day. Two hours, at most. */
+  maxOvertimeHoursPerDay: number;
+  /** Most hours anybody may work in any three weeks, overtime included. */
+  maxHoursPerThreeWeeks: number;
 
   /* ------------------------------------------------------------ sick pay - */
   /** Days at full pay, then at half, then unpaid. 15 / 30 / 45 by law. */
@@ -105,6 +109,8 @@ export const STATUTORY_POLICY: HrPolicy = {
   daysPerMonth: 30,
   otNormalRate: 1.25,
   otPremiumRate: 1.5,
+  maxOvertimeHoursPerDay: 2,
+  maxHoursPerThreeWeeks: 144,
 
   sickFullDays: 15,
   sickHalfDays: 30,
@@ -165,6 +171,10 @@ export const POLICY_RULES: Rule[] = [
     why: "Article 19: ordinary overtime is 125% of basic, at least." },
   { key: "otPremiumRate", label: "Night / rest-day overtime", bound: "min", limit: 1.5, sanity: 3,
     why: "150% between 22:00 and 04:00, on a rest day, or on a public holiday." },
+  { key: "maxOvertimeHoursPerDay", label: "Overtime cap per day", bound: "max", limit: 2, sanity: 0,
+    why: "Article 19: two hours a day, unless the work prevents a serious loss or accident." },
+  { key: "maxHoursPerThreeWeeks", label: "Hours cap per three weeks", bound: "max", limit: 144, sanity: 0,
+    why: "Article 19: total working hours may not exceed 144 in any three weeks." },
 
   { key: "sickFullDays", label: "Sick leave at full pay", bound: "min", limit: 15, sanity: 90,
     why: "Article 31: the first fifteen days at full pay." },

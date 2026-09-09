@@ -2,7 +2,7 @@ import {
   LayoutGrid, BookOpen, ScrollText, FileBarChart, Receipt, RefreshCw, Users, Clock,
   HardHat, Building2, Scale, Banknote, Lock, Landmark, Percent, Settings2, PenLine,
   FolderOpen, UserPlus, Wallet, CalendarDays, CalendarCheck, BadgeCheck, UserMinus,
-  ShieldAlert, ClipboardList, TrendingUp, type LucideIcon,
+  ShieldAlert, ClipboardList, TrendingUp, Timer, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -113,7 +113,11 @@ export const HR_GROUPS: TabGroup[] = [
   },
   {
     key: "reports", label: "Reports", icon: ShieldAlert,
-    screens: [{ href: "/hr/reports", label: "Compliance & Expiry", icon: ShieldAlert, screen: "hr.reports" }],
+    screens: [
+      { href: "/hr/reports", label: "Compliance & Expiry", icon: ShieldAlert, screen: "hr.reports" },
+      { href: "/hr/overtime", label: "Overtime", icon: Timer, screen: "hr.overtime" },
+      { href: "/hr/manhours", label: "Manhours", icon: HardHat, screen: "hr.manhours" },
+    ],
   },
   {
     key: "tasks", label: "Job Assignments", icon: ClipboardList,

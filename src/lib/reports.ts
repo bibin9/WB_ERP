@@ -1,7 +1,7 @@
 import {
   Scale, FileBarChart, Clock, HardHat, Building2, Receipt, Percent,
   ShieldAlert, BadgeCheck, Wallet, CalendarCheck, Banknote, Lock, Landmark,
-  BookOpen, ScrollText, Users, TrendingUp, type LucideIcon,
+  BookOpen, ScrollText, Users, TrendingUp, Timer, AlarmClock, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -99,6 +99,11 @@ export const REPORTS: ReportDef[] = [
     question: "What did each job earn, what did it cost, and is it inside its budget?", icon: HardHat,
   },
   {
+    key: "manhours", label: "Manhours", href: "/hr/manhours",
+    screen: "hr.manhours", module: "hr", area: "Jobs and sites",
+    question: "How many hours has each job eaten, against how many it was priced for?", icon: Timer,
+  },
+  {
     key: "timesheets", label: "Job Timesheets", href: "/hr/attendance",
     screen: "hr.attendance", module: "hr", area: "Jobs and sites",
     question: "How many hours have gone onto each job?", icon: CalendarCheck,
@@ -114,6 +119,11 @@ export const REPORTS: ReportDef[] = [
     key: "certifications", label: "Certifications", href: "/hr/certifications",
     screen: "hr.certifications", module: "hr", area: "People",
     question: "Which trade tickets and medicals need renewing?", icon: BadgeCheck,
+  },
+  {
+    key: "overtime", label: "Overtime", href: "/hr/overtime",
+    screen: "hr.overtime", module: "hr", area: "People",
+    question: "What is overtime costing, and is anybody working more than the law allows?", icon: AlarmClock,
   },
   {
     key: "payroll", label: "Payroll & Payslips", href: "/hr/payroll",
