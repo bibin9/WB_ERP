@@ -15,7 +15,8 @@
     "db:prod:pull": "node scripts/prod-schema.mjs && prisma db pull --print --schema prisma/.prod.prisma",
     "db:backup": "node scripts/backup-db.mjs",
     "db:migration": "node scripts/migration.mjs",
-    "db:rehearse": "node scripts/rehearse-deploy.mjs"
+    "db:rehearse": "node scripts/rehearse-deploy.mjs",
+    "test:pg": "node scripts/run-on-pg.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

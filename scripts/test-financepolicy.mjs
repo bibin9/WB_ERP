@@ -214,6 +214,13 @@ ok("nor does an empty one", Object.keys(parseAccounts(null)).length === 0);
       !lines.some((l) => ["6000", "1000"].includes(l.account.code)));
   }
 
+  // The vouchers go first. A journal line points at a chart-of-accounts row,
+  // and that reference has no cascade — PostgreSQL refuses to drop the accounts
+  // while lines still name them, where SQLite let it through. The application
+  // never hits this: deleteCompany() refuses outright when a company holds
+  // journals, and says to deactivate instead. The test has to clean up the way
+  // the application would.
+  await db.journalEntry.deleteMany({ where: { companyId: company.id } });
   await db.company.delete({ where: { id: company.id } });
   ok("the test company was removed cleanly",
     (await db.company.count({ where: { code: "TESTCH" } })) === 0);

@@ -162,10 +162,43 @@ async function main() {
   await db.approvalRequest.deleteMany({ where: { id: { in: [req.id, req2.id] } } });
 
   // ===== NOTIFICATIONS / AUDIT =====
-  const nNotif = await db.notification.count();
-  const nAudit = await db.auditLog.count();
-  ok("TC-31", "Notifications engine has records (approval events)", nNotif >= 1, `${nNotif} notifications`);
-  ok("TC-32", "Audit trail has records (key actions logged)", nAudit >= 1, `${nAudit} audit entries`);
+  // These used to count the rows already in the database and pass if there
+  // were any. On a developer's machine there always are, because the app has
+  // been used; on a freshly created database there are none, and the same
+  // assertion failed while nothing was wrong. It was measuring history rather
+  // than the mechanism.
+  //
+  // So write one of each, read it back, and remove it. That holds on any
+  // database, including the empty one a new customer starts with.
+  {
+    const tenant = await db.tenant.findFirst();
+    const user = await db.user.findFirst({ where: { tenantId: tenant.id } });
+    const MARK = "PHASE1-CHECK";
+
+    const notif = await db.notification.create({
+      data: {
+        tenantId: tenant.id, userId: user.id, type: "info",
+        title: MARK, body: "Written by the acceptance check.",
+      },
+    });
+    const readNotif = await db.notification.findUnique({ where: { id: notif.id } });
+    ok("TC-31", "Notifications engine stores and reads back an alert",
+      !!readNotif && readNotif.title === MARK && readNotif.isRead === false,
+      "written, read, unread by default");
+    await db.notification.delete({ where: { id: notif.id } });
+
+    const entry = await db.auditLog.create({
+      data: {
+        tenantId: tenant.id, userId: user.id, userName: user.name,
+        action: "Created", entity: "Acceptance check", summary: MARK,
+      },
+    });
+    const readAudit = await db.auditLog.findUnique({ where: { id: entry.id } });
+    ok("TC-32", "Audit trail stores an entry with who, what and when",
+      !!readAudit && readAudit.userName === user.name && !!readAudit.createdAt,
+      `${readAudit?.action} by ${readAudit?.userName}`);
+    await db.auditLog.delete({ where: { id: entry.id } });
+  }
 
   // ===== SUMMARY =====
   console.log("\n" + "=".repeat(50));
