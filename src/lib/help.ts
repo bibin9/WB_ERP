@@ -47,12 +47,14 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "If a screen looks empty, check the company switcher — you may be looking at a company that has no data yet.",
   },
   {
-    id: "reports-centre", category: "Getting Started", screens: ["/reports"],
+    id: "reports-centre", category: "Getting Started", screens: ["/reports", "/finance", "/hr"],
     title: "Finding the right report",
     summary: "One place that lists every report, searchable by what you want to know.",
-    body: "Click Reports in the left menu. Every report you are allowed to open is there, grouped by what it is about, and each card says the question it answers rather than only its official name. Search by the plain word you would use out loud — type 'owes' to find the outstanding customer balances, 'expire' for visa and Emirates ID renewals, 'bounced' for returned cheques.",
+    body: "Open Finance or HR, and click 'All reports' at the right-hand end of the row of tabs across the top. Every report you are allowed to open is there — from both areas, not only the one you came from — grouped by what it is about, and each card says the question it answers rather than only its official name. Search by the plain word you would use out loud: type 'owes' for the outstanding customer balances, 'expire' for visa and Emirates ID renewals, 'bounced' for returned cheques.",
     steps: [
-      "Type in the search box at the top. It looks at the question on each card, not just the title.",
+      "Open Finance or HR from the left menu.",
+      "Click 'All reports' at the far right of the tabs across the top.",
+      "Type in the search box. It looks at the question on each card, not just the title.",
       "Use the round buttons beside it to show only Finance or only People.",
       "Click any card to open the report itself.",
     ],
@@ -66,7 +68,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     steps: [
       "Click an area in the top row. It opens the first screen in that area.",
       "Use the small round buttons underneath to move between the screens in that area.",
-      "'All reports' at the right-hand end jumps to the full list across every module.",
+      "'All reports' at the right-hand end opens the full list across every module — it is the only way in, so it is worth remembering.",
     ],
     tip: "The company you are looking at travels with you between tabs, so you will not find yourself reading the wrong company's figures after clicking around.",
   },

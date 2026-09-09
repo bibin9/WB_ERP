@@ -19,8 +19,6 @@ export default function Sidebar({ allowedScreens }: { allowedScreens: string[] }
   const firstScreenHref = (moduleKey: string) => SCREENS.find((s) => s.module === moduleKey && allowed.has(s.key))?.href;
   const visibleNav = NAV.flatMap((i) => {
     if (i.alwaysShow) return [i];
-    // A directory entry: shown only when there is something in it for you.
-    if (i.requiresAny) return i.requiresAny.some((k) => allowed.has(k)) ? [i] : [];
     if (i.moduleLanding) {
       const href = allowed.has(i.screen) ? i.href : firstScreenHref(i.module);
       return href ? [{ ...i, href }] : [];

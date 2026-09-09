@@ -2,10 +2,9 @@ import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard, Building2, Boxes, Users, Handshake,
   HardHat, ShieldCheck, Wallet, ClipboardList, Settings, UserCog, ScrollText,
-  Database, KeyRound, LifeBuoy, LibraryBig,
+  Database, KeyRound, LifeBuoy,
 } from "lucide-react";
 import { activeTenant, type TenantCompany } from "@/config/tenant";
-import { REPORTS } from "./reports";
 
 /** Group companies come from the active tenant config (product / white-label). */
 export const COMPANIES: TenantCompany[] = activeTenant.companies;
@@ -23,16 +22,6 @@ export type NavItem = {
   moduleLanding?: boolean;
   /** Always visible regardless of permissions (e.g. Help). */
   alwaysShow?: boolean;
-  /**
-   * Visible if the user may open ANY of these screens.
-   *
-   * For an entry that is a directory rather than a screen of its own: it has no
-   * permission to check, but showing it to somebody with nothing in it is a
-   * menu item that opens onto a wall — and one that advertises that reports
-   * exist without saying which, which is the opposite of what the rest of the
-   * access control is careful to do.
-   */
-  requiresAny?: string[];
   group: string;
 };
 
@@ -50,20 +39,11 @@ export const NAV: NavItem[] = [
   // Workspace
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, phase: 1, module: "dashboard", screen: "dashboard.home", group: "workspace" },
   { label: "Approvals", href: "/approvals", icon: ClipboardList, phase: 1, module: "approvals", screen: "approvals.inbox", group: "workspace" },
-  // "All Reports", not "Reports", and the wording is doing work: Finance and HR
-  // each have a Reports tab of their own, so three different places answered to
-  // the same word. "All" says which one is the superset. It also matches the
-  // "All reports" link at the end of every module tab strip, so the two ways in
-  // read as the same destination.
-  //
-  // The screens come from the report registry rather than being listed here, so
-  // a role that can open one report sees the entry and a role that can open none
-  // does not — six of the seventeen roles fall in the second group.
-  {
-    label: "All Reports", href: "/reports", icon: LibraryBig, phase: 1,
-    module: "reports", screen: "reports.centre", group: "workspace",
-    requiresAny: [...new Set(REPORTS.map((r) => r.screen))],
-  },
+  // The Report Centre (/reports) is deliberately NOT in this menu. The sidebar
+  // is the list of places to work; the Centre is a directory of things to read,
+  // and a third entry called some variant of "Reports" beside the Finance and
+  // HR tabs of the same name was one more than the word can carry. It is
+  // reached from the "All reports" link at the end of every module tab strip.
   // Finance (multi-screen module)
   { label: "Finance & Accounting", href: "/finance", icon: Wallet, phase: 1, module: "finance", screen: "finance.overview", moduleLanding: true, group: "finance" },
   // Human Resources (multi-screen module)
