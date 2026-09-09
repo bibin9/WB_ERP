@@ -142,7 +142,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     title: "Recording a transaction",
     summary: "How to add a voucher — the date, the accounts, the amounts and the VAT.",
     steps: [
-      "On Finance → Overview, click 'New journal entry'.",
+      "Click 'New journal entry' — it is at the top of Finance → Overview, and also at the top of Finance → Entry → Day Book, which is usually where you notice one is missing.",
       "Choose the voucher type — there are eight, listed in the next article.",
       "Set the date. It starts on today, but you can change it: an invoice dated last month will land in last month on every report.",
       "Choose the customer or supplier if there is one, and write a narration saying what the transaction was.",

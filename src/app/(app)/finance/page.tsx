@@ -8,6 +8,7 @@ import GuardedDelete from "@/components/GuardedDelete";
 import { deleteAccount } from "@/app/(app)/finance/actions";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { can } from "@/lib/rbac";
 import { requireAccess } from "@/lib/guard";
 import ExportButton from "@/components/ExportButton";
 import PeriodPicker from "@/components/PeriodPicker";
@@ -78,7 +79,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         <PrintReport />
         <div className="flex flex-wrap items-center gap-2">
           {companyId && <ExportButton dataset="journals" companyId={companyId} label="Export journals" />}
-          {companyId && <JournalForm companyId={companyId} accounts={accounts.map((a) => ({ id: a.id, code: a.code, name: a.name }))} parties={parties.map((p) => ({ id: p.id, code: p.code, name: p.name }))} jobs={jobs} costCentres={costCentres} />}
+          {companyId && can(session, "finance.overview", "create") && <JournalForm companyId={companyId} accounts={accounts.map((a) => ({ id: a.id, code: a.code, name: a.name }))} parties={parties.map((p) => ({ id: p.id, code: p.code, name: p.name }))} jobs={jobs} costCentres={costCentres} />}
         </div>
       </PageHeader>
 

@@ -6,6 +6,8 @@ import FinanceTabs from "@/components/FinanceTabs";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { can } from "@/lib/rbac";
+import JournalForm from "@/components/JournalForm";
 import PeriodPicker from "@/components/PeriodPicker";
 import { resolvePeriod } from "@/lib/period";
 import ReverseVoucher from "@/components/finance/ReverseVoucher";
@@ -36,6 +38,20 @@ export default async function DayBookPage({ searchParams }: { searchParams: Prom
 
   const company = companyId ? await db.company.findUnique({ where: { id: companyId } }) : null;
   const period = resolvePeriod(sp, company?.fyStartMonth ?? 1);
+
+  // Posting is guarded by finance.overview/create, not by the permission on
+  // this screen, so the button has to be asked about separately. Showing it to
+  // somebody who cannot post would produce a filled-in form and a refusal at
+  // the end of it, which is the thing every other screen here avoids.
+  const mayPost = can(session, "finance.overview", "create");
+  const [postAccounts, postParties, postJobs, postCostCentres] = mayPost && companyId
+    ? await Promise.all([
+        db.chartOfAccount.findMany({ where: { companyId, isActive: true }, orderBy: { code: "asc" }, select: { id: true, code: true, name: true } }),
+        db.party.findMany({ where: { companyId, isActive: true }, orderBy: { name: "asc" }, select: { id: true, code: true, name: true } }),
+        db.job.findMany({ where: { companyId, isActive: true, status: { in: ["Open", "On hold"] } }, orderBy: { code: "asc" }, select: { id: true, code: true, name: true } }),
+        db.costCentre.findMany({ where: { companyId, isActive: true }, orderBy: { code: "asc" }, select: { id: true, code: true, name: true } }),
+      ])
+    : [[], [], [], []];
 
   // Filter by voucher type — "show me only the payments" is the second thing
   // anyone asks of a day book.
@@ -84,7 +100,17 @@ export default async function DayBookPage({ searchParams }: { searchParams: Prom
 
   return (
     <div>
-      <PageHeader title="Finance — Day Book" subtitle="Every voucher in date order for the selected period — Tally's Day Book." />
+      <PageHeader title="Finance — Day Book" subtitle="Every voucher in date order for the selected period — Tally's Day Book.">
+        {mayPost && companyId && (
+          <JournalForm
+            companyId={companyId}
+            accounts={postAccounts}
+            parties={postParties}
+            jobs={postJobs}
+            costCentres={postCostCentres}
+          />
+        )}
+      </PageHeader>
       <FinanceTabs companyId={companyId} />
       <div className="mb-5"><CompanyPicker companies={accessible.map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={companyId} /></div>
 

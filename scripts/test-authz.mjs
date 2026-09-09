@@ -74,5 +74,25 @@ const guard = read("src/lib/guard.ts");
 ok("requireAccess redirects when denied", /redirect\("\/dashboard"\)/.test(guard));
 ok("allow() returns null rather than redirecting", /export async function allow\b[\s\S]{0,220}return null;/.test(guard));
 
+/* ---------------- a button that would refuse is not offered ------------- */
+// Posting is guarded by finance.overview/create, but the Day Book is opened
+// with finance.daybook/view. Two screens now carry the same button, and on
+// both of them it has to be asked about separately — otherwise a read-only
+// clerk fills in a voucher and is refused at the end of it.
+for (const [file, screen] of [
+  ["src/app/(app)/finance/daybook/page.tsx", "Day Book"],
+  ["src/app/(app)/finance/page.tsx", "Overview"],
+]) {
+  const src = read(file);
+  ok(`${screen} offers the journal form only to somebody who may post`,
+    /can\(session, "finance\.overview", "create"\)/.test(src),
+    "the permission the posting action itself checks");
+  ok(`and ${screen} renders the form at all`, src.includes("<JournalForm"));
+}
+ok("Ledgers does not offer it — it would read as posting to that one account",
+  !read("src/app/(app)/finance/ledgers/page.tsx").includes("<JournalForm"));
+ok("the Day Book does not load the form's lookups for somebody who cannot post",
+  /mayPost && companyId/.test(read("src/app/(app)/finance/daybook/page.tsx")));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
