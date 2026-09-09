@@ -33,20 +33,25 @@ datasource db {
 
 /// A customer of the product (white-label). White & Bright is one tenant.
 model Tenant {
-  id             String           @id @default(cuid())
-  key            String           @unique // e.g. "wandb"
-  name           String
+  id                 String           @id @default(cuid())
+  key                String           @unique // e.g. "wandb"
+  name               String
   // Branding (mirrors src/config/tenant.ts so it can move to the DB later)
-  logoUrl        String?
-  theme          String? // JSON string: { navy, blue, green, gold, paper } as RGB triplets
-  companies      Company[]
-  users          User[]
-  roles          Role[]
-  approvalRoutes ApprovalRoute[]
-  customFields   CustomFieldDef[]
-  masterItems    MasterItem[]
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  logoUrl            String?
+  theme              String? // JSON string: { navy, blue, green, gold, paper } as RGB triplets
+  companies          Company[]
+  users              User[]
+  roles              Role[]
+  approvalRoutes     ApprovalRoute[]
+  customFields       CustomFieldDef[]
+  masterItems        MasterItem[]
+  /// How many days an entry stays on the live audit trail before it is moved
+  /// to the archive. Nothing is deleted — the archive is readable from the same
+  /// screen — so this controls how much history the default view carries, not
+  /// how much history exists.
+  auditRetentionDays Int              @default(365)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 }
 
 /// A legal company within a tenant's group (multi-company).
@@ -521,7 +526,35 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@index([tenantId])
-  /// The screen reads the newest hundred for one tenant, which is exactly this.
+  /// The screen reads a page of one tenant's newest entries, which is exactly this.
+  @@index([tenantId, createdAt])
+}
+
+/// Audit entries past their retention window, moved off the live table.
+///
+/// Deliberately a copy rather than a flag on AuditLog: the point of moving them
+/// is that the live table stays small, and a WHERE clause on a column does not
+/// achieve that. The original id is carried over, so an entry keeps its identity
+/// across the move and the same row cannot be archived twice.
+///
+/// Nothing here is ever deleted by the system. An archive that quietly discards
+/// its oldest rows is not an archive, and "we cannot answer that, it aged out"
+/// is not an answer an auditor accepts.
+model AuditLogArchive {
+  id         String   @id
+  tenantId   String
+  userId     String?
+  userName   String
+  action     String
+  entity     String
+  entityId   String?
+  summary    String
+  ipAddress  String?
+  userAgent  String?
+  /// When the thing happened — NOT when it was archived.
+  createdAt  DateTime
+  archivedAt DateTime @default(now())
+
   @@index([tenantId, createdAt])
 }
 

@@ -119,3 +119,75 @@ export function typedEmailLabel(email: string): string {
   const e = clean(email) ?? "";
   return e ? e.slice(0, MAX_TYPED_EMAIL_LENGTH) : "(no email given)";
 }
+
+/* ========================= how long entries stay live ===================== */
+
+/**
+ * The default retention window: one year on the live trail.
+ *
+ * Long enough that "what happened at last year's audit" is on the first screen,
+ * short enough that the table a busy month-end writes to stays small.
+ */
+export const DEFAULT_RETENTION_DAYS = 365;
+
+/**
+ * The floor is about usefulness, not law. Nothing is destroyed by archiving —
+ * the archive is readable from the same screen — but a window of a few days
+ * would push this month's own activity off the default view, which is the one
+ * thing the audit trail exists to show.
+ */
+export const MIN_RETENTION_DAYS = 30;
+
+/** Ten years. Past this it is not a retention window, it is "keep everything". */
+export const MAX_RETENTION_DAYS = 3650;
+
+/** Offered on the screen, because most people want a period, not a day count. */
+export const RETENTION_CHOICES = [
+  { days: 90, label: "3 months" },
+  { days: 180, label: "6 months" },
+  { days: 365, label: "1 year" },
+  { days: 730, label: "2 years" },
+  { days: 1825, label: "5 years" },
+  { days: 3650, label: "10 years" },
+] as const;
+
+/** A whole number of days inside the bounds, or a sentence saying why not. */
+export function validateRetentionDays(value: unknown): { ok: true; days: number } | { ok: false; error: string } {
+  // Number("") is 0, not NaN, so a blank field would otherwise be refused for
+  // being under the floor — true, but not what the person did wrong.
+  const raw = typeof value === "string" ? value.trim() : value;
+  if (raw === "" || raw === null || raw === undefined) {
+    return { ok: false, error: "Enter the number of days to keep." };
+  }
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return { ok: false, error: "Enter the number of days to keep." };
+  const days = Math.floor(n);
+  if (days < MIN_RETENTION_DAYS) {
+    return {
+      ok: false,
+      error: `Keep at least ${MIN_RETENTION_DAYS} days on the live trail, so the current month is always on the first screen. Older entries move to the archive rather than being deleted.`,
+    };
+  }
+  if (days > MAX_RETENTION_DAYS) {
+    return { ok: false, error: `${MAX_RETENTION_DAYS} days (ten years) is the most that can be set.` };
+  }
+  return { ok: true, days };
+}
+
+/**
+ * The moment before which entries are archived.
+ *
+ * Whole days back from now rather than from midnight: the boundary moves with
+ * the clock, so an entry is archived once it is genuinely older than the
+ * window, not because a date rolled over while it was 23 hours old.
+ */
+export function retentionCutoff(days: number, now: Date = new Date()): Date {
+  return new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+}
+
+/** "1 year", "6 months", or "45 days" — whichever reads as what was chosen. */
+export function retentionLabel(days: number): string {
+  const known = RETENTION_CHOICES.find((c) => c.days === days);
+  if (known) return known.label;
+  return `${days.toLocaleString()} days`;
+}

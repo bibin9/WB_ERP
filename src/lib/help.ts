@@ -897,6 +897,19 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "The address is the one the office or phone network was using at that moment, not a permanent label for a person. Two people in the same office share one.",
   },
   {
+    id: "audit-retention", category: "Administration & Security", screens: ["/audit"],
+    title: "The Archive tab, and how far back this screen goes",
+    summary: "Older entries move to an archive. Nothing is ever deleted.",
+    body: "The audit trail collects an entry every time somebody creates, changes, approves or posts anything, and every time somebody signs in or fails to. After a year that is a lot of rows, and a screen that tries to show all of them gets slow. So entries older than the period you choose move to the Archive tab. They are still there, still readable, still unchangeable — they have simply moved off the front page. Nothing is deleted, by the system or by anyone.",
+    steps: [
+      "Recent / Archive: the two tabs at the top. The number beside each says how many entries it holds, so nothing ever looks lost.",
+      "Use the arrows at the bottom to move through the pages, and 'Per page' to show more at a time.",
+      "Administrators can change the period — 3 months up to 10 years. One year is the default.",
+      "'Archive N now' does the move immediately. It also happens by itself every time the system is updated, so you rarely need the button.",
+    ],
+    tip: "The shortest period allowed is 30 days, so the current month is always on the first screen. Changing the period is itself written into the audit trail, along with who changed it — shortening it is not a way to make anything disappear.",
+  },
+  {
     id: "audit-signins", category: "Administration & Security", screens: ["/audit", "/users"],
     title: "Reading the sign-in records",
     summary: "Every sign-in, sign-out, failed password and lock-out is written down.",
