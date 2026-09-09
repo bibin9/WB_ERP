@@ -161,8 +161,13 @@ export async function issueInvoice(invoiceId: string, issuedBy: string): Promise
     );
     const rcTax = toFils(rcNet * rate);
     if (rcTax !== 0) {
-      put(roles.ids.vatInput, rcTax, "debit", { vatTreatment: "Reverse charge" });
-      put(roles.ids.vatOutput, rcTax, "credit", { vatTreatment: "Reverse charge" });
+      // Deliberately WITHOUT a vatTreatment. The VAT 201 reads every line that
+      // carries one and takes its value as a taxable amount — so tagging these
+      // would put the tax itself into boxes 3 and 10 on top of the supply, and
+      // a 10,000 import would be declared as 11,000. The treatment belongs on
+      // the expense line, which is the supply; these two are the tax on it.
+      put(roles.ids.vatInput, rcTax, "debit");
+      put(roles.ids.vatOutput, rcTax, "credit");
     }
   }
 

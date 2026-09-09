@@ -1,3 +1,4 @@
+import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import CompanyPicker from "@/components/CompanyPicker";
 import FinanceTabs from "@/components/FinanceTabs";
@@ -72,7 +73,14 @@ export default async function VatPage({
           date: { gte: period.from, lte: period.to },
           voucherType: { in: [...OUTPUT_VOUCHERS, ...INPUT_VOUCHERS] },
         },
-        include: { lines: true, party: { select: { name: true, trn: true } } },
+        include: {
+          lines: true,
+          party: { select: { name: true, trn: true } },
+          // The invoice the voucher came from, where there is one. A return
+          // that names only its journal references can be agreed to the books
+          // and not to the paperwork, and it is the paperwork the FTA asks for.
+          Invoice: { select: { id: true, number: true, docType: true } },
+        },
         orderBy: { date: "asc" },
       })
     : [];
@@ -331,6 +339,7 @@ export default async function VatPage({
             <tr className="border-b border-line bg-brand-paper text-left text-xs uppercase text-muted">
               <th className="px-4 py-2 font-semibold">Date</th>
               <th className="px-4 py-2 font-semibold">Voucher</th>
+              <th className="px-4 py-2 font-semibold">Document</th>
               <th className="px-4 py-2 font-semibold">Type</th>
               <th className="px-4 py-2 font-semibold">Party</th>
               <th className="px-4 py-2 font-semibold">TRN</th>
@@ -342,7 +351,7 @@ export default async function VatPage({
           <tbody className="divide-y divide-line">
             {entries.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-muted">
+                <td colSpan={9} className="px-4 py-10 text-center text-muted">
                   No VAT vouchers in this period.
                 </td>
               </tr>
@@ -357,6 +366,17 @@ export default async function VatPage({
                     <tr key={l.id}>
                       <td className="whitespace-nowrap px-4 py-2 text-muted">{fmtDate(e.date)}</td>
                       <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-heading">{e.reference}</td>
+                      <td className="whitespace-nowrap px-4 py-2 text-xs">
+                        {e.Invoice ? (
+                          <Link href={`/finance/invoices/${e.Invoice.id}`} className="text-brand-blue-600 hover:underline">
+                            {e.Invoice.number}
+                          </Link>
+                        ) : (
+                          <span className="text-muted/60" title="Posted straight to the ledger, with no invoice document behind it">
+                            journal only
+                          </span>
+                        )}
+                      </td>
                       <td className="whitespace-nowrap px-4 py-2 text-muted">{e.voucherType}</td>
                       <td className="px-4 py-2 text-ink">{e.party?.name ?? e.partyName ?? "—"}</td>
                       <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-muted">{e.party?.trn ?? "—"}</td>

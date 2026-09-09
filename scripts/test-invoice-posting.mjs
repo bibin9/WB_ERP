@@ -17,10 +17,11 @@ import { PrismaClient } from "@prisma/client";
 import fs from "node:fs";
 import { importLibs } from "./lib-shim.mjs";
 
-const { "invoice-posting": posting, invoice: inv } = await importLibs([
+const { "invoice-posting": posting, vat } = await importLibs([
   "invoice-posting", "invoice", "posting", "accounts", "financepolicy", "money", "vat", "db", "period",
 ]);
 const { issueInvoice, refreshInvoiceTotals, nextInvoiceNumber } = posting;
+const { buildVat201, OUTPUT_VOUCHERS, INPUT_VOUCHERS } = vat;
 
 const db = new PrismaClient();
 let pass = 0, fail = 0;
@@ -212,6 +213,103 @@ try {
     const n1 = await nextInvoiceNumber(co.id, "Invoice");
     ok("a sales number is prefixed with the company code", n1.startsWith(`${co.code}/INV/`), n1);
     ok("a credit note has its own series", (await nextInvoiceNumber(co.id, "Credit Note")).includes("/CN/"));
+  }
+
+  /* ================= the return, from what was posted =================== */
+  /**
+   * The VAT 201 reads every voucher line that carries a treatment and takes its
+   * value as a taxable amount. That makes tagging the wrong line a quiet way to
+   * misstate a legal filing: the tax on a reverse-charge import was briefly
+   * tagged "Reverse charge" itself, which declared a 10,000 import as 11,000 and
+   * the tax as 550 rather than 500. Nothing on any screen would have looked odd.
+   *
+   * So the boxes are built here from the lines an invoice really posted, rather
+   * than from lines written by hand for the test.
+   */
+  {
+    const vatLinesFor = async (entryId) => {
+      const rows = await db.journalLine.findMany({ where: { entryId }, select: { debit: true, credit: true, vatTreatment: true } });
+      const entry = await db.journalEntry.findUnique({ where: { id: entryId }, select: { voucherType: true } });
+      return rows
+        .filter((l) => l.vatTreatment)
+        .map((l) => ({
+          voucherType: entry.voucherType,
+          treatment: l.vatTreatment,
+          taxableValue: l.debit > 0 ? l.debit : l.credit,
+        }));
+    };
+  
+    // A plain sale of 1,000.
+    {
+      const d = await draft({ lines: [{ description: "Sale", quantity: 1, unitPrice: 1000, accountId: revenue.id }] });
+      const res = await issueInvoice(d.id, "tester");
+      ok("the sale for the VAT check issues", res.ok, res.ok ? "" : (res.problems ?? []).map((x) => x.message).join(" | ") || res.error);
+      const box = buildVat201(await vatLinesFor(res.entryId));
+      ok("a standard sale lands in box 1 at its net value",
+        box.standardSupplies.amount === 1000 && box.standardSupplies.vat === 50,
+        `${box.standardSupplies.amount} / ${box.standardSupplies.vat}`);
+      ok("and nowhere else", box.zeroRatedSupplies === 0 && box.standardExpenses.amount === 0);
+      ok("nothing is left unclassified", box.unclassified === 0);
+    }
+  
+    // A reverse-charge import of 10,000. Boxes 3 and 10 must read the supply,
+    // not the supply plus the tax on it.
+    {
+      const d = await draft({
+        side: "Purchase",
+        lines: [{ description: "Imported consultancy", quantity: 1, unitPrice: 10000, accountId: expense.id, vatTreatment: "Reverse charge" }],
+      });
+      const res = await issueInvoice(d.id, "tester");
+      const box = buildVat201(await vatLinesFor(res.entryId));
+  
+      ok("a reverse-charge import declares the supply in box 3",
+        box.reverseChargeSupplies.amount === 10000,
+        `${box.reverseChargeSupplies.amount} — 10,500 would mean the tax was counted as supply`);
+      ok("and reclaims the same in box 10", box.reverseChargeExpenses.amount === 10000);
+      ok("the tax is 500, not 550",
+        box.reverseChargeSupplies.vat === 500 && box.reverseChargeExpenses.vat === 500,
+        `${box.reverseChargeSupplies.vat}`);
+      ok("so it nets to nil, which is the whole point of the reverse charge",
+        Math.abs(box.outputTax - box.inputTax) < 0.005, `${box.outputTax} vs ${box.inputTax}`);
+  
+      // The accounting still has both VAT lines; they simply carry no treatment.
+      const rows = await db.journalLine.findMany({ where: { entryId: res.entryId } });
+      ok("both VAT accounts were still posted", rows.length === 4, `${rows.length} lines`);
+      ok("but the tax lines carry no treatment, because tax is not a supply",
+        rows.filter((l) => l.vatTreatment).length === 1,
+        "only the expense line is the supply");
+    }
+  
+    // A mixed invoice: the boxes must split by treatment, not by document.
+    {
+      const d = await draft({
+        lines: [
+          { description: "Mainland work", quantity: 1, unitPrice: 2000, accountId: revenue.id },
+          { description: "Export", quantity: 1, unitPrice: 3000, accountId: revenue.id, vatTreatment: "Zero-rated" },
+          { description: "Bare land", quantity: 1, unitPrice: 500, accountId: revenue.id, vatTreatment: "Exempt" },
+        ],
+      });
+      const res = await issueInvoice(d.id, "tester");
+      const box = buildVat201(await vatLinesFor(res.entryId));
+      ok("one invoice splits across three boxes",
+        box.standardSupplies.amount === 2000 && box.zeroRatedSupplies === 3000 && box.exemptSupplies === 500,
+        `${box.standardSupplies.amount} / ${box.zeroRatedSupplies} / ${box.exemptSupplies}`);
+      ok("with tax only on the standard-rated part", box.outputTax === 100, `${box.outputTax}`);
+    }
+  
+    // A credit note takes it back out.
+    {
+      const orig = await db.invoice.findFirst({ where: { number: `${MARK}-1` } });
+      const d = await draft({
+        docType: "Credit Note", originalInvoiceId: orig.id,
+        lines: [{ description: "Returned", quantity: 1, unitPrice: 400, accountId: revenue.id }],
+      });
+      const res = await issueInvoice(d.id, "tester");
+      const box = buildVat201(await vatLinesFor(res.entryId));
+      ok("a credit note reduces box 1 rather than adding to it",
+        box.standardSupplies.amount === -400 && box.standardSupplies.vat === -20,
+        `${box.standardSupplies.amount} / ${box.standardSupplies.vat}`);
+    }
   }
 
   await db.company.update({ where: { id: co.id }, data: { vatTRN: originalTrn } });
