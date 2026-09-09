@@ -84,6 +84,17 @@ model Company {
   /// registers for corporate tax. Separate from the VAT TRN: a company can be
   /// registered for one and not the other, and the return quotes this one.
   corporateTaxTRN     String?
+  /// The VAT registration number. A tax invoice is not valid without it on the
+  /// face of the document, and until now the only TRN this system held was the
+  /// customer's — the VAT return showed everybody's number except our own.
+  vatTRN              String?
+  /// Structured address. One free-text line is enough to print and not enough
+  /// to transmit: a PINT AE document carries the parts separately, and the
+  /// emirate is its own field.
+  addressLine         String?
+  city                String?
+  emirate             String?
+  countryCode         String?              @default("AE")
   /// Whether the company trades in one of the fourteen sectors MOHRE has named
   /// for Emiratisation — construction, real estate, healthcare, hospitality,
   /// information and communications, financial activities and the rest.
@@ -111,6 +122,7 @@ model Company {
   createdAt           DateTime             @default(now())
   hrPolicy            HrPolicy?
   financePolicy       FinancePolicy?
+  Invoice             Invoice[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -244,6 +256,7 @@ model ChartOfAccount {
   isActive       Boolean       @default(true)
   lines          JournalLine[]
   createdAt      DateTime      @default(now())
+  InvoiceLine    InvoiceLine[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -288,6 +301,7 @@ model JournalEntry {
   timesheets   Timesheet[]
   cheques      Cheque[]
   retentions   Retention[]
+  Invoice      Invoice?
 
   @@unique([companyId, reference])
   @@unique([companyId, sourceType, sourceId])
@@ -556,6 +570,119 @@ model AuditLogArchive {
   archivedAt DateTime @default(now())
 
   @@index([tenantId, createdAt])
+}
+
+/// A tax invoice, a supplier's bill, or a note adjusting one.
+///
+/// Separate from JournalEntry on purpose. A voucher records what an invoice did
+/// to the accounts; this records the invoice. The VAT return is legally built
+/// from documents, and eInvoicing transmits them — neither can be reconstructed
+/// from debits and credits.
+model Invoice {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Sales (we issued it) or Purchase (a supplier did).
+  side      String    @default("Sales")
+  /// Invoice | Credit Note | Debit Note
+  docType   String    @default("Invoice")
+  /// Draft | Issued | Cancelled. Only a draft may be changed.
+  status    String    @default("Draft")
+  /// Our number when we issued it. On a purchase this is the supplier's.
+  number    String
+  issueDate DateTime
+  dueDate   DateTime?
+
+  partyId       String
+  party         Party   @relation(fields: [partyId], references: [id])
+  /// Snapshotted at issue. A customer may be renamed; an issued invoice may not
+  /// change, so what was printed has to survive independently of the master.
+  partyName     String
+  partyTrn      String?
+  partyAddress  String?
+  /// Our own details as they stood when it was issued, for the same reason.
+  sellerTrn     String?
+  sellerAddress String?
+
+  currency     String @default("AED")
+  /// Sum of the line net amounts, the tax, and the two together.
+  netTotal     Float  @default(0)
+  vatTotal     Float  @default(0)
+  grossTotal   Float  @default(0)
+  /// Tax grouped by VAT category, as JSON. A PINT AE document must carry one
+  /// group per category and a validator checks they sum to the header tax.
+  taxBreakdown String @default("[]")
+
+  jobId String?
+  job   Job?    @relation(fields: [jobId], references: [id])
+
+  /// The document a note adjusts. Required on a credit or debit note: a note
+  /// that does not say what it corrects is unattributable, and the eInvoicing
+  /// specification will not accept one.
+  originalInvoiceId String?
+  originalInvoice   Invoice?  @relation("InvoiceAdjustment", fields: [originalInvoiceId], references: [id])
+  adjustments       Invoice[] @relation("InvoiceAdjustment")
+
+  notes String?
+
+  /// The voucher this posted as. Set once; an invoice with a voucher is issued
+  /// and cannot be edited, only credited.
+  entryId String?       @unique
+  entry   JournalEntry? @relation(fields: [entryId], references: [id])
+
+  lines     InvoiceLine[]
+  issuedBy  String?
+  issuedAt  DateTime?
+  createdBy String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([companyId, side, number])
+  @@index([companyId])
+  @@index([companyId, issueDate])
+  @@index([partyId])
+  @@index([jobId])
+  @@index([status])
+}
+
+/// One billed line. Everything a tax invoice and a PINT AE document need.
+model InvoiceLine {
+  id        String  @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  /// What is being billed, in words the customer will read.
+  description String
+  quantity    Float  @default(1)
+  /// UN/ECE Recommendation 20 code — EA, HUR, MTR and so on.
+  unitCode    String @default("EA")
+  unitPrice   Float  @default(0)
+  /// A cash discount on the line, in currency rather than a percentage.
+  discount    Float  @default(0)
+  /// quantity x unitPrice, less the discount.
+  netAmount   Float  @default(0)
+
+  vatTreatment String @default("Standard")
+  /// The rate applied, snapshotted. If the rate ever changes, an old invoice
+  /// must still show the rate it was raised at.
+  vatRate      Float  @default(5)
+  vatAmount    Float  @default(0)
+
+  /// The revenue or cost account this line belongs to.
+  accountId    String
+  account      ChartOfAccount @relation(fields: [accountId], references: [id])
+  jobId        String?
+  job          Job?           @relation(fields: [jobId], references: [id])
+  costCentreId String?
+  costCentre   CostCentre?    @relation(fields: [costCentreId], references: [id])
+
+  order Int @default(0)
+
+  @@index([invoiceId])
+  @@index([accountId])
+  @@index([jobId])
+  @@index([costCentreId])
 }
 
 /// HR — Recruitment & Onboarding (FSD HR-09…11)
@@ -911,6 +1038,11 @@ model Party {
   type          String         @default("Customer") // Customer | Supplier | Both
   /// UAE Tax Registration Number — required on a tax invoice.
   trn           String?
+  /// Structured address, for the same reason as the company's.
+  addressLine   String?
+  city          String?
+  emirate       String?
+  countryCode   String?        @default("AE")
   contactPerson String?
   email         String?
   phone         String?
@@ -923,6 +1055,7 @@ model Party {
   cheques       Cheque[]
   retentions    Retention[]
   createdAt     DateTime       @default(now())
+  Invoice       Invoice[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1066,6 +1199,8 @@ model Job {
   retentions    Retention[]
   isActive      Boolean       @default(true)
   createdAt     DateTime      @default(now())
+  Invoice       Invoice[]
+  InvoiceLine   InvoiceLine[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1080,19 +1215,20 @@ model Job {
 /// attached. It is what lets the workshop, the vehicles and the head office be
 /// reported on when there is no contract to charge them to.
 model CostCentre {
-  id        String        @id @default(cuid())
-  companyId String
-  company   Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  code      String // e.g. CC-01
-  name      String
+  id          String        @id @default(cuid())
+  companyId   String
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code        String // e.g. CC-01
+  name        String
   /// Departments roll up into a division the same way jobs roll up.
-  parentId  String?
-  parent    CostCentre?   @relation("CostCentreTree", fields: [parentId], references: [id])
-  children  CostCentre[]  @relation("CostCentreTree")
-  lines     JournalLine[]
-  notes     String?
-  isActive  Boolean       @default(true)
-  createdAt DateTime      @default(now())
+  parentId    String?
+  parent      CostCentre?   @relation("CostCentreTree", fields: [parentId], references: [id])
+  children    CostCentre[]  @relation("CostCentreTree")
+  lines       JournalLine[]
+  notes       String?
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  InvoiceLine InvoiceLine[]
 
   @@unique([companyId, code])
   @@index([companyId])
