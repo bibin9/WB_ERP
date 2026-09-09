@@ -81,8 +81,19 @@ export async function saveFinancePolicy(formData: FormData): Promise<Result> {
   }
 
   const before = await db.financePolicy.findUnique({ where: { companyId } });
+
+  // Identifiers rather than figures: they are dictated by an accredited service
+  // provider, so they are stored as typed and never parsed as numbers. Blank is
+  // a meaningful value — it means eInvoicing is not switched on for this
+  // company, which is the correct state until a provider has been appointed.
+  const TEXTS = ["eInvoiceProvider", "eInvoiceCustomizationId", "eInvoiceProfileId"] as const;
+  const texts = Object.fromEntries(
+    TEXTS.map((k) => [k, String(formData.get(k) ?? "").trim().slice(0, 200)]),
+  ) as Record<(typeof TEXTS)[number], string>;
+
   const data = {
     ...Object.fromEntries(NUMBERS.map((k) => [k, proposed[k] as number])),
+    ...texts,
     accounts: JSON.stringify(accounts),
     notes: String(formData.get("notes") || "").trim() || null,
     updatedBy: session.user.name,
@@ -104,6 +115,14 @@ export async function saveFinancePolicy(formData: FormData): Promise<Result> {
   for (const role of ACCOUNT_ROLES) {
     if (baseline.accounts[role.key] !== accounts[role.key]) {
       changed.push(`${role.label} ${baseline.accounts[role.key]} → ${accounts[role.key]}`);
+    }
+  }
+  // Switching eInvoicing on or off, or changing who transmits, is exactly the
+  // kind of change somebody will later need to date.
+  for (const k of TEXTS) {
+    const was = (baseline as Record<string, unknown>)[k];
+    if (String(was ?? "") !== texts[k]) {
+      changed.push(`${k} ${was ? `“${was}”` : "(blank)"} → ${texts[k] ? `“${texts[k]}”` : "(blank)"}`);
     }
   }
   await audit({

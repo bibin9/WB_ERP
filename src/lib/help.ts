@@ -973,6 +973,32 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "The address is the one the office or phone network was using at that moment, not a permanent label for a person. Two people in the same office share one.",
   },
   {
+    id: "einvoicing", category: "Finance & Accounting", screens: ["/finance/einvoicing", "/finance/settings"],
+    title: "Electronic invoicing — how it works",
+    summary: "Your invoices reach the FTA through an accredited provider, not directly.",
+    body: "UAE electronic invoicing has five corners: you, your Accredited Service Provider, your customer's provider, your customer, and the FTA. This system builds the document and hands it to your provider; they check it, sign it and transmit it. Nothing here talks to the FTA directly, and it is not supposed to — that is what accreditation is for.",
+    steps: [
+      "Appoint an Accredited Service Provider. The Ministry of Finance publishes who is accredited.",
+      "Put their name and the two identifiers they give you on Finance → Setup → Finance Settings. Until those are filled in nothing is transmitted, and your invoices carry on working exactly as before.",
+      "Issue invoices as usual. Then open Finance → Tax → e-Invoicing to send them and see what has got through.",
+      "Use Preview first. It shows the exact document that would leave and lists anything a checker would refuse.",
+    ],
+    tip: "The status column has more than one kind of success on purpose. 'Sent' means your provider took it; 'Accepted' means they validated it; 'Delivered' means the customer's provider took it too. A document can be accepted by yours and refused by theirs hours later, and you need to be able to see which.",
+  },
+  {
+    id: "einvoicing-refused", category: "Finance & Accounting", screens: ["/finance/einvoicing"],
+    title: "When a document is refused",
+    summary: "What the common refusals mean, and how to clear them.",
+    body: "A document is checked here before it leaves, so most problems are caught before anybody else sees them. The screen lists every reason at once rather than one at a time.",
+    steps: [
+      "'The eInvoicing identifiers are not set' — your provider has not been recorded on Finance Settings yet.",
+      "'Your VAT registration number is missing' — put it on Companies → edit the company. A tax invoice is not valid without it.",
+      "'Your company address has no emirate' — a transmitted document carries the emirate as its own field, so one address line is not enough. Companies → edit the company.",
+      "'The lines add to X but the document says Y' — the totals disagree, which a checker will refuse. Raise a credit note and re-issue rather than editing.",
+    ],
+    tip: "A zero-rated or exempt line has to say why it carries no tax. The system fills that in for you from the treatment on the line, which is one more reason to set the treatment per line rather than on the whole invoice.",
+  },
+  {
     id: "invoices", category: "Finance & Accounting", screens: ["/finance/invoices"],
     title: "Raising an invoice",
     summary: "Bill a customer, or record a supplier's bill, with proper lines.",

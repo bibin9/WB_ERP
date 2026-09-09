@@ -71,6 +71,17 @@ export type FinancePolicy = {
   /* ---------------------------------------------------------- operations - */
   /** Day of the month wages are paid, which the cash flow forecast turns on. */
   payrollDayOfMonth: number;
+  /**
+   * eInvoicing identifiers, and who transmits for us.
+   *
+   * Text rather than numbers, and blank by default: the Ministry of Finance
+   * publishes the identifiers and revises them, and an accredited service
+   * provider hands its customers the exact values. Guessing them would produce
+   * documents rejected for a reason nobody could see, so nothing is assumed.
+   */
+  eInvoiceCustomizationId: string;
+  eInvoiceProfileId: string;
+  eInvoiceProvider: string;
   /** A cheque older than this is stale and a bank will refuse it. */
   chequeStaleDays: number;
   /** What a contract usually retains, offered as the default on the form. */
@@ -92,6 +103,9 @@ export const DEFAULT_FINANCE_POLICY: FinancePolicy = {
   lossReliefCap: 0.75,
   filingMonths: 9,
 
+  eInvoiceCustomizationId: "",
+  eInvoiceProfileId: "",
+  eInvoiceProvider: "",
   payrollDayOfMonth: 28,
   chequeStaleDays: 180,
   defaultRetentionPercent: 10,
@@ -231,6 +245,13 @@ export function withFinanceDefaults(p?: Partial<FinancePolicy> | null): FinanceP
     "expiryWarningDays", "pageSize"] as const) {
     const v = Number(p[k]);
     if (Number.isFinite(v)) out[k] = v;
+  }
+
+  // The eInvoicing identifiers are text, not numbers — Number("") is 0, so the
+  // numeric loop above would have quietly turned every one of them into zero.
+  for (const k of ["eInvoiceCustomizationId", "eInvoiceProfileId", "eInvoiceProvider"] as const) {
+    const v = p[k];
+    if (typeof v === "string") out[k] = v.trim();
   }
   const given = (p.accounts ?? {}) as Record<string, string>;
   for (const role of ACCOUNT_ROLES) {

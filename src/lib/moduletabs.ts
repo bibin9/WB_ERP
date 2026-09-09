@@ -2,7 +2,7 @@ import {
   LayoutGrid, BookOpen, ScrollText, FileBarChart, Receipt, RefreshCw, Users, Clock,
   HardHat, Building2, Scale, Banknote, Lock, Landmark, Percent, Settings2, PenLine,
   FolderOpen, UserPlus, Wallet, CalendarDays, CalendarCheck, BadgeCheck, UserMinus,
-  ShieldAlert, ClipboardList, TrendingUp, Timer, UsersRound, FileText, type LucideIcon,
+  ShieldAlert, ClipboardList, TrendingUp, Timer, UsersRound, FileText, Send, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -80,6 +80,7 @@ export const FINANCE_GROUPS: TabGroup[] = [
     screens: [
       { href: "/finance/vat", label: "VAT", icon: Receipt, screen: "finance.vat" },
       { href: "/finance/corporate-tax", label: "Corporate Tax", icon: Percent, screen: "finance.corptax" },
+      { href: "/finance/einvoicing", label: "e-Invoicing", icon: Send, screen: "finance.einvoicing" },
     ],
   },
   {

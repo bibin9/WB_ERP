@@ -159,6 +159,34 @@ export default function FinanceSettingsForm({
         </div>
       </div>
 
+      {/* --------------------------------------------------- eInvoicing --- */}
+      <div className="card">
+        <div className="border-b border-line px-5 py-3">
+          <h2 className="font-semibold text-heading">Electronic invoicing</h2>
+          <p className="mt-0.5 text-xs text-muted">
+            UAE eInvoicing runs through an Accredited Service Provider — this system hands them the
+            document and they validate, sign and transmit it to the FTA. These three come from that
+            provider; the Ministry of Finance publishes the identifiers and revises them, so nothing
+            is assumed here. Leave them blank until you have appointed one, and nothing is transmitted.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 p-5 lg:grid-cols-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted">Service provider</label>
+            <input name="eInvoiceProvider" defaultValue={policy.eInvoiceProvider ?? ""} className="input" placeholder="Who transmits for you" />
+            <p className="mt-1 text-xs text-muted">The name on screen, so anybody can see who to ring.</p>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted">Customization ID</label>
+            <input name="eInvoiceCustomizationId" defaultValue={policy.eInvoiceCustomizationId ?? ""} className="input" placeholder="Given to you by your provider" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted">Profile ID</label>
+            <input name="eInvoiceProfileId" defaultValue={policy.eInvoiceProfileId ?? ""} className="input" placeholder="Given to you by your provider" />
+          </div>
+        </div>
+      </div>
+
       {/* ------------------------------------------------------- the numbers */}
       {RATE_GROUPS.map((g) => (
         <div key={g.title} className="card">

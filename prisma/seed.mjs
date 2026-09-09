@@ -42,7 +42,7 @@ const MODULE_SCREENS = {
   finance: [
     "finance.overview", "finance.invoices", "finance.daybook", "finance.ledgers", "finance.reports",
     "finance.parties", "finance.outstanding", "finance.cashflow", "finance.cheques", "finance.retention", "finance.bankrec", "finance.jobs", "finance.costcentres",
-    "finance.vat", "finance.corptax", "finance.tally", "finance.settings",
+    "finance.vat", "finance.corptax", "finance.einvoicing", "finance.tally", "finance.settings",
   ],
   hr: ["hr.employees", "hr.onboarding", "hr.payroll", "hr.leave", "hr.attendance", "hr.certifications", "hr.separation", "hr.reports", "hr.overtime", "hr.manhours", "hr.workforce", "hr.policy", "hr.tasks"],
   approvals: ["approvals.inbox"],

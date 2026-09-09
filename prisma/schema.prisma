@@ -631,6 +631,27 @@ model Invoice {
   entryId String?       @unique
   entry   JournalEntry? @relation(fields: [entryId], references: [id])
 
+  /// Where this document has got to on its way to the FTA.
+  ///
+  /// Not a boolean. A five-corner model has an asynchronous rejection: our own
+  /// provider can accept a document and the buyer's provider refuse it hours
+  /// later, so "sent" and "accepted" and "delivered" are different facts and
+  /// somebody has to be able to see which one is true.
+  ///
+  /// Not applicable | Ready | Queued | Sent | Accepted | Delivered | Rejected | Failed
+  eInvoiceStatus   String    @default("Not applicable")
+  /// The identifier the service provider gave the document, which is what any
+  /// support conversation with them will be about.
+  eInvoiceRef      String?
+  /// The document exactly as it was transmitted. Kept because what was sent is
+  /// what must be produced on request, not what the current code would build.
+  eInvoiceXml      String?
+  eInvoiceSentAt   DateTime?
+  eInvoiceAckAt    DateTime?
+  /// Why it was refused, in the provider's own words.
+  eInvoiceError    String?
+  eInvoiceAttempts Int       @default(0)
+
   lines     InvoiceLine[]
   issuedBy  String?
   issuedAt  DateTime?
@@ -1402,11 +1423,18 @@ model FinancePolicy {
   // Operations
   /// Day of the month wages are paid. Drives the cash flow forecast, which is
   /// mostly a question about whether this payment will clear.
-  payrollDayOfMonth       Float @default(28)
-  chequeStaleDays         Float @default(180)
-  defaultRetentionPercent Float @default(10)
-  expiryWarningDays       Float @default(60)
-  pageSize                Float @default(50)
+  payrollDayOfMonth       Float  @default(28)
+  /// eInvoicing identifiers, published by the Ministry of Finance and handed to
+  /// you by your accredited service provider. Blank means eInvoicing is not
+  /// switched on for this company, which is the correct state until it is.
+  eInvoiceCustomizationId String @default("")
+  eInvoiceProfileId       String @default("")
+  /// The provider's name, for the screen. Nothing is transmitted without it.
+  eInvoiceProvider        String @default("")
+  chequeStaleDays         Float  @default(180)
+  defaultRetentionPercent Float  @default(10)
+  expiryWarningDays       Float  @default(60)
+  pageSize                Float  @default(50)
 
   notes     String?
   updatedBy String?
