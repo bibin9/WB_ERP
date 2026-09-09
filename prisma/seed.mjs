@@ -40,7 +40,7 @@ const MODULE_SCREENS = {
   // Every finance screen, so a new one is granted to the finance roles rather
   // than silently reaching only the admin roles that bypass this list.
   finance: [
-    "finance.overview", "finance.daybook", "finance.ledgers", "finance.reports",
+    "finance.overview", "finance.invoices", "finance.daybook", "finance.ledgers", "finance.reports",
     "finance.parties", "finance.outstanding", "finance.cashflow", "finance.cheques", "finance.retention", "finance.bankrec", "finance.jobs", "finance.costcentres",
     "finance.vat", "finance.corptax", "finance.tally", "finance.settings",
   ],

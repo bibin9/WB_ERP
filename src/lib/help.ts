@@ -973,6 +973,32 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "The address is the one the office or phone network was using at that moment, not a permanent label for a person. Two people in the same office share one.",
   },
   {
+    id: "invoices", category: "Finance & Accounting", screens: ["/finance/invoices"],
+    title: "Raising an invoice",
+    summary: "Bill a customer, or record a supplier's bill, with proper lines.",
+    body: "Finance → Entry → Invoices. An invoice you raise is saved as a draft first: nothing reaches the books, the VAT return or the customer until you issue it. Each line has a description, a quantity, a unit (metres, hours, lump sum), a rate and a VAT treatment — that detail is what makes it a tax invoice rather than a bookkeeping entry, and it is what the FTA will expect to be transmitted electronically.",
+    steps: [
+      "Click 'New invoice'. Choose the customer — payment terms come from their record, so the due date fills itself in.",
+      "The date is today unless you change it. A back-dated invoice lands in that month on every report and on that quarter's VAT return — unless the books are closed up to a later date, in which case it will be refused.",
+      "Add a line for each thing being billed. The totals at the bottom update as you type, VAT rate by VAT rate.",
+      "Save as draft. Check it. Then 'Issue invoice' — that posts it and gives it its number for good.",
+      "Once issued, use Print for the copy the customer receives.",
+    ],
+    tip: "For a supplier's bill switch to 'Suppliers billed us' first. Enter their invoice number, not one of ours — that is the number an auditor will look for when they match your input tax claim to the paperwork.",
+  },
+  {
+    id: "invoices-issue", category: "Finance & Accounting", screens: ["/finance/invoices"],
+    title: "Why an issued invoice cannot be edited",
+    summary: "A draft is yours; an issued invoice is a legal document.",
+    body: "Issuing does three things at once: it posts to the ledger, it takes the next number in a series that must have no gaps, and it produces a document the customer can claim VAT against. Letting it be edited afterwards would break all three — so the only way to change an issued invoice is a credit note, which leaves both halves on the record.",
+    steps: [
+      "To correct an issued invoice: raise a Credit Note and choose the invoice it adjusts.",
+      "To cancel a draft you no longer want: it can simply be cancelled, because nothing was posted.",
+      "If issuing is refused, the screen lists every reason at once — fix them all and try again.",
+    ],
+    tip: "The commonest refusal is your own VAT registration number missing. It goes on Companies → edit the company. A tax invoice is not valid without it, so the system will not issue one that lacks it.",
+  },
+  {
     id: "cash-flow", category: "Finance & Accounting", screens: ["/finance/cash-flow"],
     title: "Will we have the cash? — the forecast",
     summary: "What is in the bank now, what is due in and out, and whether it covers payroll.",

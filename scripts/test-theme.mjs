@@ -55,10 +55,19 @@ ok("no flash of the wrong theme on load", layout.includes("wb-erp.theme") && lay
 
 /* 5. Nothing is painted with a colour that cannot flip. */
 const tsx = walk("src").filter((f) => f.endsWith(".tsx"));
-const STATEMENT = "src/app/statement/[id]/page.tsx"; // a paper document in both themes
-const hardcoded = tsx.filter((f) => f !== STATEMENT && /bg-white["' ]/.test(read(f)));
-ok("no hardcoded white surfaces", hardcoded.length === 0, hardcoded.join(", ") || `${tsx.length} components checked`);
-ok("printable statement stays on white paper", read(STATEMENT).includes("theme-light") && css.includes(".theme-light {"));
+// A document that leaves the building is paper, and paper is white in both
+// themes. The rule runs one way only: anything painting itself white must opt
+// into theme-light, which scopes the light palette to that subtree. The
+// converse is not required — a logo preview scopes theme-light to show how the
+// mark will look on paper, and is not itself a document.
+const white = tsx.filter((f) => /bg-white["' ]/.test(read(f)));
+const hardcoded = white.filter((f) => !read(f).includes("theme-light"));
+ok("nothing paints itself white without scoping the light palette",
+  hardcoded.length === 0, hardcoded.join(", ") || `${tsx.length} components checked`);
+ok("and the white ones are the documents meant for paper",
+  white.length > 0 && white.every((f) => /src\/app\/(statement|invoice)\//.test(f)),
+  white.map((f) => f.split("/").slice(2, 4).join("/")).join(", "));
+ok("the light palette itself exists", css.includes(".theme-light {"));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

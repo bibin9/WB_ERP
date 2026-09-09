@@ -33,6 +33,7 @@ export const SCREENS: ScreenDef[] = [
   { key: "companies.list", module: "companies", label: "Companies & Group", href: "/companies" },
 
   { key: "finance.overview", module: "finance", label: "Overview & Journals", href: "/finance" },
+  { key: "finance.invoices", module: "finance", label: "Invoices", href: "/finance/invoices" },
   { key: "finance.daybook", module: "finance", label: "Day Book", href: "/finance/daybook" },
   { key: "finance.ledgers", module: "finance", label: "Ledgers", href: "/finance/ledgers" },
   { key: "finance.reports", module: "finance", label: "Reports (P&L / Balance Sheet)", href: "/finance/reports" },

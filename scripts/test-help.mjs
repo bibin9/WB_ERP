@@ -68,7 +68,11 @@ const searches = [
   ["ageing", "Who owes us, and what we owe"],
   ["print a report", "Printing a report"],
   ["opening balance", "Opening balances — moving from your old system"],
-  ["back-dated invoice", "Recording a transaction"],
+  // Until invoices existed, the nearest answer to this was the article about
+  // posting a voucher. Now there is an invoice screen with a date field, and
+  // that article explains what a back date does to the reports and the VAT
+  // return. The expected answer moved because the feature did.
+  ["back-dated invoice", "Raising an invoice"],
   ["TRN", "Customers and suppliers"],
 ];
 for (const [q, title] of searches) {
