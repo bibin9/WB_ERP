@@ -224,7 +224,21 @@ const good = (area, what) => ok.push(`${area}: ${what}`);
   // Strip comments first: lib/money.ts explains the problem in prose, and
   // matching that text would report the fix as the defect.
   const stripComments = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-  const bareNum = files.filter((f) => /toLocaleString\(\)/.test(stripComments(read(f))));
+  // A bare toLocaleString() is wrong on money and right on a count: "237 rows"
+  // rather than "237.00 rows". The question is asked of the FILE, not the line —
+  // a formatter is usually defined as `(v) => v.toLocaleString()`, which names
+  // no money on its own line while every one of its callers does. Pager.tsx
+  // formats row counts and mentions no amount anywhere, so it stays quiet;
+  // a screen full of grossTotal does not.
+  //
+  // The money fields are named rather than guessed at from a pattern. Anything
+  // ending in "Total" was tried and is no good: grossTotal is money, and
+  // liveTotal and archiveTotal on the audit screen are counts of rows.
+  const MONEYISH = /(amount|balance|salary|payable|debit|credit|fils|aed|unitPrice|grossTotal|netTotal|vatTotal|contractValue|budgetCost)/;
+  const bareNum = files.filter((f) => {
+    const src = stripComments(read(f));
+    return /toLocaleString\(\)/.test(src) && MONEYISH.test(src);
+  });
   if (bareNum.length) {
     note("Medium", "UX / UAE", `${bareNum.length} file(s) render a number with toLocaleString() and no options`,
       "Without minimumFractionDigits the same column shows 1,000 and 1,000.50 on adjacent rows, and " +

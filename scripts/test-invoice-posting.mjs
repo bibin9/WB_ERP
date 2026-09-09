@@ -317,6 +317,56 @@ try {
   await cleanup();
 }
 
+/* ============ everything issuing requires can actually be set ========== */
+/**
+ * The VAT TRN and the structured address were added to the schema, made
+ * mandatory for issuing, and left off the Companies form. The columns existed,
+ * the check refused every invoice, and there was no screen anywhere that could
+ * fill them in — so nothing could be issued at all and the only clue was a
+ * refusal telling somebody to edit a field that was not there.
+ *
+ * A test that the column exists would have passed. This asks the question that
+ * matters: is there a form that sets it, and an action that saves it.
+ */
+{
+  const form = read("src/components/CompanyForm.tsx");
+  const action = read("src/app/(app)/companies/actions.ts");
+  const page = read("src/app/(app)/companies/page.tsx");
+
+  for (const field of ["vatTRN", "addressLine", "city", "emirate"]) {
+    ok(`${field} has a field on the Companies form`, form.includes(`name="${field}"`));
+    ok(`and the form is told what is already stored`, page.includes(`${field}: c.${field}`), field);
+  }
+  ok("the save action reads all four", /taxIdentityFrom\(formData\)/.test(action));
+  ok("on a new company as well as an edited one",
+    (action.match(/taxIdentityFrom\(formData\)/g) ?? []).length === 2,
+    "otherwise a company set up today has to be edited immediately afterwards");
+  ok("the emirate is chosen, not typed",
+    ["Abu Dhabi", "Dubai", "Sharjah", "Ajman", "Umm Al Quwain", "Ras Al Khaimah", "Fujairah"]
+      .every((e) => form.includes(`>${e}<`)),
+    "seven of them, and a document is refused if it is spelt differently");
+  ok("a TRN is stored without the spaces people type",
+    /replace\(\/\[\\s-\]\/g, ""\)/.test(action),
+    "the number on the invoice has to match the one the FTA holds");
+
+  // And the round trip, because a form and an action can both look right.
+  const before = { vatTRN: co.vatTRN, addressLine: co.addressLine, city: co.city, emirate: co.emirate };
+  try {
+    await db.company.update({
+      where: { id: co.id },
+      data: { vatTRN: "100999888700003", addressLine: "Plot 9", city: "Sharjah", emirate: "Sharjah" },
+    });
+    const saved = await db.company.findUnique({ where: { id: co.id } });
+    ok("what is saved is read back", saved.vatTRN === "100999888700003" && saved.emirate === "Sharjah");
+
+    const d = await draft({ lines: [{ description: "Reachability", quantity: 1, unitPrice: 100, accountId: revenue.id }] });
+    const res = await issueInvoice(d.id, "tester");
+    ok("and an invoice can then be issued", res.ok, res.ok ? "" : res.error);
+  } finally {
+    await db.company.update({ where: { id: co.id }, data: before });
+  }
+}
+
 /* ================= how it is wired in ================================== */
 {
   const src = read("src/lib/invoice-posting.ts");

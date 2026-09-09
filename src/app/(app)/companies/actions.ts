@@ -6,6 +6,30 @@ import { getSession, canAdminister } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { allow } from "@/lib/guard";
 
+/**
+ * The company's tax identity, and its address in parts.
+ *
+ * Neither is decoration. A tax invoice is invalid without the TRN, and a
+ * transmitted eInvoice carries the emirate as a field of its own rather than
+ * as part of a single address line.
+ *
+ * Both columns existed before this form did, which meant nothing could set
+ * them and therefore no invoice could be issued at all.
+ *
+ * The TRN has its spaces and dashes taken out: people type it as it is
+ * printed on the certificate, and the number on an invoice has to match the
+ * one the FTA holds.
+ */
+function taxIdentityFrom(formData: FormData) {
+  const text = (k: string, max = 120) => String(formData.get(k) ?? "").trim().slice(0, max) || null;
+  return {
+    vatTRN: String(formData.get("vatTRN") ?? "").replace(/[\s-]/g, "").trim() || null,
+    addressLine: text("addressLine", 200),
+    city: text("city", 80),
+    emirate: text("emirate", 80),
+  };
+}
+
 export async function createCompany(formData: FormData) {
   if (!(await allow("companies.list", "create"))) return;
   const session = await getSession();
@@ -22,7 +46,7 @@ export async function createCompany(formData: FormData) {
   if (exists) return;
 
   const created = await db.company.create({
-    data: { tenantId: session.tenant.id, code, name, baseCurrency },
+    data: { tenantId: session.tenant.id, code, name, baseCurrency, ...taxIdentityFrom(formData) },
   });
   await audit({ action: "Created", entity: "Company", entityId: created.id, summary: `Added company ${code} — ${name}` });
   revalidatePath("/companies");
@@ -89,6 +113,7 @@ export async function updateCompany(formData: FormData) {
       // Which Emiratisation rule applies at 20–49 employees. Nothing on a
       // trade licence tells the system this, so somebody has to say.
       emiratisationSector: String(formData.get("emiratisationSector") || "") === "on",
+      ...taxIdentityFrom(formData),
       ...financialYearFrom(formData),
     },
   });

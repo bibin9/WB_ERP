@@ -5,7 +5,12 @@ import { Plus, X, Pencil } from "lucide-react";
 import { createCompany, updateCompany } from "@/app/(app)/companies/actions";
 import LogoField from "@/components/LogoField";
 
-export type EditingCompany = { id: string; name: string; baseCurrency: string; fyStartMonth: number; openingAsOf: string | null; booksLockedTo: string | null; logoUrl: string | null; emiratisationSector: boolean };
+export type EditingCompany = { id: string; name: string; baseCurrency: string; fyStartMonth: number; openingAsOf: string | null; booksLockedTo: string | null; logoUrl: string | null; emiratisationSector: boolean
+  vatTRN?: string | null;
+  addressLine?: string | null;
+  city?: string | null;
+  emirate?: string | null;
+};
 
 export default function CompanyForm({ company }: { company?: EditingCompany }) {
   const [open, setOpen] = useState(false);
@@ -73,6 +78,40 @@ export default function CompanyForm({ company }: { company?: EditingCompany }) {
               closed, so the figures behind it cannot change. Leave blank while the books are open.
             </p>
           </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm font-medium text-ink">VAT registration number (TRN)</label>
+            <input name="vatTRN" className="input font-mono" defaultValue={company?.vatTRN ?? ""} placeholder="15 digits" maxLength={20} />
+            <p className="mt-1 text-xs text-muted">
+              A tax invoice is not valid without it, and no invoice can be issued until it is here.
+              Separate from the corporate tax number, which lives on Finance &rarr; Tax &rarr; Corporate Tax.
+            </p>
+          </div>
+
+          {/* Split rather than one line, because a transmitted eInvoice carries
+              the parts separately and the emirate as its own field. */}
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm font-medium text-ink">Address</label>
+            <input name="addressLine" className="input" defaultValue={company?.addressLine ?? ""} placeholder="Street, building, PO box" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-ink">City</label>
+            <input name="city" className="input" defaultValue={company?.city ?? ""} placeholder="Sharjah" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-ink">Emirate</label>
+            <select name="emirate" className="input" defaultValue={company?.emirate ?? ""}>
+              <option value="">Choose…</option>
+              <option key="Abu Dhabi">Abu Dhabi</option>
+              <option key="Dubai">Dubai</option>
+              <option key="Sharjah">Sharjah</option>
+              <option key="Ajman">Ajman</option>
+              <option key="Umm Al Quwain">Umm Al Quwain</option>
+              <option key="Ras Al Khaimah">Ras Al Khaimah</option>
+              <option key="Fujairah">Fujairah</option>
+            </select>
+            <p className="mt-1 text-xs text-muted">Carried as its own field on an electronic invoice.</p>
+          </div>
+
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">Logo for printed reports</label>
             <LogoField defaultValue={company?.logoUrl ?? ""} />

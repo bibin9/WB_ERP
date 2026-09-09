@@ -11,7 +11,20 @@
  * mobilisation advances, post-dated cheques, part payments, month-end accruals
  * and the quarterly VAT 201.
  */
+import { existsSync } from "node:fs";
 import { PrismaClient } from "@prisma/client";
+
+/**
+ * Does the application have this screen?
+ *
+ * Every finding about something being "missing" is asked this first. The four
+ * that used to be hard-coded here — retention, post-dated cheques, the trial
+ * balance and bank reconciliation — were all written before those features
+ * existed and were never revisited, so the report claimed four built features
+ * were absent. A review that raises findings which are no longer true teaches
+ * its reader to skim it, and then a real one goes past unnoticed.
+ */
+const hasScreen = (route) => existsSync(`src/app/(app)/${route}/page.tsx`);
 import fs from "node:fs";
 
 const read = (p) => fs.readFileSync(p, "utf8");
@@ -91,6 +104,7 @@ console.log("=== 2. Progress invoice to the client, 10% retention withheld ===")
   if (r.ok) good("a progress invoice with retention can be entered as a manual journal");
   else note("High", "Sales", "Cannot enter a progress invoice with retention", r.error);
 
+  if (!hasScreen("finance/retention"))
   note("High", "Retention", "Retention has no schedule, no ageing and no release workflow",
     "Retention is withheld on essentially every certified payment in UAE contracting — 5-10%, " +
     "typically half released at handover and half after the 12-month defects liability period. " +
@@ -117,6 +131,7 @@ console.log("=== 3. Customer mobilisation advance ===");
 
 console.log("=== 4. Post-dated cheque received ===");
 {
+  if (!hasScreen("finance/cheques"))
   note("High", "Receipts", "No post-dated cheque register",
     "PDCs are how a large share of UAE business is settled: a customer hands over cheques dated " +
     "over the next six months. The accountant must know what is banked, what is in hand, what " +
@@ -208,6 +223,7 @@ console.log("=== 8. Reports the auditor and the bank ask for ===");
   const reportsPage = read("src/app/(app)/finance/reports/page.tsx");
   const hasTB = /trial balance/i.test(reportsPage);
   if (!hasTB) {
+    if (!hasScreen("finance/trial-balance"))
     note("High", "Reporting", "No trial balance",
       "The first thing an auditor asks for, and the first thing the accountant checks at " +
       "month-end. Opening / debit / credit / closing in four columns. The data is all there — " +
@@ -221,6 +237,7 @@ console.log("=== 8. Reports the auditor and the bank ask for ===");
       "subtotals an auditor expects. ChartOfAccount already has a parentGroup column that " +
       "nothing groups by.");
   }
+  if (!hasScreen("finance/bank-rec"))
   note("High", "Banking", "No bank reconciliation",
     "Monthly, against the bank statement, and it is how the accountant proves cash is right. " +
     "Nothing in the app marks a line as cleared, so the bank balance in the ledger can drift " +
