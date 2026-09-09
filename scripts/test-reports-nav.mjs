@@ -223,5 +223,43 @@ ok("no group is longer than five screens",
     !/Click Reports in the left menu/.test(help));
 }
 
+/* =============== no screen inside a module is a dead end ================ */
+/**
+ * The Cash Flow Forecast shipped without its tab strip. It imported the
+ * component and never rendered it, so the page opened fine, looked finished,
+ * and had no way back to Finance at all — the only exit was the browser's own
+ * back button. A type checker cannot see this and a smoke test that only reads
+ * the status code cannot either, so it is asserted directly.
+ */
+{
+  const walk = (dir, out = []) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = `${dir}/${e.name}`;
+      if (e.isDirectory()) walk(full, out);
+      else if (e.name === "page.tsx") out.push(full);
+    }
+    return out;
+  };
+
+  for (const [dir, strip] of [
+    ["src/app/(app)/finance", "FinanceTabs"],
+    ["src/app/(app)/hr", "HrTabs"],
+  ]) {
+    const pages = walk(dir).filter((p) => !/\[/.test(p)); // detail pages come back to their list
+    const missing = pages.filter((p) => !read(p).includes(`<${strip}`));
+    ok(`every ${dir.split("/").pop()} screen carries its tab strip`,
+      missing.length === 0,
+      missing.join(", ") || `${pages.length} screens`);
+
+    // Importing it is not rendering it, which is exactly how this got out.
+    const importedNotUsed = pages.filter((p) => {
+      const src = read(p);
+      return src.includes(`import ${strip} from`) && !src.includes(`<${strip}`);
+    });
+    ok(`and none of them imports it without rendering it`, importedNotUsed.length === 0,
+      importedNotUsed.join(", ") || "checked");
+  }
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -65,6 +65,8 @@ export default async function CashFlowPage({
         subtitle="What is in the bank now, what is due in and out, and whether it covers the next payroll."
       />
 
+      <FinanceTabs companyId={companyId} />
+
       <div className="mb-5">
         <CompanyPicker companies={accessible.map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={companyId} />
       </div>
