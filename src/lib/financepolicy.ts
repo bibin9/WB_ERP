@@ -46,6 +46,8 @@ export const ACCOUNT_ROLES = [
   { key: "labourRecovered", label: "Labour recovered", code: "6900", why: "The other side of absorption costing. Nets against site labour in the P&L." },
   { key: "salaryExpense", label: "Salaries & wages", code: "6000", why: "Where the monthly payroll cost goes." },
   { key: "employeeAdvances", label: "Employee advances", code: "1170", why: "Salary advances owed back. An asset until recovered, not a cost." },
+  { key: "customerAdvances", label: "Advances from customers", code: "2300", why: "Money taken before the work is billed. Owed back until an invoice recovers it." },
+  { key: "supplierAdvances", label: "Advances to suppliers", code: "1180", why: "Money paid before a supplier bills. Owed to us until their invoice recovers it." },
 ] as const;
 
 export type AccountRole = (typeof ACCOUNT_ROLES)[number]["key"];

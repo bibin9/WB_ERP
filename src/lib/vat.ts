@@ -8,7 +8,19 @@
  * the voucher line, and this module turns those lines into the boxes.
  */
 
-export const VAT_RATE = 0.05;
+/**
+ * The UAE standard rate.
+ *
+ * This is the statutory figure, not the company's setting. Finance Settings
+ * carries a rate per company, and an invoice snapshots the rate it was raised
+ * at on every line, so this is only the fallback for a voucher with neither —
+ * a journal posted straight to the ledger.
+ *
+ * It used to be the only rate in the system's tax return while invoicing
+ * already read the configurable one, which meant changing the rate in settings
+ * silently put the return out of step with the invoices behind it.
+ */
+export const STANDARD_VAT_RATE = 0.05;
 
 export const VAT_TREATMENTS = [
   "Standard",
@@ -48,8 +60,20 @@ export const DOCUMENT_VOUCHERS = new Set(["Sales", "Purchase", "Credit Note", "D
 export type VatLine = {
   voucherType: string;
   treatment: string | null;
-  /** The net amount of the supply or expense, before tax. */
+  /** The net amount of the supply or expense, before tax. Always positive. */
   taxableValue: number;
+  /**
+   * The tax actually recorded, where a document holds the figure.
+   *
+   * An invoice snapshots the rate it was raised at, so a return covering an
+   * earlier period has to report what was charged rather than what the rate
+   * happens to be today. Left undefined for a hand-posted journal, which has
+   * no document behind it and so is computed at the rate passed in.
+   *
+   * Positive as recorded; a credit note's sign is applied here, not by the
+   * caller, so both halves of a line are treated the same way.
+   */
+  tax?: number | null;
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -66,8 +90,12 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 export const VAT_INPUT_CODE = "1150";
 export const VAT_OUTPUT_CODE = "2150";
 
-export function taxOn(treatment: string | null, taxableValue: number): number {
-  if (treatment === "Standard" || treatment === "Reverse charge") return round2(taxableValue * VAT_RATE);
+export function taxOn(
+  treatment: string | null,
+  taxableValue: number,
+  rate: number = STANDARD_VAT_RATE,
+): number {
+  if (treatment === "Standard" || treatment === "Reverse charge") return round2(taxableValue * rate);
   return 0;
 }
 
@@ -100,8 +128,12 @@ export type Vat201 = {
  * Reverse charge appears on both sides on purpose: you declare the tax as
  * output and reclaim it as input, so it nets to nil while still being
  * declared — which is exactly what the FTA requires on imported services.
+ *
+ * The rate is only used for lines that carry no recorded tax of their own.
+ * Where an invoice sits behind the line, the tax it charged wins, so changing
+ * the rate in settings never restates a period that has already been filed.
  */
-export function buildVat201(lines: VatLine[]): Vat201 {
+export function buildVat201(lines: VatLine[], rate: number = STANDARD_VAT_RATE): Vat201 {
   const box = {
     standardSupplies: { amount: 0, vat: 0 },
     reverseChargeSupplies: { amount: 0, vat: 0 },
@@ -123,7 +155,9 @@ export function buildVat201(lines: VatLine[]): Vat201 {
     // A credit or debit note reverses part of an earlier invoice.
     const sign = ADJUSTMENT_VOUCHERS.has(l.voucherType) ? -1 : 1;
     const value = round2(l.taxableValue * sign);
-    const tax = round2(taxOn(l.treatment, l.taxableValue) * sign);
+    // What the document charged, where it recorded it; otherwise the rate.
+    const recorded = l.tax ?? taxOn(l.treatment, l.taxableValue, rate);
+    const tax = round2(recorded * sign);
 
     if (!l.treatment) {
       box.unclassified += Math.abs(value);

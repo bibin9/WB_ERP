@@ -79,24 +79,71 @@ export default async function VatPage({
           // The invoice the voucher came from, where there is one. A return
           // that names only its journal references can be agreed to the books
           // and not to the paperwork, and it is the paperwork the FTA asks for.
-          Invoice: { select: { id: true, number: true, docType: true } },
+          //
+          // Its lines come too, because they carry the rate the invoice was
+          // actually raised at. Recomputing from today's rate would restate a
+          // period that has already been filed.
+          Invoice: {
+            select: {
+              id: true,
+              number: true,
+              docType: true,
+              lines: {
+                select: { id: true, vatTreatment: true, netAmount: true, vatAmount: true },
+              },
+            },
+          },
         },
         orderBy: { date: "asc" },
       })
     : [];
 
-  const vatLines: VatLine[] = entries.flatMap((e) =>
-    e.lines
+  // The company's own rate, for anything with no document behind it.
+  const finPolicy = await financePolicyFor(companyId);
+  const rate = finPolicy.vatRate;
+
+  /**
+   * One row per taxed line, used for both the return and the listing under it.
+   *
+   * The two are built from the same rows on purpose. When the boxes were
+   * totalled separately from the table that supports them, the pair could
+   * disagree and the screen gave no way to tell which was right.
+   */
+  const rows = entries.flatMap((e) => {
+    // An invoice records the treatment, the net and the tax it charged, so it
+    // is the better source. Journal lines are the fallback.
+    if (e.Invoice?.lines.length) {
+      return e.Invoice.lines
+        .filter((l) => l.vatTreatment)
+        .map((l) => ({
+          key: l.id,
+          entry: e,
+          treatment: l.vatTreatment as string,
+          taxableValue: l.netAmount,
+          tax: l.vatAmount,
+        }));
+    }
+    return e.lines
       .filter((l) => l.vatTreatment)
       .map((l) => ({
-        voucherType: e.voucherType,
-        treatment: l.vatTreatment,
+        key: l.id,
+        entry: e,
+        treatment: l.vatTreatment as string,
         // The line's own value is the taxable amount, whichever side it sits on.
         taxableValue: l.debit > 0 ? l.debit : l.credit,
-      }))
-  );
+        // No document, so it is computed at the company's configured rate.
+        tax: null as number | null,
+      }));
+  });
 
-  const box = buildVat201(vatLines);
+  const vatLines: VatLine[] = rows.map((r) => ({
+    voucherType: r.entry.voucherType,
+    treatment: r.treatment,
+    taxableValue: r.taxableValue,
+    tax: r.tax,
+  }));
+
+  const box = buildVat201(vatLines, rate);
 
   // Vouchers that should carry a treatment and do not. A receipt or payment is
   // excluded: settling an invoice is not a supply, and flagging those every
@@ -125,7 +172,6 @@ export default async function VatPage({
   // what the books actually say. They should be the same number.
   // The VAT control accounts, as this company has mapped them. A customer
   // with their own chart changes the mapping, not the code.
-  const finPolicy = await financePolicyFor(companyId);
   const outputCode = finPolicy.accounts.vatOutput;
   const inputCode = finPolicy.accounts.vatInput;
 
@@ -349,44 +395,43 @@ export default async function VatPage({
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {entries.length === 0 && (
+            {rows.length === 0 && (
               <tr>
                 <td colSpan={9} className="px-4 py-10 text-center text-muted">
                   No VAT vouchers in this period.
                 </td>
               </tr>
             )}
-            {entries.flatMap((e) =>
-              e.lines
-                .filter((l) => l.vatTreatment)
-                .map((l) => {
-                  const sign = ADJUSTMENT_VOUCHERS.has(e.voucherType) ? -1 : 1;
-                  const taxable = (l.debit > 0 ? l.debit : l.credit) * sign;
-                  return (
-                    <tr key={l.id}>
-                      <td className="whitespace-nowrap px-4 py-2 text-muted">{fmtDate(e.date)}</td>
-                      <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-heading">{e.reference}</td>
-                      <td className="whitespace-nowrap px-4 py-2 text-xs">
-                        {e.Invoice ? (
-                          <Link href={`/finance/invoices/${e.Invoice.id}`} className="text-brand-blue-600 hover:underline">
-                            {e.Invoice.number}
-                          </Link>
-                        ) : (
-                          <span className="text-muted/60" title="Posted straight to the ledger, with no invoice document behind it">
-                            journal only
-                          </span>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2 text-muted">{e.voucherType}</td>
-                      <td className="px-4 py-2 text-ink">{e.party?.name ?? e.partyName ?? "—"}</td>
-                      <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-muted">{e.party?.trn ?? "—"}</td>
-                      <td className="whitespace-nowrap px-4 py-2 text-muted">{l.vatTreatment}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{n(taxable)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums text-ink">{n(taxOn(l.vatTreatment, taxable))}</td>
-                    </tr>
-                  );
-                })
-            )}
+            {rows.map((r) => {
+              const e = r.entry;
+              const sign = ADJUSTMENT_VOUCHERS.has(e.voucherType) ? -1 : 1;
+              const taxable = r.taxableValue * sign;
+              // The same choice the return made, so the two always agree.
+              const tax = (r.tax ?? taxOn(r.treatment, r.taxableValue, rate)) * sign;
+              return (
+                <tr key={r.key}>
+                  <td className="whitespace-nowrap px-4 py-2 text-muted">{fmtDate(e.date)}</td>
+                  <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-heading">{e.reference}</td>
+                  <td className="whitespace-nowrap px-4 py-2 text-xs">
+                    {e.Invoice ? (
+                      <Link href={`/finance/invoices/${e.Invoice.id}`} className="text-brand-blue-600 hover:underline">
+                        {e.Invoice.number}
+                      </Link>
+                    ) : (
+                      <span className="text-muted/60" title="Posted straight to the ledger, with no invoice document behind it">
+                        journal only
+                      </span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2 text-muted">{e.voucherType}</td>
+                  <td className="px-4 py-2 text-ink">{e.party?.name ?? e.partyName ?? "—"}</td>
+                  <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-muted">{e.party?.trn ?? "—"}</td>
+                  <td className="whitespace-nowrap px-4 py-2 text-muted">{r.treatment}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{n(taxable)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-ink">{n(tax)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

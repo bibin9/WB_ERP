@@ -2,7 +2,7 @@ import {
   LayoutGrid, BookOpen, ScrollText, FileBarChart, Receipt, RefreshCw, Users, Clock,
   HardHat, Building2, Scale, Banknote, Lock, Landmark, Percent, Settings2, PenLine,
   FolderOpen, UserPlus, Wallet, CalendarDays, CalendarCheck, BadgeCheck, UserMinus,
-  ShieldAlert, ClipboardList, TrendingUp, Timer, UsersRound, FileText, Send, type LucideIcon,
+  ShieldAlert, ClipboardList, TrendingUp, Timer, UsersRound, FileText, Send, HandCoins, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -55,8 +55,8 @@ export const FINANCE_GROUPS: TabGroup[] = [
       { href: "/finance/parties", label: "Parties", icon: Users, screen: "finance.parties" },
       { href: "/finance/cheques", label: "Cheques", icon: Banknote, screen: "finance.cheques" },
       { href: "/finance/retention", label: "Retention", icon: Lock, screen: "finance.retention" },
+      { href: "/finance/advances", label: "Advances", icon: HandCoins, screen: "finance.advances" },
       { href: "/finance/bank-rec", label: "Bank Rec", icon: Landmark, screen: "finance.bankrec" },
-      { href: "/finance/cost-centres", label: "Cost Centres", icon: Building2, screen: "finance.costcentres" },
     ],
   },
   {
@@ -73,6 +73,7 @@ export const FINANCE_GROUPS: TabGroup[] = [
       { href: "/finance/trial-balance", label: "Trial Balance", icon: Scale, screen: "finance.reports" },
       { href: "/finance/outstanding", label: "Outstanding", icon: Clock, screen: "finance.outstanding" },
       { href: "/finance/cash-flow", label: "Cash Flow", icon: TrendingUp, screen: "finance.cashflow" },
+      { href: "/finance/cost-centres", label: "Cost Centres", icon: Building2, screen: "finance.costcentres" },
     ],
   },
   {

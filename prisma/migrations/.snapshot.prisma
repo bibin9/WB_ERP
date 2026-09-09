@@ -108,6 +108,7 @@ model Company {
   costCentres         CostCentre[]
   cheques             Cheque[]
   retentions          Retention[]
+  partyAdvances       PartyAdvance[]
   wpsBankRouting      String? // employer bank routing code (agent ID)
   isActive            Boolean              @default(true)
   memberships         CompanyMembership[]
@@ -264,26 +265,26 @@ model ChartOfAccount {
 
 /// Finance — double-entry journal entry (header + balanced lines).
 model JournalEntry {
-  id           String         @id @default(cuid())
-  companyId    String
-  company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  reference    String
-  voucherType  String         @default("Journal") // Journal | Payment | Receipt | Contra | Sales | Purchase
-  date         DateTime       @default(now())
-  memo         String?
-  partyName    String?
-  partyId      String?
-  party        Party?         @relation(fields: [partyId], references: [id]) // party ledger (customer/supplier) for the voucher
-  vatAmount    Float          @default(0) // UAE VAT (5%) portion, if any
-  source       String         @default("manual") // manual | tally
+  id                String                 @id @default(cuid())
+  companyId         String
+  company           Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  reference         String
+  voucherType       String                 @default("Journal") // Journal | Payment | Receipt | Contra | Sales | Purchase
+  date              DateTime               @default(now())
+  memo              String?
+  partyName         String?
+  partyId           String?
+  party             Party?                 @relation(fields: [partyId], references: [id]) // party ledger (customer/supplier) for the voucher
+  vatAmount         Float                  @default(0) // UAE VAT (5%) portion, if any
+  source            String                 @default("manual") // manual | tally
   /// What produced this voucher, when it was not typed by hand: the module
   /// and the document inside it. Lets a voucher be traced back to the goods
   /// receipt or payroll run behind it, and stops the same document posting
   /// twice — the unique index below is the guard.
   ///
   /// e.g. sourceType "grn", sourceId the receipt's id.
-  sourceType   String?
-  sourceId     String?
+  sourceType        String?
+  sourceId          String?
   /// A reversal points back at the voucher it cancels, so both sides of the
   /// correction stay visible in the audit trail.
   ///
@@ -292,16 +293,18 @@ model JournalEntry {
   /// refuse without --accept-data-loss, which is not a flag to leave pointed at
   /// a client's database. "Reverse only once" is enforced in the action, and the
   /// constraint can be restored properly once this moves to migrations.
-  reversalOfId String?
-  reversalOf   JournalEntry?  @relation("Reversal", fields: [reversalOfId], references: [id])
-  reversedBy   JournalEntry[] @relation("Reversal")
-  postedBy     String
-  lines        JournalLine[]
-  createdAt    DateTime       @default(now())
-  timesheets   Timesheet[]
-  cheques      Cheque[]
-  retentions   Retention[]
-  Invoice      Invoice?
+  reversalOfId      String?
+  reversalOf        JournalEntry?          @relation("Reversal", fields: [reversalOfId], references: [id])
+  reversedBy        JournalEntry[]         @relation("Reversal")
+  postedBy          String
+  lines             JournalLine[]
+  createdAt         DateTime               @default(now())
+  timesheets        Timesheet[]
+  cheques           Cheque[]
+  retentions        Retention[]
+  partyAdvances     PartyAdvance[]         @relation("AdvancePosting")
+  advanceRecoveries PartyAdvanceRecovery[] @relation("AdvanceRecoveryPosting")
+  Invoice           Invoice?
 
   @@unique([companyId, reference])
   @@unique([companyId, sourceType, sourceId])
@@ -652,12 +655,13 @@ model Invoice {
   eInvoiceError    String?
   eInvoiceAttempts Int       @default(0)
 
-  lines     InvoiceLine[]
-  issuedBy  String?
-  issuedAt  DateTime?
-  createdBy String?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  lines             InvoiceLine[]
+  advanceRecoveries PartyAdvanceRecovery[]
+  issuedBy          String?
+  issuedAt          DateTime?
+  createdBy         String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
 
   @@unique([companyId, side, number])
   @@index([companyId])
@@ -1075,6 +1079,7 @@ model Party {
   jobs          Job[]
   cheques       Cheque[]
   retentions    Retention[]
+  partyAdvances PartyAdvance[]
   createdAt     DateTime       @default(now())
   Invoice       Invoice[]
 
@@ -1144,6 +1149,83 @@ model Retention {
   @@index([entryId])
 }
 
+/// Money that moved before any supply did.
+///
+/// A mobilisation advance on a contract, or a deposit paid to a supplier who
+/// will not order material without one. It is neither revenue nor cost: one
+/// received is a liability until the work is billed, one paid is an asset
+/// until the supplier bills for it. Recording it as either would overstate the
+/// period it was received in and understate every period after.
+///
+/// Recovery is the other half, and it is where advances are usually lost. The
+/// money arrives once and is then set against invoices a few per cent at a
+/// time over a year, so what is left is a running figure nobody can hold in
+/// their head. Each set-off is its own row, so the balance is derived rather
+/// than typed and cannot drift.
+model PartyAdvance {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Received: a customer paid us up front. Paid: we paid a supplier up front.
+  direction String
+  /// Their receipt, our payment reference, or the contract clause it came under.
+  reference String
+  partyId   String?
+  party     Party?  @relation(fields: [partyId], references: [id])
+  /// Kept alongside the link so a deleted party never blanks the register.
+  partyName String?
+  jobId     String?
+  job       Job?    @relation(fields: [jobId], references: [id])
+
+  date            DateTime
+  amount          Float
+  /// What each certificate recovers, where the contract sets a rate. Kept for
+  /// the record and offered as the default; never applied on its own.
+  recoveryPercent Float?
+
+  /// Open | Recovered | Refunded | Written off
+  status String @default("Open")
+
+  /// The voucher that recorded the money moving.
+  entryId String?
+  entry   JournalEntry? @relation("AdvancePosting", fields: [entryId], references: [id])
+
+  notes      String?
+  recoveries PartyAdvanceRecovery[]
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
+
+  /// The same reference twice on the same side is the same money entered again.
+  @@unique([companyId, direction, reference])
+  @@index([companyId])
+  @@index([status])
+  @@index([partyId])
+  @@index([jobId])
+  @@index([entryId])
+}
+
+/// One set-off of an advance against an invoice.
+model PartyAdvanceRecovery {
+  id        String        @id @default(cuid())
+  advanceId String
+  advance   PartyAdvance  @relation(fields: [advanceId], references: [id], onDelete: Cascade)
+  date      DateTime
+  amount    Float
+  /// The invoice it was set against, where there is one.
+  invoiceId String?
+  invoice   Invoice?      @relation(fields: [invoiceId], references: [id])
+  /// The voucher that moved it out of the advance account.
+  entryId   String?
+  entry     JournalEntry? @relation("AdvanceRecoveryPosting", fields: [entryId], references: [id])
+  notes     String?
+  createdAt DateTime      @default(now())
+
+  @@index([advanceId])
+  @@index([invoiceId])
+  @@index([entryId])
+}
+
 model Cheque {
   id          String        @id @default(cuid())
   companyId   String
@@ -1187,39 +1269,40 @@ model Cheque {
 /// Costs and revenue are tagged to it so 'did we make money on the ADNOC job?'
 /// has an answer. BRD FIN-06.
 model Job {
-  id            String        @id @default(cuid())
+  id            String         @id @default(cuid())
   companyId     String
-  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   code          String // e.g. J-2601
   name          String
   /// A job and a project are the same record here. `type` is only the word the
   /// client uses for it, so one table serves a fixed-price contract, a service
   /// call and an internal cost pool without a second entity to keep in step.
-  type          String        @default("Contract") // Contract | Project | Service call | AMC | Internal
+  type          String         @default("Contract") // Contract | Project | Service call | AMC | Internal
   /// Contract -> package -> variation. Costs are tagged on the leaf and the
   /// report rolls them up, which is how a main contract shows a true total
   /// without anything being posted against the parent itself.
   parentId      String?
-  parent        Job?          @relation("JobTree", fields: [parentId], references: [id])
-  children      Job[]         @relation("JobTree")
+  parent        Job?           @relation("JobTree", fields: [parentId], references: [id])
+  children      Job[]          @relation("JobTree")
   /// The customer this job is for, so a job report can name them.
   partyId       String?
-  party         Party?        @relation(fields: [partyId], references: [id])
+  party         Party?         @relation(fields: [partyId], references: [id])
   /// What the job was sold for, and what it was expected to cost.
-  contractValue Float         @default(0)
-  budgetCost    Float         @default(0)
+  contractValue Float          @default(0)
+  budgetCost    Float          @default(0)
   /// Manhours the job was priced for. Zero means none was set, which the
   /// manhours report shows as "no budget" rather than as nought per cent used.
-  budgetHours   Float         @default(0)
+  budgetHours   Float          @default(0)
   startDate     DateTime?
   endDate       DateTime?
-  status        String        @default("Open") // Open | On hold | Completed | Closed
+  status        String         @default("Open") // Open | On hold | Completed | Closed
   notes         String?
   lines         JournalLine[]
   timesheets    Timesheet[]
   retentions    Retention[]
-  isActive      Boolean       @default(true)
-  createdAt     DateTime      @default(now())
+  partyAdvances PartyAdvance[]
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
   Invoice       Invoice[]
   InvoiceLine   InvoiceLine[]
 

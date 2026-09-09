@@ -42,6 +42,7 @@ export const SCREENS: ScreenDef[] = [
   { key: "finance.cashflow", module: "finance", label: "Cash Flow Forecast", href: "/finance/cash-flow" },
   { key: "finance.cheques", module: "finance", label: "Cheque Register (PDC)", href: "/finance/cheques" },
   { key: "finance.retention", module: "finance", label: "Retention", href: "/finance/retention" },
+  { key: "finance.advances", module: "finance", label: "Advances", href: "/finance/advances" },
   { key: "finance.bankrec", module: "finance", label: "Bank Reconciliation", href: "/finance/bank-rec" },
   { key: "finance.jobs", module: "finance", label: "Job Costing", href: "/finance/jobs" },
   { key: "finance.costcentres", module: "finance", label: "Cost Centres", href: "/finance/cost-centres" },

@@ -41,7 +41,7 @@ const MODULE_SCREENS = {
   // than silently reaching only the admin roles that bypass this list.
   finance: [
     "finance.overview", "finance.invoices", "finance.daybook", "finance.ledgers", "finance.reports",
-    "finance.parties", "finance.outstanding", "finance.cashflow", "finance.cheques", "finance.retention", "finance.bankrec", "finance.jobs", "finance.costcentres",
+    "finance.parties", "finance.outstanding", "finance.cashflow", "finance.cheques", "finance.retention", "finance.advances", "finance.bankrec", "finance.jobs", "finance.costcentres",
     "finance.vat", "finance.corptax", "finance.einvoicing", "finance.tally", "finance.settings",
   ],
   hr: ["hr.employees", "hr.onboarding", "hr.payroll", "hr.leave", "hr.attendance", "hr.certifications", "hr.separation", "hr.reports", "hr.overtime", "hr.manhours", "hr.workforce", "hr.policy", "hr.tasks"],
@@ -208,6 +208,11 @@ async function main() {
     // holds it from us, and we hold it from our subcontractors.
     ["1160", "Retention Receivable", "Asset"],
     ["2200", "Retention Payable", "Liability"],
+    // An advance is money that has moved before any supply has been made, so
+    // it is not revenue and not a cost. One received is owed back until the
+    // work is billed; one paid is owed to us until the supplier bills it.
+    ["2300", "Advances from Customers", "Liability"],
+    ["1180", "Advances to Suppliers", "Asset"],
     ["3000", "Share Capital", "Equity", -100000],
     ["3100", "Retained Earnings", "Equity"],
     ["4000", "Contract Revenue", "Income"],

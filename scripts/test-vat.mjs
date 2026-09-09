@@ -6,7 +6,7 @@
  * reverse charge, which must appear on both sides and net to nil.
  */
 import {
-  buildVat201, taxOn, VAT_RATE, VAT_TREATMENTS, TREATMENT_HELP,
+  buildVat201, taxOn, STANDARD_VAT_RATE, VAT_TREATMENTS, TREATMENT_HELP,
 } from "../src/lib/vat.ts";
 import fs from "node:fs";
 
@@ -18,7 +18,7 @@ const ok = (name, cond, extra = "") => {
 const line = (voucherType, treatment, taxableValue) => ({ voucherType, treatment, taxableValue });
 
 /* ------------------------------------------------------------ the rate --- */
-ok("the standard rate is 5%", VAT_RATE === 0.05);
+ok("the standard rate is 5%", STANDARD_VAT_RATE === 0.05);
 ok("standard-rated work bears tax", taxOn("Standard", 100000) === 5000);
 ok("zero-rated work bears none", taxOn("Zero-rated", 100000) === 0);
 ok("exempt work bears none", taxOn("Exempt", 100000) === 0);
@@ -109,6 +109,63 @@ ok("tax is rounded to fils", rounding.standardSupplies.vat === 1666.67, String(r
 
 ok("an empty period returns a nil return",
   buildVat201([]).netPayable === 0 && buildVat201([]).outputTax === 0);
+
+/* -------------------------------------------- the rate is not hardcoded -- */
+/**
+ * Invoicing reads the rate from Finance Settings and snapshots it on every
+ * line. The return used to compute its own tax at a rate written into the
+ * code, so changing the setting put the return out of step with the invoices
+ * behind it, and the reconciliation reported a difference nobody could place.
+ *
+ * Two things are asserted here. A configured rate is honoured for anything
+ * with no document behind it, and a recorded tax always wins — otherwise a
+ * rate change would restate a period that has already been filed.
+ */
+const atFour = buildVat201([line("Sales", "Standard", 100000)], 0.04);
+ok("a configured rate is used, not a rate written into the code",
+  atFour.standardSupplies.vat === 4000, String(atFour.standardSupplies.vat));
+
+ok("and it reaches the totals", atFour.outputTax === 4000 && atFour.netPayable === 4000);
+
+const atDefault = buildVat201([line("Sales", "Standard", 100000)]);
+ok("the statutory rate is still the fallback", atDefault.standardSupplies.vat === 5000);
+
+// An invoice raised at 5%, read back after the rate moved to 4%.
+const filed = buildVat201(
+  [{ voucherType: "Sales", treatment: "Standard", taxableValue: 100000, tax: 4762.5 }],
+  0.04,
+);
+ok("tax recorded on a document is reported as charged",
+  filed.standardSupplies.vat === 4762.5, "a filed period is never restated by a rate change");
+
+// The same on the way back out: a credit note against that invoice.
+const filedNote = buildVat201(
+  [{ voucherType: "Credit Note", treatment: "Standard", taxableValue: 100000, tax: 4762.5 }],
+  0.04,
+);
+ok("and a credit note reverses what was charged, not what the rate is now",
+  filedNote.standardSupplies.vat === -4762.5, String(filedNote.standardSupplies.vat));
+
+// Reverse charge is computed, so it has to follow the rate too.
+const rcAtFour = buildVat201([line("Purchase", "Reverse charge", 100000)], 0.04);
+ok("reverse charge follows the configured rate on both sides",
+  rcAtFour.reverseChargeSupplies.vat === 4000 && rcAtFour.reverseChargeExpenses.vat === 4000);
+ok("and still nets to nil", rcAtFour.netPayable === 0);
+
+ok("taxOn takes a rate", taxOn("Standard", 100000, 0.04) === 4000);
+ok("and defaults to the statutory one", taxOn("Standard", 100000) === 5000);
+
+// The defect itself: no rate may be written into the return's own code.
+const vatSource = fs.readFileSync("src/lib/vat.ts", "utf8");
+ok("only one rate literal exists in the module",
+  (vatSource.match(/0\.05/g) ?? []).length === 1,
+  "the statutory constant, and nothing else");
+
+const vatPage = fs.readFileSync("src/app/(app)/finance/vat/page.tsx", "utf8");
+ok("the return screen passes the company's rate",
+  /buildVat201\(vatLines, rate\)/.test(vatPage) && /finPolicy\.vatRate/.test(vatPage));
+ok("and reads the tax an invoice recorded",
+  /vatAmount: true/.test(vatPage), "rather than recomputing every filed period");
 
 /* ---------------------------------------------------------- wiring ------ */
 ok("treatment is stored on the line, not the voucher",
