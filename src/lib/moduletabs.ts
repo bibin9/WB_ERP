@@ -2,7 +2,7 @@ import {
   LayoutGrid, BookOpen, ScrollText, FileBarChart, Receipt, RefreshCw, Users, Clock,
   HardHat, Building2, Scale, Banknote, Lock, Landmark, Percent, Settings2, PenLine,
   FolderOpen, UserPlus, Wallet, CalendarDays, CalendarCheck, BadgeCheck, UserMinus,
-  ShieldAlert, ClipboardList, type LucideIcon,
+  ShieldAlert, ClipboardList, TrendingUp, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -71,6 +71,7 @@ export const FINANCE_GROUPS: TabGroup[] = [
       { href: "/finance/reports", label: "P&L / Balance Sheet", icon: FileBarChart, screen: "finance.reports" },
       { href: "/finance/trial-balance", label: "Trial Balance", icon: Scale, screen: "finance.reports" },
       { href: "/finance/outstanding", label: "Outstanding", icon: Clock, screen: "finance.outstanding" },
+      { href: "/finance/cash-flow", label: "Cash Flow", icon: TrendingUp, screen: "finance.cashflow" },
     ],
   },
   {

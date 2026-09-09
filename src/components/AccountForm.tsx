@@ -57,10 +57,12 @@ export default function AccountForm({ companyId, account }: { companyId: string;
               <option value="">Not a control account</option>
               <option value="Receivable">Receivable — money customers owe us</option>
               <option value="Payable">Payable — money we owe suppliers</option>
+              <option value="Cash">Cash or bank — where money actually sits</option>
             </select>
             <p className="mt-1 text-xs text-muted">
               Marking Accounts Receivable and Accounts Payable here is what lets the Outstanding &amp; Ageing
-              report work out who owes what.
+              report work out who owes what. Marking your bank and petty cash accounts as Cash is what
+              the Cash Flow Forecast starts from — mark every one of them, or the forecast starts short.
             </p>
           </div>
           <div>

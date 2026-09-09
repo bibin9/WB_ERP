@@ -1252,6 +1252,9 @@ model FinancePolicy {
   filingMonths     Float @default(9)
 
   // Operations
+  /// Day of the month wages are paid. Drives the cash flow forecast, which is
+  /// mostly a question about whether this payment will clear.
+  payrollDayOfMonth       Float @default(28)
   chequeStaleDays         Float @default(180)
   defaultRetentionPercent Float @default(10)
   expiryWarningDays       Float @default(60)

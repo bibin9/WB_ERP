@@ -58,7 +58,7 @@ const ACCOUNT_TYPES = ["Asset", "Liability", "Equity", "Income", "Expense"];
 /** Which control account this is, if any — what the outstanding report measures. */
 function controlFrom(formData: FormData): string | null {
   const v = String(formData.get("controlType") || "").trim();
-  return v === "Receivable" || v === "Payable" ? v : null;
+  return v === "Receivable" || v === "Payable" || v === "Cash" ? v : null;
 }
 
 /**

@@ -1,7 +1,7 @@
 import {
   Scale, FileBarChart, Clock, HardHat, Building2, Receipt, Percent,
   ShieldAlert, BadgeCheck, Wallet, CalendarCheck, Banknote, Lock, Landmark,
-  BookOpen, ScrollText, Users, type LucideIcon,
+  BookOpen, ScrollText, Users, TrendingUp, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -49,6 +49,11 @@ export const REPORT_AREAS = [
 
 export const REPORTS: ReportDef[] = [
   // ===== Money in / money out =====
+  {
+    key: "cash-flow", label: "Cash Flow Forecast", href: "/finance/cash-flow",
+    screen: "finance.cashflow", module: "finance", area: "Money coming in and going out",
+    question: "Will there be enough in the bank to cover the next payroll?", icon: TrendingUp,
+  },
   {
     key: "outstanding", label: "Outstanding & Ageing", href: "/finance/outstanding",
     screen: "finance.outstanding", module: "finance", area: "Money coming in and going out",

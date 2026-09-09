@@ -69,6 +69,8 @@ export type FinancePolicy = {
   filingMonths: number;
 
   /* ---------------------------------------------------------- operations - */
+  /** Day of the month wages are paid, which the cash flow forecast turns on. */
+  payrollDayOfMonth: number;
   /** A cheque older than this is stale and a bank will refuse it. */
   chequeStaleDays: number;
   /** What a contract usually retains, offered as the default on the form. */
@@ -90,6 +92,7 @@ export const DEFAULT_FINANCE_POLICY: FinancePolicy = {
   lossReliefCap: 0.75,
   filingMonths: 9,
 
+  payrollDayOfMonth: 28,
   chequeStaleDays: 180,
   defaultRetentionPercent: 10,
   expiryWarningDays: 60,
@@ -108,6 +111,7 @@ export const STATUTORY_NOTE: Record<string, string> = {
   sbrRevenueCap: "AED 3,000,000 of revenue, for periods ending on or before 31 December 2029.",
   lossReliefCap: "Brought-forward losses relieve at most 75% of taxable income.",
   filingMonths: "The return and the payment are both due nine months after the period ends.",
+  payrollDayOfMonth: "Company practice. UAE law requires wages within 15 days of the period they cover, so most pay between the 25th and the 5th.",
   chequeStaleDays: "Six months is the usual UAE banking practice, not a statute.",
   defaultRetentionPercent: "Five or ten per cent is normal in UAE contracting. Whatever your contract says.",
   expiryWarningDays: "Company preference. Sixty days is enough to renew a visa without rushing.",
@@ -157,6 +161,11 @@ export function validateFinancePolicy(p: Partial<FinancePolicy>): FinanceProblem
   const filing = Number(p.filingMonths);
   if (!Number.isFinite(filing) || filing < 1 || filing > 24) {
     problems.push({ key: "filingMonths", message: "The filing deadline is measured in months after the period ends — between 1 and 24." });
+  }
+
+  const payDay = Number(p.payrollDayOfMonth);
+  if (!Number.isFinite(payDay) || payDay < 1 || payDay > 31 || Math.floor(payDay) !== payDay) {
+    problems.push({ key: "payrollDayOfMonth", message: "Payday is a day of the month — a whole number from 1 to 31. A month too short for it pays on its last day." });
   }
 
   const stale = Number(p.chequeStaleDays);
@@ -218,7 +227,7 @@ export function withFinanceDefaults(p?: Partial<FinancePolicy> | null): FinanceP
   if (!p) return out;
 
   for (const k of ["vatRate", "corporateTaxRate", "corporateTaxBand", "sbrRevenueCap",
-    "lossReliefCap", "filingMonths", "chequeStaleDays", "defaultRetentionPercent",
+    "lossReliefCap", "filingMonths", "payrollDayOfMonth", "chequeStaleDays", "defaultRetentionPercent",
     "expiryWarningDays", "pageSize"] as const) {
     const v = Number(p[k]);
     if (Number.isFinite(v)) out[k] = v;
@@ -255,6 +264,7 @@ export function financeChanges(p: FinancePolicy): string[] {
   if (p.vatRate !== d.vatRate) out.push(`VAT at ${(p.vatRate * 100).toFixed(2).replace(/\.00$/, "")}%`);
   if (p.corporateTaxRate !== d.corporateTaxRate) out.push(`corporate tax at ${(p.corporateTaxRate * 100).toFixed(2).replace(/\.00$/, "")}%`);
   if (p.corporateTaxBand !== d.corporateTaxBand) out.push(`a nil band of AED ${p.corporateTaxBand.toLocaleString("en-AE")}`);
+  if (p.payrollDayOfMonth !== d.payrollDayOfMonth) out.push(`payday on the ${p.payrollDayOfMonth}th`);
   if (p.chequeStaleDays !== d.chequeStaleDays) out.push(`cheques stale at ${p.chequeStaleDays} days`);
   if (p.defaultRetentionPercent !== d.defaultRetentionPercent) out.push(`${p.defaultRetentionPercent}% default retention`);
   if (p.expiryWarningDays !== d.expiryWarningDays) out.push(`${p.expiryWarningDays} days of expiry warning`);

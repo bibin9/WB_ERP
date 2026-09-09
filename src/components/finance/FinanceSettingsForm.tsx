@@ -36,8 +36,9 @@ const RATE_GROUPS = [
   {
     title: "Everyday thresholds",
     blurb: "Company preference and ordinary practice rather than law. Set them to whatever your business actually does.",
-    keys: ["chequeStaleDays", "defaultRetentionPercent", "expiryWarningDays", "pageSize"],
+    keys: ["payrollDayOfMonth", "chequeStaleDays", "defaultRetentionPercent", "expiryWarningDays", "pageSize"],
     labels: {
+      payrollDayOfMonth: "Payday (day of the month)",
       chequeStaleDays: "Cheque goes stale after (days)",
       defaultRetentionPercent: "Default retention (%)",
       expiryWarningDays: "Warn about expiry (days ahead)",

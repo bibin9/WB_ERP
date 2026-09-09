@@ -38,6 +38,7 @@ export const SCREENS: ScreenDef[] = [
   { key: "finance.reports", module: "finance", label: "Reports (P&L / Balance Sheet)", href: "/finance/reports" },
   { key: "finance.parties", module: "finance", label: "Customers & Suppliers", href: "/finance/parties" },
   { key: "finance.outstanding", module: "finance", label: "Outstanding & Ageing", href: "/finance/outstanding" },
+  { key: "finance.cashflow", module: "finance", label: "Cash Flow Forecast", href: "/finance/cash-flow" },
   { key: "finance.cheques", module: "finance", label: "Cheque Register (PDC)", href: "/finance/cheques" },
   { key: "finance.retention", module: "finance", label: "Retention", href: "/finance/retention" },
   { key: "finance.bankrec", module: "finance", label: "Bank Reconciliation", href: "/finance/bank-rec" },

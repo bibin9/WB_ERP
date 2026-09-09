@@ -923,6 +923,31 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "The address is the one the office or phone network was using at that moment, not a permanent label for a person. Two people in the same office share one.",
   },
   {
+    id: "cash-flow", category: "Finance & Accounting", screens: ["/finance/cash-flow"],
+    title: "Will we have the cash? — the forecast",
+    summary: "What is in the bank now, what is due in and out, and whether it covers payroll.",
+    body: "Every other finance report looks backwards. This one looks forward. It takes the balance on your bank accounts today, then lays out the money already dated to move — cheques you hold and cheques you have written, invoices on their due dates, retention on its release date, and wages on payday — week by week. The number to watch is the last column: what the bank looks like at the end of each week. Any week that goes below zero is shaded red.",
+    steps: [
+      "Open Finance, then Reports, then Cash Flow.",
+      "Choose how far ahead to look: 4 weeks, 8, 13, or 6 months.",
+      "Read the sentence at the top. It says in one line whether you are all right, getting tight, or heading for an overdraft — and in which week.",
+      "Click into the week to see what is behind it: each cheque, invoice and payroll listed with its date.",
+    ],
+    tip: "Turn on 'Cautious view' before you promise anybody anything. It removes money you are owed but cannot be sure of — overdue invoices and retention still to be chased — while keeping every payment you have to make. If the answer is still yes with the cautious view on, it is a real yes.",
+  },
+  {
+    id: "cash-flow-setup", category: "Finance & Accounting", screens: ["/finance/cash-flow", "/finance/settings", "/finance"],
+    title: "Getting the cash flow forecast right",
+    summary: "Two settings it depends on: which accounts are cash, and when you pay wages.",
+    body: "The forecast can only count what it has been told about. If the opening figure looks too low, it is almost always one of these two.",
+    steps: [
+      "Mark every bank and petty cash account: Finance → Overview, edit the account, set 'Control account' to 'Cash or bank'. Miss one and the forecast starts short by that balance.",
+      "Set payday: Finance → Setup → Finance Settings → 'Payday (day of the month)'. UAE law requires wages within 15 days of the month they cover, so most companies pay between the 25th and the 5th.",
+      "The wage figure itself is not typed in — it is the total of your last approved payroll run, so it updates itself each month.",
+    ],
+    tip: "If a customer has given you a post-dated cheque against an invoice, the forecast counts the cheque and not the invoice as well. Counting both would show twice the money.",
+  },
+  {
     id: "audit-retention", category: "Administration & Security", screens: ["/audit"],
     title: "The Archive tab, and how far back this screen goes",
     summary: "Older entries move to an archive. Nothing is ever deleted.",

@@ -41,7 +41,7 @@ const MODULE_SCREENS = {
   // than silently reaching only the admin roles that bypass this list.
   finance: [
     "finance.overview", "finance.daybook", "finance.ledgers", "finance.reports",
-    "finance.parties", "finance.outstanding", "finance.cheques", "finance.retention", "finance.bankrec", "finance.jobs", "finance.costcentres",
+    "finance.parties", "finance.outstanding", "finance.cashflow", "finance.cheques", "finance.retention", "finance.bankrec", "finance.jobs", "finance.costcentres",
     "finance.vat", "finance.corptax", "finance.tally", "finance.settings",
   ],
   hr: ["hr.employees", "hr.onboarding", "hr.payroll", "hr.leave", "hr.attendance", "hr.certifications", "hr.separation", "hr.reports", "hr.policy", "hr.tasks"],
@@ -187,7 +187,11 @@ async function main() {
   // Opening balances demonstrate migrating onto the system mid-life: debit
   // positive, credit negative, and the set balances to zero.
   const COA = [
-    ["1000", "Cash at Bank", "Asset", 150000],
+    // Marked Cash so the cash flow forecast knows where the money sits. The
+    // seed re-runs on every deploy and always writes controlType, so an
+    // install that predates the forecast is corrected on its next start
+    // rather than quietly forecasting from a zero balance.
+    ["1000", "Cash at Bank", "Asset", 150000, "Cash"],
     ["1100", "Accounts Receivable", "Asset", 0, "Receivable"],
     ["1200", "Inventory", "Asset"],
     // VAT is held on its own two accounts, not netted into one. A VAT 201 is
