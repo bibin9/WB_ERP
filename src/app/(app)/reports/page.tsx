@@ -32,7 +32,7 @@ export default async function ReportsPage() {
   return (
     <div>
       <PageHeader
-        title="Reports"
+        title="All Reports"
         subtitle="Everything the system can tell you, in one place. Search by what you want to know, not by what it is called."
       />
 

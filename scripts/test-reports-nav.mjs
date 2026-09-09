@@ -198,7 +198,33 @@ ok("no group is longer than five screens",
   ok("the Report Centre filters by what the user may view", /visibleReports\(allowed\)/.test(page));
   ok("it passes only the keys, not the whole registry, to the browser",
     /keys=\{mine\.map\(\(r\) => r\.key\)\}/.test(page));
-  ok("it is in the sidebar", read("src/lib/data.ts").includes('href: "/reports"'));
+  const data = read("src/lib/data.ts");
+  ok("it is in the sidebar", data.includes('href: "/reports"'));
+
+  // Three places answered to the word "Reports" — the sidebar, the Finance tab
+  // and the HR tab — so "it's under Reports" pointed at three screens.
+  ok("the sidebar entry is called All Reports, not Reports",
+    /label: "All Reports"/.test(data));
+  ok("and it matches the link at the end of the module tab strip",
+    /All reports/i.test(tabs) && /All Reports/i.test(data));
+  ok("the module tabs still say Reports, which is right in context",
+    read("src/lib/moduletabs.ts").includes('label: "Reports"'));
+  ok("the page it opens is titled the same as the menu that opens it",
+    read("src/app/(app)/reports/page.tsx").includes('title="All Reports"'));
+
+  // A menu item that opens onto "you have access to nothing" is worse than no
+  // menu item: it advertises that reports exist without saying which.
+  ok("the entry is no longer shown to everybody regardless of access",
+    !/label: "All Reports"[\s\S]{0,320}alwaysShow/.test(data));
+  ok("it is shown when the user can open at least one report",
+    /requiresAny: \[\.\.\.new Set\(REPORTS\.map\(\(r\) => r\.screen\)\)\]/.test(data),
+    "and the list comes from the registry, so it cannot drift");
+
+  const bar = read("src/components/Sidebar.tsx");
+  ok("the sidebar honours that condition",
+    /i\.requiresAny\.some\(\(k\) => allowed\.has\(k\)\)/.test(bar));
+  ok("and hides the entry when none of them are permitted",
+    /requiresAny[\s\S]{0,120}: \[\]/.test(bar));
 
   const help = read("src/lib/help.ts");
   ok("and there is plain-English help for finding a report",
