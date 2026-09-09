@@ -1200,6 +1200,11 @@ model HrPolicy {
   otPremiumRate          Float @default(1.5)
   /// Article 19 caps, held as policy so a company may be stricter than the
   /// law but never looser. The overtime report measures against these.
+  /// The share of the workforce any one nationality may reach, as a percentage,
+  /// for the establishment classification. MOHRE sets the figure and revises
+  /// it, so this is what the company's PRO says it is working to — not a
+  /// statute this system claims to know. Zero means no target set.
+  maxNationalityShare    Float @default(50)
   maxOvertimeHoursPerDay Float @default(2)
   maxHoursPerThreeWeeks  Float @default(144)
 

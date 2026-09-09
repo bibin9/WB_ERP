@@ -834,6 +834,30 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "Gratuity = 21 days' basic pay per year for the first 5 years, 30 days per year after that, minimum 1 year of service, capped at 2 years' basic pay. Under the current law resignation and termination earn the same gratuity; gross-misconduct dismissal can forfeit it.",
   },
   {
+    id: "workforce-mix", category: "Human Resources", screens: ["/hr/workforce"],
+    title: "Workforce mix — nationalities, and changing the balance",
+    summary: "How many of each nationality you employ, and what it would take to shift it.",
+    body: "MOHRE classifies each establishment, and that classification changes what every work permit costs. The mix of nationalities you employ is one of the things it looks at. This screen shows that mix for your own employees, largest nationality first, and measures it against the figure you are working to.",
+    steps: [
+      "Open HR → Reports → Workforce Mix. Each company is its own establishment, so pick the company at the top.",
+      "The top row is the number that matters: your largest nationality as a share of your own staff.",
+      "If it is over your target, the red panel gives three ways to close it — hires needed, the equivalent reduction, and how many of those visas fall due within 90 days.",
+      "'Across the group' compares every company at a glance, so you can see which one needs attention.",
+    ],
+    tip: "The percentage is set on HR Policy and is yours, not ours. MOHRE sets the diversity figure and revises it, and this system does not claim to know today's — ask your PRO or typing centre what you should be working to, and put that number in.",
+  },
+  {
+    id: "workforce-mix-counting", category: "Human Resources", screens: ["/hr/workforce", "/hr"],
+    title: "Who counts in the workforce mix",
+    summary: "Own employees only. Supplied labour and leavers are out.",
+    body: "Only people your company sponsors are counted. Supplied labour is sponsored by the manpower supplier and sits on that supplier's establishment, so including them would give you a mix that belongs to somebody else. People who have left are excluded too.",
+    steps: [
+      "Mark a worker as 'Supplied' on their employee record and name the supplier — they are then kept out of this report, and out of payroll and WPS as well.",
+      "Anybody with no nationality on file is counted in the headcount and shown as 'Not recorded'.",
+    ],
+    tip: "If some nationalities are missing, the screen gives a range instead of a single figure — for example 'between 61% and 64%'. Fill the blanks in before you quote a number to your PRO.",
+  },
+  {
     id: "overtime-report", category: "Human Resources", screens: ["/hr/overtime"],
     title: "Overtime — what it costs and where it broke the rules",
     summary: "Overtime by person, and the days somebody worked more of it than the law allows.",

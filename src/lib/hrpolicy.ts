@@ -58,6 +58,8 @@ export type HrPolicy = {
   otNormalRate: number;
   /** Night, rest-day and holiday overtime. At least 1.5. */
   otPremiumRate: number;
+  /** The share any one nationality may reach, as a percentage. 0 = no target. */
+  maxNationalityShare: number;
   /** Most overtime anybody may work in a day. Two hours, at most. */
   maxOvertimeHoursPerDay: number;
   /** Most hours anybody may work in any three weeks, overtime included. */
@@ -109,6 +111,7 @@ export const STATUTORY_POLICY: HrPolicy = {
   daysPerMonth: 30,
   otNormalRate: 1.25,
   otPremiumRate: 1.5,
+  maxNationalityShare: 50,
   maxOvertimeHoursPerDay: 2,
   maxHoursPerThreeWeeks: 144,
 
@@ -171,6 +174,11 @@ export const POLICY_RULES: Rule[] = [
     why: "Article 19: ordinary overtime is 125% of basic, at least." },
   { key: "otPremiumRate", label: "Night / rest-day overtime", bound: "min", limit: 1.5, sanity: 3,
     why: "150% between 22:00 and 04:00, on a rest day, or on a public holiday." },
+  // No statutory bound: MOHRE sets the diversity figure, revises it, and this
+  // system does not claim to know today's. Only a sane range, so a typo is
+  // caught and a policy is not.
+  { key: "maxNationalityShare", label: "One nationality may reach", bound: "max", limit: 100, sanity: 0,
+    why: "A share of the workforce, between 0 and 100. Ask your PRO what MOHRE is applying — this system does not assume it." },
   { key: "maxOvertimeHoursPerDay", label: "Overtime cap per day", bound: "max", limit: 2, sanity: 0,
     why: "Article 19: two hours a day, unless the work prevents a serious loss or accident." },
   { key: "maxHoursPerThreeWeeks", label: "Hours cap per three weeks", bound: "max", limit: 144, sanity: 0,

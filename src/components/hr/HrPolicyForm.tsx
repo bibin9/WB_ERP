@@ -33,7 +33,13 @@ const GROUPS: Group[] = [
     title: "Working time and overtime",
     blurb:
       "Eight hours is the longest normal day. Overtime is priced on basic pay: 125% ordinarily, 150% between 22:00 and 04:00, on a rest day or on a public holiday. The divisor turns a monthly salary into a daily one — the smaller it is, the more a day is worth.",
-    keys: ["normalHoursPerDay", "daysPerMonth", "otNormalRate", "otPremiumRate"],
+    keys: ["normalHoursPerDay", "daysPerMonth", "otNormalRate", "otPremiumRate", "maxOvertimeHoursPerDay", "maxHoursPerThreeWeeks"],
+  },
+  {
+    title: "Workforce mix",
+    blurb:
+      "MOHRE classifies each establishment, and the classification changes what every work permit costs. The mix of nationalities is one of the things it weighs. This figure is not a statute this system claims to know — MOHRE sets it and revises it, so put in what your PRO or typing centre says you are working to. Zero switches the check off.",
+    keys: ["maxNationalityShare"],
   },
   {
     title: "Sick pay",

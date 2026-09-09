@@ -1,7 +1,7 @@
 import {
   Scale, FileBarChart, Clock, HardHat, Building2, Receipt, Percent,
   ShieldAlert, BadgeCheck, Wallet, CalendarCheck, Banknote, Lock, Landmark,
-  BookOpen, ScrollText, Users, TrendingUp, Timer, AlarmClock, type LucideIcon,
+  BookOpen, ScrollText, Users, TrendingUp, Timer, AlarmClock, UsersRound, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -129,6 +129,11 @@ export const REPORTS: ReportDef[] = [
     key: "payroll", label: "Payroll & Payslips", href: "/hr/payroll",
     screen: "hr.payroll", module: "hr", area: "People",
     question: "What was paid last month, to whom, and what went to the bank as WPS?", icon: Wallet,
+  },
+  {
+    key: "workforce", label: "Workforce Mix", href: "/hr/workforce",
+    screen: "hr.workforce", module: "hr", area: "People",
+    question: "How mixed are the nationalities, and what would change the balance?", icon: UsersRound,
   },
   {
     key: "employees", label: "Employee Register", href: "/hr",
