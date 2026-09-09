@@ -122,7 +122,7 @@ export default async function EmployeesPage({
       <div className="mb-4">
         <SearchBox
           placeholder="Search employees…"
-          hint="Name, employee number, mobile, email, department, or a number from their Emirates ID, passport, visa or labour card."
+          hint="Name, employee number, mobile, email, department, or a number from their Emirates ID, passport, visa or MOL Person ID."
         />
       </div>
 

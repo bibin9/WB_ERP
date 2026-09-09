@@ -8,6 +8,7 @@ import { updateEmployeeProfile, deleteDocument } from "../actions";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
+import NationalityInput from "@/components/NationalityInput";
 
 export const dynamic = "force-dynamic";
 const d = (v: Date | null) => (v ? new Date(v).toISOString().slice(0, 10) : "");
@@ -72,6 +73,11 @@ export default async function EmployeeProfilePage({
   if (!e || !session.companies.some((c) => c.id === e.companyId)) notFound();
 
   const customDefs = await db.customFieldDef.findMany({ where: { tenantId: session.tenant.id, entity: "Employee" }, orderBy: { order: "asc" } });
+  const ownNationalities = (await db.masterItem.findMany({
+    where: { tenantId: session.tenant.id, type: "Nationality", isActive: true },
+    orderBy: { order: "asc" },
+    select: { value: true },
+  })).map((m) => m.value);
   const valueMap = new Map(e.customValues.map((v) => [v.fieldDefId, v.value]));
 
   return (
@@ -96,7 +102,10 @@ export default async function EmployeeProfilePage({
           <Field label="Full name" name="name" def={e.name} />
           <Field label="Date of birth" name="dateOfBirth" def={d(e.dateOfBirth)} type="date" />
           <Select label="Gender" name="gender" def={e.gender} options={["Male", "Female"]} />
-          <Field label="Nationality" name="nationality" def={e.nationality ?? ""} />
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted">Nationality</label>
+            <NationalityInput name="nationality" defaultValue={e.nationality ?? ""} extras={ownNationalities} />
+          </div>
           <Select label="Marital status" name="maritalStatus" def={e.maritalStatus} options={["Single", "Married"]} />
           <Field label="Blood group" name="bloodGroup" def={e.bloodGroup ?? ""} />
           <Field label="Personal email" name="personalEmail" def={e.personalEmail ?? ""} type="email" />
@@ -150,7 +159,7 @@ export default async function EmployeeProfilePage({
           <Field label="Visa No." name="visaNo" def={e.visaNo ?? ""} />
           <Select label="Visa type" name="visaType" def={e.visaType} options={["Employment", "Mission", "Local", "Family"]} />
           <Field label="Visa expiry" name="visaExpiry" def={d(e.visaExpiry)} type="date" />
-          <Field label="Labour Card No." name="labourCardNo" def={e.labourCardNo ?? ""} />
+          <Field label="MOL Person ID" name="labourCardNo" def={e.labourCardNo ?? ""} />
           <Field label="Labour Card expiry" name="labourCardExpiry" def={d(e.labourCardExpiry)} type="date" />
         </Section>
 

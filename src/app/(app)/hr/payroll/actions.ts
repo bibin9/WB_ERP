@@ -442,7 +442,7 @@ export async function generateWpsSif(runId: string): Promise<{ ok: boolean; erro
     const routing = cleanRouting(e.bankRoutingCode ?? "");
     const problems = [
       !e.iban ? "no IBAN" : iban.error,
-      !e.labourCardNo ? "no labour-card number" : card.error,
+      !e.labourCardNo ? "no MOL Person ID" : card.error,
       !e.bankRoutingCode ? "no bank routing code" : routing.error,
     ].filter(Boolean);
     if (problems.length) { missing.push(`${p.employeeName} — ${problems.join("; ")}`); continue; }
