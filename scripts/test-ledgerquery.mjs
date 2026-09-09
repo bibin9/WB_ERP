@@ -153,13 +153,34 @@ for (const co of companies) {
 }
 
 /* ============================ an empty company does not fall over ========= */
+/**
+ * This used to borrow WBM, which happened to have no chart because the seed
+ * only built one for the companies it created itself. That was a defect, not a
+ * fixture — once the seed reached every company the test had nothing empty to
+ * look at and started failing for the right reason.
+ *
+ * So it makes its own empty company. The check is worth keeping: a company
+ * created a minute ago and opened before anybody set it up must render nil,
+ * not throw and not NaN.
+ */
 {
-  const empty = companies.find((c) => c.code === "WBM");
-  if (empty) {
+  const tenant = await db.tenant.findFirst({ where: { key: "wandb" } });
+  const empty = await db.company.create({
+    data: {
+      tenantId: tenant.id,
+      code: `ZZL${Date.now().toString().slice(-6)}`,
+      name: "Ledger Query Empty Co",
+      baseCurrency: "AED",
+      fyStartMonth: 1,
+    },
+  });
+  try {
     const rows = await accountBalances(empty.id, day("2026-01-01"), day("2026-12-31"), null);
     ok("a company with no chart returns nothing rather than erroring", rows.length === 0);
     const pl = await profitAndLoss(empty.id, day("2026-01-01"), day("2026-12-31"), null);
     ok("and its P&L is nil, not NaN", pl.income === 0 && pl.accountingProfit === 0);
+  } finally {
+    await db.company.delete({ where: { id: empty.id } });
   }
 }
 

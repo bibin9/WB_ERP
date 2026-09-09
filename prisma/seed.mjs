@@ -231,9 +231,26 @@ async function main() {
     ["6100", "Rent", "Expense"],
     ["6200", "Utilities", "Expense"],
   ];
-  for (const company of companies) {
+  /**
+   * The chart reaches every company, not only the three seeded here.
+   *
+   * A company added through the Companies screen used to get no chart at all,
+   * so any module asking for a mapped account refused on it — and the refusal
+   * arrived at the moment somebody pressed Save, which is the worst time to
+   * learn a mapping is missing. WBM was in exactly that position.
+   *
+   * The demo opening balances stay with the demo companies. A company somebody
+   * created for real starts every account at nil, because seeding a live
+   * ledger with 50,000 of invented payables would be far worse than an empty
+   * one.
+   */
+  const seededCodes = new Set(COMPANIES.map((c) => c.code));
+  const allCompanies = await db.company.findMany({ where: { tenantId: tenant.id } });
+
+  for (const company of allCompanies) {
+    const demo = seededCodes.has(company.code);
     for (const [code, name, type, opening, controlType] of COA) {
-      const openingBalance = opening ?? 0;
+      const openingBalance = demo ? opening ?? 0 : 0;
       await db.chartOfAccount.upsert({
         where: { companyId_code: { companyId: company.id, code } },
         update: { name, type, controlType: controlType ?? null },

@@ -123,6 +123,52 @@ const voucher = (ref) =>
   ok("a second run is a no-op", a === (await snapshot()));
 }
 
+/* ============= 6. a company added through the screen gets a chart ======== */
+/**
+ * The seed used to build the chart only for the three companies it creates
+ * itself, so a company added through the Companies screen had no accounts at
+ * all. Every module that asks for a mapped account then refused on it, and the
+ * refusal arrived the moment somebody pressed Save. WBM was in that position.
+ *
+ * The demo opening balances must not follow. Seeding a real company's ledger
+ * with 50,000 of invented payables would be worse than leaving it empty.
+ */
+{
+  const tenant = await db.tenant.findFirst({ where: { key: "wandb" } });
+  const code = `ZZT${Date.now().toString().slice(-6)}`;
+  const made = await db.company.create({
+    data: { tenantId: tenant.id, code, name: "Seed Drift Test Co", baseCurrency: "AED", fyStartMonth: 1 },
+  });
+  try {
+    const before = await db.chartOfAccount.count({ where: { companyId: made.id } });
+    ok("a company created outside the seed starts with no chart", before === 0, String(before));
+
+    seed();
+
+    const after = await db.chartOfAccount.count({ where: { companyId: made.id } });
+    ok("  one run of the seed gives it one", after > 0, `${after} accounts`);
+
+    const advances = await db.chartOfAccount.findMany({
+      where: { companyId: made.id, code: { in: ["2300", "1180"] } },
+      orderBy: { code: "asc" },
+    });
+    ok("  including the advance control accounts", advances.length === 2,
+      "otherwise the advances register refuses on that company");
+
+    // Accounts Payable carries a demo opening balance on the seeded companies.
+    const ap = await db.chartOfAccount.findFirst({ where: { companyId: made.id, code: "2000" } });
+    ok("  but none of the demo opening balances", ap?.openingBalance === 0,
+      `a real company starts at nil, not ${ap?.openingBalance}`);
+
+    const seeded = await db.chartOfAccount.findFirst({ where: { companyId: company.id, code: "2000" } });
+    ok("  which the demo companies still have", seeded?.openingBalance === -50000,
+      String(seeded?.openingBalance));
+  } finally {
+    await db.chartOfAccount.deleteMany({ where: { companyId: made.id } });
+    await db.company.delete({ where: { id: made.id } });
+  }
+}
+
 /* ------------------------------------------------------------- the guard - */
 {
   const s = read("prisma/seed.mjs");
