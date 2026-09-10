@@ -116,10 +116,17 @@ ok("no group is longer than five screens",
 
 // Job Costing stays its own tab: the project managers are in it daily, and a
 // daily screen behind a second click is a screen people stop opening.
+//
+// A group tab navigates to its first screen, so what matters is that the tab
+// is called Job Costing and lands on Job Costing. Work in Progress joined the
+// group afterwards as a second entry; it is the same subject and it does not
+// move Job Costing anywhere.
 {
   const jobs = FINANCE_GROUPS.find((g) => g.key === "jobs");
-  ok("Job Costing is a top-level tab of its own",
-    !!jobs && jobs.screens.length === 1 && jobs.screens[0].href === "/finance/jobs");
+  ok("Job Costing is a top-level tab", !!jobs && jobs.label === "Job Costing");
+  ok("  and clicking it opens Job Costing, not a menu",
+    !!jobs && jobs.screens[0].href === "/finance/jobs",
+    "a group tab goes straight to its first screen");
 }
 
 // The reorganisation must not have lost a screen on the way.

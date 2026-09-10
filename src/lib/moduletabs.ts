@@ -64,7 +64,10 @@ export const FINANCE_GROUPS: TabGroup[] = [
     // in this screen every day, and a daily screen behind a second click is a
     // screen people stop opening.
     key: "jobs", label: "Job Costing", icon: HardHat,
-    screens: [{ href: "/finance/jobs", label: "Job Costing", icon: HardHat, screen: "finance.jobs" }],
+    screens: [
+      { href: "/finance/jobs", label: "Job Costing", icon: HardHat, screen: "finance.jobs" },
+      { href: "/finance/wip", label: "Work in Progress", icon: ClipboardList, screen: "finance.wip" },
+    ],
   },
   {
     key: "reports", label: "Reports", icon: FileBarChart,

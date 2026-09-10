@@ -45,6 +45,7 @@ export const SCREENS: ScreenDef[] = [
   { key: "finance.advances", module: "finance", label: "Advances", href: "/finance/advances" },
   { key: "finance.bankrec", module: "finance", label: "Bank Reconciliation", href: "/finance/bank-rec" },
   { key: "finance.jobs", module: "finance", label: "Job Costing", href: "/finance/jobs" },
+  { key: "finance.wip", module: "finance", label: "Work in Progress", href: "/finance/wip" },
   { key: "finance.costcentres", module: "finance", label: "Cost Centres", href: "/finance/cost-centres" },
   { key: "finance.vat", module: "finance", label: "VAT Report", href: "/finance/vat" },
   { key: "finance.corptax", module: "finance", label: "Corporate Tax", href: "/finance/corporate-tax" },

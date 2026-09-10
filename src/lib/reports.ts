@@ -1,7 +1,7 @@
 import {
   Scale, FileBarChart, Clock, HardHat, Building2, Receipt, Percent,
   ShieldAlert, BadgeCheck, Wallet, CalendarCheck, Banknote, Lock, Landmark,
-  BookOpen, ScrollText, Users, TrendingUp, Timer, AlarmClock, UsersRound, HandCoins, type LucideIcon,
+  BookOpen, ScrollText, Users, TrendingUp, Timer, AlarmClock, UsersRound, HandCoins, ClipboardList, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -68,6 +68,11 @@ export const REPORTS: ReportDef[] = [
     key: "retention", label: "Retention Register", href: "/finance/retention",
     screen: "finance.retention", module: "finance", area: "Money coming in and going out",
     question: "How much of our money is being held back, and when is it released?", icon: Lock,
+  },
+  {
+    key: "wip", label: "Work in Progress", href: "/finance/wip",
+    screen: "finance.wip", module: "finance", area: "Jobs and sites",
+    question: "How far through is each contract, and have we billed ahead of the work?", icon: ClipboardList,
   },
   {
     key: "advances", label: "Advances Register", href: "/finance/advances",
