@@ -15,7 +15,8 @@ import { signSession, SESSION_COOKIE } from "../src/lib/session-token.ts";
 import { SCREENS } from "../src/lib/rbac.ts";
 import fs from "node:fs";
 
-const BASE = process.env.SMOKE_BASE || "http://localhost:3000";
+import { APP_BASE } from "./app-base.mjs";
+const BASE = APP_BASE;
 const db = new PrismaClient();
 
 // Load AUTH_SECRET the way the server does, or the signature will not verify.
@@ -68,6 +69,23 @@ const narrow = await db.user.findFirst({
 
 const runs = [await sweep("Group Admin", admin)];
 if (narrow) runs.push(await sweep(`${narrow.name} (${narrow.memberships[0]?.role.name ?? "no role"})`, narrow));
+
+/**
+ * Say so when only half the sweep could run.
+ *
+ * Without a second, narrower user there is nobody for the access gates to
+ * refuse, so this becomes a rendering check and nothing more. It used to fall
+ * back to that in silence, and a fresh database — a new worktree, a new
+ * developer — would report a clean sweep having tested none of the gating at
+ * all. Half a check that announces itself is fine; one that does not is worse
+ * than no check.
+ */
+if (!narrow) {
+  console.log(
+    "\n!! Only the administrator was swept. No second user exists, so nothing\n" +
+    "   exercised the access gates. Add a user with a limited role and run again."
+  );
+}
 
 let crashes = 0;
 for (const run of runs) {

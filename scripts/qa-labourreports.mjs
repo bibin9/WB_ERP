@@ -19,7 +19,8 @@ import { PrismaClient } from "@prisma/client";
 import fs from "node:fs";
 import { importLibs } from "./lib-shim.mjs";
 import { signSession, SESSION_COOKIE } from "../src/lib/session-token.ts";
-
+
+import { APP_BASE } from "./app-base.mjs";
 for (const line of fs.readFileSync(".env", "utf8").split(/\r?\n/)) {
   const t = line.trim();
   if (!t || t.startsWith("#")) continue;
@@ -37,7 +38,7 @@ const db = new PrismaClient();
 let pass = 0, fail = 0;
 const ok = (n, c, x = "") => { c ? pass++ : fail++; console.log(`  ${c ? "PASS" : "FAIL"} ${n}${x ? "  — " + x : ""}`); };
 const read = (p) => fs.readFileSync(p, "utf8");
-const BASE = "http://localhost:3000";
+const BASE = APP_BASE;
 
 const tenant = await db.tenant.findFirst();
 const co = await db.company.findFirst({ where: { code: "WBE" } });

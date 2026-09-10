@@ -16,7 +16,8 @@ import { PrismaClient } from "@prisma/client";
 import { signSession, SESSION_COOKIE } from "../src/lib/session-token.ts";
 import { importLibs } from "./lib-shim.mjs";
 import fs from "node:fs";
-
+
+import { APP_BASE } from "./app-base.mjs";
 for (const line of fs.readFileSync(".env", "utf8").split(/\r?\n/)) {
   const t = line.trim();
   if (!t || t.startsWith("#")) continue;
@@ -46,7 +47,7 @@ const admin = await db.user.findFirst({
 });
 const token = await signSession({ uid: admin.id, tid: tenant.id, name: admin.name, email: admin.email });
 const get = async (path) => {
-  const r = await fetch("http://localhost:3000" + path, {
+  const r = await fetch(APP_BASE + path, {
     headers: { cookie: `${SESSION_COOKIE}=${token}` }, redirect: "manual",
   });
   const raw = await r.text();

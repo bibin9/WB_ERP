@@ -20,7 +20,16 @@ const read = (p) => fs.readFileSync(p, "utf8");
  * lets the real shipped logic be tested without adding a build step.
  */
 async function importTs(file, replacements) {
-  let src = read(file).replace(/^import "server-only";\r?\n/m, "");
+  /**
+   * Normalised to LF before anything is matched.
+   *
+   * The replacements below are written with plain newlines, and git hands a
+   * fresh checkout on Windows the same files with CRLF. The multi-line ones
+   * then failed to match, the type annotations survived, and the import died
+   * on TypeScript syntax — a suite that passed in a worktree that had been
+   * edited in place and broke in one that had only ever been checked out.
+   */
+  let src = read(file).replace(/\r\n/g, "\n").replace(/^import "server-only";\n/m, "");
   for (const [from, to] of replacements) src = src.split(from).join(to);
   const url = "data:text/javascript;base64," + Buffer.from(src, "utf8").toString("base64");
   return import(url);

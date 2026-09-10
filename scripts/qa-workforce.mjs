@@ -15,7 +15,8 @@
  */
 import { PrismaClient } from "@prisma/client";
 import { signSession, SESSION_COOKIE } from "../src/lib/session-token.ts";
-import fs from "node:fs";
+import fs from "node:fs";
+import { APP_BASE } from "./app-base.mjs";
 for (const l of fs.readFileSync(".env","utf8").split(/\r?\n/)) { const t=l.trim(); if(!t||t.startsWith("#"))continue; const i=t.indexOf("="); if(i<0)continue; const k=t.slice(0,i).trim(); if(!process.env[k])process.env[k]=t.slice(i+1).trim().replace(/^["']|["']$/g,""); }
 const db = new PrismaClient(); let pass=0, fail=0;
 const ok=(n,c,x="")=>{c?pass++:fail++;console.log(`  ${c?"PASS":"FAIL"} ${n}${x?"  — "+x:""}`);};
@@ -23,7 +24,7 @@ const tenant = await db.tenant.findFirst();
 const co = await db.company.findFirst({ where: { code: "WBE" } });
 const admin = await db.user.findFirst({ where: { tenantId: tenant.id, memberships: { some: { role: { approvalLevel: { gte: 80 } } } } } });
 const t = await signSession({ uid: admin.id, tid: tenant.id, name: admin.name, email: admin.email });
-const get = async (p) => { const r = await fetch("http://localhost:3000"+p, { headers: { cookie: `${SESSION_COOKIE}=${t}` }, redirect: "manual" });
+const get = async (p) => { const r = await fetch(APP_BASE+p, { headers: { cookie: `${SESSION_COOKIE}=${t}` }, redirect: "manual" });
   // React separates {expression} from adjacent text with comment markers,
   // so "15 own employees" is really "15<!-- --> own employees". Reading the
   // rendered words means removing them first.
