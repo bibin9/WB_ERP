@@ -121,12 +121,14 @@ console.log("=== 3. Customer mobilisation advance ===");
     { accountId: accruals.id, debit: 0, credit: 50000 },
   ], { voucherType: "Receipt", partyId: customer.id });
   if (r.ok) good("an advance receipt can be posted as a journal");
-  note("Medium", "Advances", "No customer or supplier advance tracking",
-    "A mobilisation advance is standard on a UAE contract, recovered pro-rata against each " +
-    "progress invoice. `Advance` in the schema is a salary advance only. There is nowhere to " +
-    "record the advance against the contract, no recovery percentage, and nothing that reduces " +
-    "the next invoice automatically — so recovery is manual and easy to forget, which means " +
-    "over-billing the client and a dispute.");
+  if (!hasScreen("finance/advances"))
+    note("Medium", "Advances", "No customer or supplier advance tracking",
+      "A mobilisation advance is standard on a UAE contract, recovered pro-rata against each " +
+      "progress invoice. `Advance` in the schema is a salary advance only. There is nowhere to " +
+      "record the advance against the contract, no recovery percentage, and nothing that reduces " +
+      "the next invoice automatically — so recovery is manual and easy to forget, which means " +
+      "over-billing the client and a dispute.");
+  else good("customer and supplier advances have their own register, with recovery tracked per set-off");
 }
 
 console.log("=== 4. Post-dated cheque received ===");
