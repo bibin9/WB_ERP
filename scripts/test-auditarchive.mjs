@@ -190,7 +190,12 @@ ok("the tenant's own setting is put back", true, `${original} days`);
   ok("the screen is paged rather than showing an arbitrary hundred",
     /readPaging\(sp\)/.test(page) && /<Pager/.test(page) && !/take: 100/.test(page));
   ok("the archive is readable from the same screen",
-    /auditLogArchive\.findMany/.test(page) && /src=archive/.test(page));
+    /auditLogArchive\.findMany/.test(page) && /sp\.src === "archive"/.test(page));
+  // The tab used to be a bare link. It now goes through the filter helper so a
+  // question asked on the Recent tab survives switching to the Archive — a
+  // filter that resets when you change tab is one nobody uses twice.
+  ok("  and switching to it keeps the filter",
+    /filterQuery\(filter, archive \? \{ src: "archive" \}/.test(page));
   ok("both counts are shown, so nothing looks lost",
     /auditLog\.count/.test(page) && /auditLogArchive\.count/.test(page));
   ok("a non-administrator is still told where the older entries went",

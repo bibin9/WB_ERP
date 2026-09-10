@@ -361,6 +361,20 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "Watch the amber message at the top. Retention sits for a year at a time, so nothing else will remind you that a tranche became askable-for three months ago \u2014 and on most contracts this is five to ten per cent of the whole job.",
   },
   {
+    id: "audit-search", category: "Administration & Security", screens: ["/audit"],
+    title: "Finding something in the audit trail",
+    summary: "Search by what was done, who did it, what it was done to, and when.",
+    body: "The trail holds a year of activity on the Recent tab and everything older on the Archive tab, so scrolling is not a way to find anything. The search box looks at what was done and who did it. More filters adds the rest: one person, one kind of action, one kind of record, and a date range. They combine, so you can ask for everything one person deleted in a single week.",
+    steps: [
+      "Type into the search box for a quick look. It matches the description of what happened and the person's name.",
+      "Click More filters for the rest. Who, did what, to what, and between which dates.",
+      "The sentence above the list always says what you are looking at, so a filtered list is never mistaken for the whole trail.",
+      "The dates include the whole of the last day, so asking up to the 14th includes everything done on the 14th.",
+      "Clear resets everything. Switching between Recent and Archive keeps your filters.",
+    ],
+    tip: "The address of a filtered view carries the filters with it, so you can copy the link out of the address bar and send somebody exactly what you are looking at.",
+  },
+  {
     id: "wip", category: "Finance & Accounting", screens: ["/finance/wip"],
     title: "Work in Progress — where each contract really stands",
     summary: "How far through each contract is, what it has earned, and how that compares with what you have invoiced.",

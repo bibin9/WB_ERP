@@ -4,12 +4,14 @@ import { ShieldCheck } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import Pager from "@/components/Pager";
 import AuditRetention from "@/components/AuditRetention";
+import AuditFilters from "@/components/AuditFilters";
 import { db } from "@/lib/db";
 import { getSession, canAdminister } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
 import { readPaging, pageInfo } from "@/lib/paging";
 import { shortAgent, AUTH_ACTIONS, retentionLabel, DEFAULT_RETENTION_DAYS } from "@/lib/auditmeta";
 import { dueForArchive } from "@/lib/auditarchive";
+import { readAuditFilter, auditWhere, describeFilter, isFiltered, filterQuery } from "@/lib/auditquery";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +29,10 @@ const actionColor: Record<string, string> = {
   [AUTH_ACTIONS.lockedOut]: "bg-red-50 text-red-600",
 };
 
-type Search = { p?: string; per?: string; src?: string };
+type Search = {
+  p?: string; per?: string; src?: string;
+  q?: string; user?: string; action?: string; entity?: string; from?: string; to?: string;
+};
 
 export default async function AuditPage({ searchParams }: { searchParams: Promise<Search> }) {
   await requireAccess("audit.log");
@@ -37,7 +42,10 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const showArchive = sp.src === "archive";
   const paging = readPaging(sp);
-  const where = { tenantId: session.tenant.id };
+  // A record you can only scroll is not evidence. Everything below is filtered
+  // by the same clause, counts included.
+  const filter = readAuditFilter(sp);
+  const where = auditWhere(session.tenant.id, filter);
 
   const tenant = await db.tenant.findUnique({
     where: { id: session.tenant.id },
@@ -51,6 +59,15 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
     db.auditLog.count({ where }),
     db.auditLogArchive.count({ where }),
   ]);
+
+  // The dropdowns offer what is actually in this tenant's trail rather than a
+  // list of everything the system can write, so nothing on offer finds nothing.
+  const [userRows, entityRows] = await Promise.all([
+    db.auditLog.groupBy({ by: ["userName"], where: { tenantId: session.tenant.id }, orderBy: { userName: "asc" }, take: 200 }),
+    db.auditLog.groupBy({ by: ["entity"], where: { tenantId: session.tenant.id }, orderBy: { entity: "asc" }, take: 200 }),
+  ]);
+  const users = userRows.map((r) => r.userName).filter(Boolean).sort();
+  const entities = entityRows.map((r) => r.entity).filter(Boolean).sort();
   const total = showArchive ? archiveTotal : liveTotal;
   const info = pageInfo(paging, total);
   const skip = (info.page - 1) * info.perPage;
@@ -59,12 +76,14 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
     ? await db.auditLogArchive.findMany({ where, orderBy: { createdAt: "desc" }, skip, take: info.perPage })
     : await db.auditLog.findMany({ where, orderBy: { createdAt: "desc" }, skip, take: info.perPage });
 
+  const summary = describeFilter(filter, total);
+
   const isAdmin = await canAdminister();
   const due = isAdmin ? await dueForArchive(session.tenant.id, retentionDays) : 0;
 
   const tab = (label: string, count: number, archive: boolean) => (
     <Link
-      href={archive ? "/audit?src=archive" : "/audit"}
+      href={`/audit${filterQuery(filter, archive ? { src: "archive" } : {})}`}
       className={clsx(
         "border-b-2 px-4 py-2.5 text-sm",
         showArchive === archive
@@ -82,6 +101,10 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
         title="Audit Trail"
         subtitle="An immutable record of who did what, when, and from where."
       />
+
+      <AuditFilters filter={filter} users={users} entities={entities} archive={showArchive} />
+
+      {summary && <p className="mb-3 text-sm text-ink">{summary}</p>}
 
       <div className="card overflow-hidden">
         <div className="flex border-b border-line print:hidden">
@@ -105,9 +128,11 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
               {logs.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-muted">
-                    {showArchive
-                      ? `Nothing has been archived yet. Entries move here once they are older than ${retentionLabel(retentionDays)}.`
-                      : "No activity recorded yet."}
+                    {isFiltered(filter)
+                      ? "Nothing matches. Widen the dates, or clear the filters to see everything."
+                      : showArchive
+                        ? `Nothing has been archived yet. Entries move here once they are older than ${retentionLabel(retentionDays)}.`
+                        : "No activity recorded yet."}
                   </td>
                 </tr>
               )}
