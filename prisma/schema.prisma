@@ -109,6 +109,9 @@ model Company {
   cheques             Cheque[]
   retentions          Retention[]
   partyAdvances       PartyAdvance[]
+  items               Item[]
+  stores              Store[]
+  stockMovements      StockMovement[]
   wpsBankRouting      String? // employer bank routing code (agent ID)
   isActive            Boolean              @default(true)
   memberships         CompanyMembership[]
@@ -304,6 +307,7 @@ model JournalEntry {
   retentions        Retention[]
   partyAdvances     PartyAdvance[]         @relation("AdvancePosting")
   advanceRecoveries PartyAdvanceRecovery[] @relation("AdvanceRecoveryPosting")
+  stockMovements    StockMovement[]        @relation("StockPosting")
   Invoice           Invoice?
 
   @@unique([companyId, reference])
@@ -1055,33 +1059,34 @@ model TallyConfig {
 /// A customer or supplier. Free-typed names produced duplicates and made
 /// outstanding impossible to total, so parties are a master record.
 model Party {
-  id            String         @id @default(cuid())
-  companyId     String
-  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  code          String
-  name          String
-  type          String         @default("Customer") // Customer | Supplier | Both
+  id             String          @id @default(cuid())
+  companyId      String
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code           String
+  name           String
+  type           String          @default("Customer") // Customer | Supplier | Both
   /// UAE Tax Registration Number — required on a tax invoice.
-  trn           String?
+  trn            String?
   /// Structured address, for the same reason as the company's.
-  addressLine   String?
-  city          String?
-  emirate       String?
-  countryCode   String?        @default("AE")
-  contactPerson String?
-  email         String?
-  phone         String?
-  address       String?
+  addressLine    String?
+  city           String?
+  emirate        String?
+  countryCode    String?         @default("AE")
+  contactPerson  String?
+  email          String?
+  phone          String?
+  address        String?
   /// Payment terms in days, used to flag an invoice as overdue.
-  creditDays    Int            @default(0)
-  isActive      Boolean        @default(true)
-  entries       JournalEntry[]
-  jobs          Job[]
-  cheques       Cheque[]
-  retentions    Retention[]
-  partyAdvances PartyAdvance[]
-  createdAt     DateTime       @default(now())
-  Invoice       Invoice[]
+  creditDays     Int             @default(0)
+  isActive       Boolean         @default(true)
+  entries        JournalEntry[]
+  jobs           Job[]
+  cheques        Cheque[]
+  retentions     Retention[]
+  partyAdvances  PartyAdvance[]
+  stockMovements StockMovement[]
+  createdAt      DateTime        @default(now())
+  Invoice        Invoice[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1226,6 +1231,126 @@ model PartyAdvanceRecovery {
   @@index([entryId])
 }
 
+/// Something the company buys and keeps: cable, conduit, glands, consumables.
+///
+/// Not everything bought is stocked. A one-off hire or a service is bought and
+/// consumed the same day and never sits on a shelf, so `isStocked` decides
+/// whether a movement is expected at all — an item that is not stocked goes
+/// straight to cost and never appears on a stock report pretending to be there.
+model Item {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  code        String
+  name        String
+  description String?
+  /// Free text from master data — Cable, Fittings, Consumables, Tools.
+  category    String?
+  /// UN/ECE Recommendation 20, the same list invoice lines use, so a purchase
+  /// and the invoice that bills it speak about the same unit.
+  unitCode    String  @default("EA")
+
+  /// Whether stock is tracked for it at all.
+  isStocked    Boolean @default(true)
+  /// Chase it when the balance reaches this. Nought means nobody set one, and
+  /// is never treated as "order immediately".
+  reorderLevel Float   @default(0)
+  /// For estimating and for pricing a first receipt. Never used to value
+  /// stock — valuation comes from what was actually paid.
+  standardCost Float   @default(0)
+
+  isActive  Boolean         @default(true)
+  movements StockMovement[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([category])
+}
+
+/// Where stock physically sits. A main store, a site container, a van.
+///
+/// Separate from the job: material can sit in a site store for weeks before it
+/// is issued to the work, and until it is issued it is still the company's
+/// stock rather than that job's cost.
+model Store {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  code      String
+  name      String
+  location  String?
+  /// The one a form defaults to, so the usual case needs no thought.
+  isDefault Boolean @default(false)
+
+  isActive  Boolean         @default(true)
+  movements StockMovement[]
+  createdAt DateTime        @default(now())
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+/// Every movement of stock, in or out. The ledger the shelf is read from.
+///
+/// What is on hand is the sum of these and is never stored anywhere. A stored
+/// balance drifts the moment a movement is reversed, and a stock figure that
+/// disagrees with its own history is worse than none, because somebody will
+/// trust it.
+///
+/// The value is snapshotted rather than recomputed. An issue leaves at the
+/// weighted average of the moment it happened, and reading that back through
+/// today's average would rewrite what a job was charged months ago.
+model StockMovement {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  itemId  String
+  item    Item   @relation(fields: [itemId], references: [id])
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id])
+
+  /// Receipt | Issue | Return to store | Return to supplier | Adjustment in |
+  /// Adjustment out | Transfer in | Transfer out
+  kind String
+  date DateTime
+
+  /// Always positive. The kind decides which way it goes.
+  quantity Float
+  /// What one unit was worth for this movement.
+  unitCost Float
+  /// quantity x unitCost, except where an issue empties the shelf and takes
+  /// the whole remaining value so nothing is stranded against a nil quantity.
+  value    Float
+
+  /// The job an issue went to. This is what puts material cost on a contract.
+  jobId   String?
+  job     Job?    @relation(fields: [jobId], references: [id])
+  /// The supplier a receipt came from.
+  partyId String?
+  party   Party?  @relation(fields: [partyId], references: [id])
+
+  /// Delivery note, issue note, or the count sheet behind an adjustment.
+  reference String
+  notes     String?
+
+  /// The voucher this movement posted.
+  entryId   String?
+  entry     JournalEntry? @relation("StockPosting", fields: [entryId], references: [id])
+  createdBy String?
+  createdAt DateTime      @default(now())
+
+  @@index([companyId])
+  @@index([itemId, storeId])
+  @@index([jobId])
+  @@index([entryId])
+  @@index([date])
+}
+
 model Cheque {
   id          String        @id @default(cuid())
   companyId   String
@@ -1269,42 +1394,43 @@ model Cheque {
 /// Costs and revenue are tagged to it so 'did we make money on the ADNOC job?'
 /// has an answer. BRD FIN-06.
 model Job {
-  id            String         @id @default(cuid())
-  companyId     String
-  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  code          String // e.g. J-2601
-  name          String
+  id             String          @id @default(cuid())
+  companyId      String
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code           String // e.g. J-2601
+  name           String
   /// A job and a project are the same record here. `type` is only the word the
   /// client uses for it, so one table serves a fixed-price contract, a service
   /// call and an internal cost pool without a second entity to keep in step.
-  type          String         @default("Contract") // Contract | Project | Service call | AMC | Internal
+  type           String          @default("Contract") // Contract | Project | Service call | AMC | Internal
   /// Contract -> package -> variation. Costs are tagged on the leaf and the
   /// report rolls them up, which is how a main contract shows a true total
   /// without anything being posted against the parent itself.
-  parentId      String?
-  parent        Job?           @relation("JobTree", fields: [parentId], references: [id])
-  children      Job[]          @relation("JobTree")
+  parentId       String?
+  parent         Job?            @relation("JobTree", fields: [parentId], references: [id])
+  children       Job[]           @relation("JobTree")
   /// The customer this job is for, so a job report can name them.
-  partyId       String?
-  party         Party?         @relation(fields: [partyId], references: [id])
+  partyId        String?
+  party          Party?          @relation(fields: [partyId], references: [id])
   /// What the job was sold for, and what it was expected to cost.
-  contractValue Float          @default(0)
-  budgetCost    Float          @default(0)
+  contractValue  Float           @default(0)
+  budgetCost     Float           @default(0)
   /// Manhours the job was priced for. Zero means none was set, which the
   /// manhours report shows as "no budget" rather than as nought per cent used.
-  budgetHours   Float          @default(0)
-  startDate     DateTime?
-  endDate       DateTime?
-  status        String         @default("Open") // Open | On hold | Completed | Closed
-  notes         String?
-  lines         JournalLine[]
-  timesheets    Timesheet[]
-  retentions    Retention[]
-  partyAdvances PartyAdvance[]
-  isActive      Boolean        @default(true)
-  createdAt     DateTime       @default(now())
-  Invoice       Invoice[]
-  InvoiceLine   InvoiceLine[]
+  budgetHours    Float           @default(0)
+  startDate      DateTime?
+  endDate        DateTime?
+  status         String          @default("Open") // Open | On hold | Completed | Closed
+  notes          String?
+  lines          JournalLine[]
+  timesheets     Timesheet[]
+  retentions     Retention[]
+  partyAdvances  PartyAdvance[]
+  stockMovements StockMovement[]
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  Invoice        Invoice[]
+  InvoiceLine    InvoiceLine[]
 
   @@unique([companyId, code])
   @@index([companyId])

@@ -48,6 +48,9 @@ export const ACCOUNT_ROLES = [
   { key: "employeeAdvances", label: "Employee advances", code: "1170", why: "Salary advances owed back. An asset until recovered, not a cost." },
   { key: "customerAdvances", label: "Advances from customers", code: "2300", why: "Money taken before the work is billed. Owed back until an invoice recovers it." },
   { key: "supplierAdvances", label: "Advances to suppliers", code: "1180", why: "Money paid before a supplier bills. Owed to us until their invoice recovers it." },
+  { key: "inventory", label: "Inventory", code: "1200", why: "Material on the shelf. An asset until it is issued to a job." },
+  { key: "goodsReceivedNotInvoiced", label: "Goods received not invoiced", code: "2250", why: "Material that has arrived but has no supplier invoice yet. Owed, even though nothing has been billed." },
+  { key: "materialCost", label: "Site materials", code: "5200", why: "Where material lands once it is issued to a job. The other half of what leaves the store." },
 ] as const;
 
 export type AccountRole = (typeof ACCOUNT_ROLES)[number]["key"];

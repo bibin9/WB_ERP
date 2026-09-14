@@ -212,6 +212,11 @@ async function main() {
     // it is not revenue and not a cost. One received is owed back until the
     // work is billed; one paid is owed to us until the supplier bills it.
     ["2300", "Advances from Customers", "Liability"],
+    // Material that has arrived and not been invoiced is owed to the supplier
+    // even though nothing has been billed. Without somewhere to hold it, a
+    // delivery on the 30th either overstates the month or vanishes from it.
+    ["2250", "Goods Received Not Invoiced", "Liability"],
+    ["5200", "Site Materials", "Expense"],
     ["1180", "Advances to Suppliers", "Asset"],
     ["3000", "Share Capital", "Equity", -100000],
     ["3100", "Retained Earnings", "Equity"],
