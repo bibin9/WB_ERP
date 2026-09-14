@@ -47,7 +47,10 @@ const MODULE_SCREENS = {
   hr: ["hr.employees", "hr.onboarding", "hr.payroll", "hr.leave", "hr.attendance", "hr.certifications", "hr.separation", "hr.reports", "hr.overtime", "hr.manhours", "hr.workforce", "hr.policy", "hr.tasks"],
   approvals: ["approvals.inbox"],
   users: ["users.list", "users.access"],
-  inventory: ["inventory.items", "inventory.stock", "inventory.movements", "inventory.stores"],
+  inventory: [
+    "inventory.items", "inventory.stock", "inventory.movements", "inventory.stores",
+    "inventory.requests", "inventory.orders",
+  ],
   crm: ["crm.leads"],
   projects: ["projects.list"],
   hse: ["hse.register"],
@@ -266,6 +269,13 @@ async function main() {
 
   // Default approval routes (admin-configurable afterwards via the UI)
   const ROUTES = {
+    // INV-03. Procurement sits last because it acts on the request rather than
+    // outranking it — the sequence is who has to see it, not who is senior.
+    "Material Request": [
+      { role: "Site Engineer / Planner", level: 35, minAmount: null },
+      { role: "Project Manager", level: 50, minAmount: null },
+      { role: "Procurement Officer", level: 45, minAmount: null },
+    ],
     "Purchase Order": [
       { role: "Project Manager", level: 50, minAmount: null },
       { role: "Operations Manager", level: 70, minAmount: null },

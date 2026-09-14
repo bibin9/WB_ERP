@@ -248,6 +248,11 @@ ok("an empty register says what to do", /Raise one when material needs ordering/
   const settled = [order({ status: "Received", total: 100, lines: [{ quantity: 10, unitPrice: 10, receipts: rcpt(10) }] })];
   ok("a settled register says nothing is outstanding",
     /Nothing is on order/.test(purchasingVerdict(settled)), purchasingVerdict(settled));
+  // "All 1 order ... are settled" is the kind of thing a reader notices.
+  ok("  and one order reads as one",
+    /The one order on the register is settled/.test(purchasingVerdict(settled)), purchasingVerdict(settled));
+  ok("  while two read as two",
+    /All 2 orders on the register are settled/.test(purchasingVerdict([settled[0], settled[0]])));
 }
 
 /* ==================================================== how it is written == */

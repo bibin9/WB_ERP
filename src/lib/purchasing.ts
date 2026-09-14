@@ -31,11 +31,13 @@
  * Not server-only: the forms total and warn before anything is saved.
  */
 
-export const REQUEST_STATUSES = ["Draft", "Submitted", "Ordered", "Cancelled"] as const;
+export const REQUEST_STATUSES = ["Draft", "Submitted", "Approved", "Rejected", "Ordered", "Cancelled"] as const;
 
 export const REQUEST_STATUS_HELP: Record<string, string> = {
   Draft: "Still being written. Nobody has been asked for anything.",
-  Submitted: "With procurement, waiting to be turned into an order.",
+  Submitted: "Sent for approval. Site in-charge, then the project manager, then procurement.",
+  Approved: "Approved. Procurement can now issue what is in stock or order the rest.",
+  Rejected: "Turned down. Raise a new request if the work still needs it.",
   Ordered: "A purchase order has been raised against it, so the material is on its way.",
   Cancelled: "Called off before anything was ordered. Raise a new request if it is needed again.",
 };
@@ -69,6 +71,7 @@ export const CLOSED: ReadonlySet<string> = new Set(["Received", "Rejected", "Can
 
 const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 const round3 = (n: number) => Math.round((Number(n) || 0) * 1000) / 1000;
+const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 
 export type OrderLineInput = {
   description: string;
@@ -279,8 +282,81 @@ export function summarisePurchasing(rows: OrderSummaryRow[], asAt: Date = new Da
   return t;
 }
 
+/* ============================= what is already on the shelf (INV-02) ==== */
+
+export type RequestLineLike = {
+  itemId?: string | null;
+  description: string;
+  unitCode?: string;
+  quantity: number;
+};
+
+export type Shortage = {
+  description: string;
+  unitCode: string;
+  requested: number;
+  onHand: number;
+  short: number;
+  /** Nothing in the catalogue to check against, so nothing can be said. */
+  unknown: boolean;
+};
+
+/**
+ * What a request asks for against what is already in stock.
+ *
+ * The point is not to refuse the request. Site asking for cable the store
+ * already holds is not a mistake — it is the case the whole store exists for,
+ * and the answer is to issue it rather than buy more. Buying what you already
+ * have is the expensive failure, and it happens because the person raising the
+ * request cannot see the shelf.
+ *
+ * A line for something not in the catalogue is reported as unknown rather than
+ * as a shortage of nought. Site is allowed to ask for things nobody has set up,
+ * and calling that a shortage would be a guess dressed as a fact.
+ */
+export function shortagesFor(
+  lines: RequestLineLike[],
+  onHand: Record<string, number>,
+): Shortage[] {
+  return lines.map((l) => {
+    const requested = round3(l.quantity);
+    const known = !!l.itemId && Object.prototype.hasOwnProperty.call(onHand, l.itemId);
+    const have = known ? round3(onHand[l.itemId as string]) : 0;
+    return {
+      description: l.description,
+      unitCode: l.unitCode ?? "EA",
+      requested,
+      onHand: have,
+      short: known ? round3(Math.max(0, requested - have)) : requested,
+      unknown: !known,
+    };
+  });
+}
+
+/** The sentence a storekeeper reads before a request is turned into an order. */
+export function shortageVerdict(rows: Shortage[]): string {
+  if (!rows.length) return "";
+
+  const short = rows.filter((r) => !r.unknown && r.short > 0);
+  const covered = rows.filter((r) => !r.unknown && r.short === 0);
+  const unknown = rows.filter((r) => r.unknown);
+
+  const parts: string[] = [];
+  if (covered.length) {
+    parts.push(
+      covered.length === rows.length
+        ? "Everything asked for is already in stock. Issue it rather than ordering more."
+        : `${plural(covered.length, "line")} can be met from stock.`,
+    );
+  }
+  if (short.length) parts.push(`${plural(short.length, "line")} would need buying.`);
+  if (unknown.length) {
+    parts.push(`${plural(unknown.length, "line is", "lines are")} not in the catalogue, so stock cannot be checked.`);
+  }
+  return parts.join(" ");
+}
+
 const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 
 /**
  * The sentence at the top.
@@ -298,6 +374,10 @@ export function purchasingVerdict(rows: OrderSummaryRow[], asAt: Date = new Date
   if (t.overdue > 0) {
     return `${plural(t.overdue, "order is", "orders are")} past the date the supplier promised, with ${fmt(t.outstandingValue)} still to arrive.`;
   }
-  if (t.open === 0) return `Nothing is on order. All ${plural(t.orders, "order")} on the register are settled.`;
+  if (t.open === 0) {
+    return t.orders === 1
+      ? "Nothing is on order. The one order on the register is settled."
+      : `Nothing is on order. All ${t.orders} orders on the register are settled.`;
+  }
   return `${fmt(t.outstandingValue)} of material is on order and has not arrived yet, across ${plural(t.open, "order")}.`;
 }

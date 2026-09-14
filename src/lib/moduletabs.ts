@@ -155,6 +155,13 @@ export const INVENTORY_GROUPS: TabGroup[] = [
     screens: [{ href: "/inventory/movements", label: "Receive & Issue", icon: PackagePlus, screen: "inventory.movements" }],
   },
   {
+    key: "buying", label: "Buying", icon: ClipboardList,
+    screens: [
+      { href: "/inventory/requests", label: "Material Requests", icon: ClipboardList, screen: "inventory.requests" },
+      { href: "/inventory/orders", label: "Purchase Orders", icon: FileText, screen: "inventory.orders" },
+    ],
+  },
+  {
     key: "items", label: "Items", icon: Package,
     screens: [{ href: "/inventory", label: "Items", icon: Package, screen: "inventory.items" }],
   },

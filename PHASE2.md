@@ -8,6 +8,55 @@ Order is roughly by value to the business, not by effort.
 
 ---
 
+## What the BRD says phase 2 is
+
+The approved BRD (v1.2) calls phase 2 **Commercial & Supply**, delivering CRM
+and Estimation, Inventory and SCM, and customer and vendor portals — "faster
+quotations plus purchasing and stock control".
+
+Tracked against the BRD's own references so scope can be agreed rather than
+inferred.
+
+### Inventory & SCM (§6.2)
+
+| Ref | Requirement | Priority | State |
+|---|---|---|---|
+| INV-01 | Material request linked to the project | Must | Engine built, no screen |
+| INV-02 | Check stock and flag shortages against the request | Must | **Next** |
+| INV-03 | MR approval: Site In-Charge → Project Manager → Procurement | Must | **Next** |
+| INV-04 | Approved MR triggers purchase or internal allocation | Must | Partly — an order can cite a request |
+| INV-05 | Convert MR to PO; RFQ to vendors | Must | PO done, RFQ not started |
+| INV-06 | Vendor selection on price, lead time, past performance, min three | Must | Not started |
+| INV-07 | Repeat purchases without re-bidding | Should | Not started |
+| INV-08 | PO approval PM → OM → Director → MD | Must | **Done**, using the seeded route |
+| INV-09 | Bid comparison sheets, PO from the chosen quotation | Should | Not started |
+| INV-10 | Goods receipt on delivery | Must | **Done** |
+| INV-11 | QA/QC inspection; accepted stored, rejected flagged for return | Must | Not started |
+| INV-12 | Calibration: identify, send, track, record results | Must | Not started |
+| INV-13 | Lock serialised equipment once calibration expires | Must | Not started |
+| INV-14 | Plant/site, storage locations, zones, bins by material type | Must | Partly — stores exist, no zones or bins |
+| INV-15 | Internal movements and transfers without changing ownership | Must | **Done** — a transfer posts nothing |
+| INV-16 | Material Return Note; reusable or scrap | Must | Partly — returns exist, no note or flag |
+| INV-17 | Minimum stock and calibration alerts | Must | Partly — reorder level done |
+| INV-18 | Cycle counts and physical stock audits | Should | Partly — adjustments exist |
+| INV-19 | Maintenance work orders for power tools | Should | Not started |
+| INV-20 | Vendor self-service registration with compliance checks | Should | Not started |
+| INV-21 | Vendor rating: OTIF, defect rate, price, responsiveness | Should | Not started |
+| INV-22 | Vendor portal for RFQ response and order tracking | Could | Not started |
+
+### CRM, Sales and Estimation (§6.4)
+
+Not started. Eleven of its eighteen requirements are Must: lead capture and
+pipeline (CRM-01, 02), bill of quantities and takeoff (CRM-05), cost build-up
+(CRM-06), bidding units per tonne, metre, piece or lump sum (CRM-07), and the
+enquiry → site visit → quotation → approval → customer PO workflow
+(CRM-11 to 15, 17).
+
+CRM-18 wants multi-currency quotations, which is the same multi-currency work
+already on this list from phase 1.
+
+---
+
 ## 1. Procurement and stores — **in progress**
 
 Material is the largest cost on a contract after labour, and today it only

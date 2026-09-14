@@ -69,7 +69,9 @@ export type RequestInput = {
   lines: RequestLineInput[];
 };
 
-export async function createRequest(input: RequestInput): Promise<Result<{ requestId: string; number: string }>> {
+export async function createRequest(
+  input: RequestInput & { tenantId?: string },
+): Promise<Result<{ requestId: string; number: string }>> {
   const lines = input.lines.filter((l) => (l.description ?? "").trim() && Number(l.quantity) > 0);
   if (!lines.length) return { ok: false, error: "Add at least one line saying what is needed and how much." };
 
@@ -84,7 +86,7 @@ export async function createRequest(input: RequestInput): Promise<Result<{ reque
         data: {
           companyId: input.companyId,
           number,
-          status: "Submitted",
+          status: "Draft",
           jobId: input.jobId ?? null,
           storeId: input.storeId ?? null,
           neededBy: input.neededBy ? new Date(input.neededBy + "T00:00:00.000Z") : null,
@@ -102,6 +104,9 @@ export async function createRequest(input: RequestInput): Promise<Result<{ reque
           },
         },
       });
+      // INV-03: straight into the approval route, so a request is seen by the
+      // people the client named rather than landing in procurement unreviewed.
+      if (input.tenantId) await submitRequest(created.id, input.tenantId, input.requestedBy);
       return { ok: true, requestId: created.id, number };
     } catch (e) {
       // Two people numbering at once. Take the next one rather than fail.
@@ -109,6 +114,58 @@ export async function createRequest(input: RequestInput): Promise<Result<{ reque
     }
   }
   return { ok: false, error: "Could not allocate a number. Try again." };
+}
+
+/**
+ * Send a material request for approval (INV-03).
+ *
+ * Site In-Charge, then Project Manager, then Procurement — the route the client
+ * named, configurable afterwards like every other. Procurement is last because
+ * it acts on the request rather than outranking it.
+ *
+ * A request carries no value, so no threshold applies and every step is taken.
+ */
+export async function submitRequest(requestId: string, tenantId: string, by: string): Promise<Outcome> {
+  const request = await db.materialRequest.findUnique({ where: { id: requestId }, include: { lines: true } });
+  if (!request) return { ok: false, error: "Not found" };
+  if (request.status !== "Draft") {
+    return { ok: false, error: `This request is ${request.status.toLowerCase()}, so it cannot be sent again.` };
+  }
+  if (!request.lines.length) return { ok: false, error: "A request with no lines cannot be approved." };
+
+  const route = await resolveRoute(tenantId, "Material Request", null);
+  const approval = await db.approvalRequest.create({
+    data: {
+      companyId: request.companyId,
+      docType: "Material Request",
+      title: `${request.number} — ${request.lines.length} line${request.lines.length === 1 ? "" : "s"}`,
+      requestedBy: by,
+      status: "Pending",
+      currentStep: 1,
+      steps: {
+        create: route.map((r, i) => ({ order: i + 1, roleName: r.role, requiredLevel: r.level, status: "Pending" })),
+      },
+    },
+  });
+
+  await db.materialRequest.update({
+    where: { id: requestId },
+    data: { status: "Submitted", approvalRequestId: approval.id },
+  });
+  return { ok: true };
+}
+
+/** Bring a request into line with the approval it is waiting on. */
+export async function syncRequestApproval(requestId: string): Promise<string> {
+  const request = await db.materialRequest.findUnique({ where: { id: requestId } });
+  if (!request?.approvalRequestId || request.status !== "Submitted") return request?.status ?? "";
+
+  const approval = await db.approvalRequest.findUnique({ where: { id: request.approvalRequestId } });
+  const status = approval?.status === "Approved" ? "Approved" : approval?.status === "Rejected" ? "Rejected" : request.status;
+  if (status !== request.status) {
+    await db.materialRequest.update({ where: { id: requestId }, data: { status } });
+  }
+  return status;
 }
 
 /* ======================================================== purchase order = */

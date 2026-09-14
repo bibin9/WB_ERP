@@ -1383,9 +1383,11 @@ model MaterialRequest {
   storeId String?
   store   Store?  @relation(fields: [storeId], references: [id])
 
-  neededBy    DateTime?
-  requestedBy String
-  notes       String?
+  neededBy          DateTime?
+  requestedBy       String
+  /// The approval this request is waiting on, or was decided by (INV-03).
+  approvalRequestId String?
+  notes             String?
 
   lines     MaterialRequestLine[]
   orders    PurchaseOrder[]

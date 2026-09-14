@@ -7,6 +7,7 @@ import { allow } from "@/lib/guard";
 import { audit } from "@/lib/audit";
 import { money } from "@/lib/money";
 import { recordMovement, transferStock } from "@/lib/stock-posting";
+import { createRequest, createOrder, submitOrder, cancelOrder, receiveAgainstOrder } from "@/lib/purchase-posting";
 
 /**
  * The stores screens.
@@ -239,5 +240,168 @@ export async function saveMovement(formData: FormData): Promise<Result> {
   revalidatePath("/inventory/movements");
   revalidatePath("/inventory/stock");
   revalidatePath("/finance/daybook");
+  return { ok: true };
+}
+
+
+/* =========================================== material requests (INV-01) == */
+
+export async function saveRequest(formData: FormData): Promise<Result> {
+  if (!(await allow("inventory.requests", "create"))) return { ok: false, error: "Not authorised" };
+  const companyId = str(formData, "companyId");
+  const session = await scoped(companyId);
+  if (!session) return { ok: false, error: "No access to this company" };
+
+  let lines: { itemId?: string; description: string; unitCode?: string; quantity: number }[] = [];
+  try {
+    lines = JSON.parse(String(formData.get("lines") ?? "[]"));
+  } catch {
+    return { ok: false, error: "Could not read the lines. Try again." };
+  }
+
+  const res = await createRequest({
+    companyId,
+    tenantId: session.tenant.id,
+    requestedBy: session.user.name,
+    jobId: orNull(formData, "jobId"),
+    storeId: orNull(formData, "storeId"),
+    neededBy: orNull(formData, "neededBy", 10),
+    notes: orNull(formData, "notes", 500),
+    lines: lines.map((l) => ({
+      itemId: l.itemId || null,
+      description: String(l.description ?? "").slice(0, 300),
+      unitCode: String(l.unitCode ?? "EA").slice(0, 8),
+      quantity: Number(l.quantity) || 0,
+    })),
+  });
+  if (!res.ok) return res;
+
+  await audit({
+    action: "Created",
+    entity: "MaterialRequest",
+    entityId: res.requestId,
+    summary: `Raised material request ${res.number} and sent it for approval`,
+  });
+  revalidatePath("/inventory/requests");
+  revalidatePath("/approvals");
+  return { ok: true };
+}
+
+/* ============================================= purchase orders (INV-05) == */
+
+export async function saveOrder(formData: FormData): Promise<Result> {
+  if (!(await allow("inventory.orders", "create"))) return { ok: false, error: "Not authorised" };
+  const companyId = str(formData, "companyId");
+  const session = await scoped(companyId);
+  if (!session) return { ok: false, error: "No access to this company" };
+
+  let lines: { itemId?: string; description: string; unitCode?: string; quantity: number; unitPrice: number }[] = [];
+  try {
+    lines = JSON.parse(String(formData.get("lines") ?? "[]"));
+  } catch {
+    return { ok: false, error: "Could not read the lines. Try again." };
+  }
+
+  const res = await createOrder({
+    companyId,
+    raisedBy: session.user.name,
+    partyId: str(formData, "partyId"),
+    jobId: orNull(formData, "jobId"),
+    storeId: orNull(formData, "storeId"),
+    requestId: orNull(formData, "requestId"),
+    date: str(formData, "date", 10),
+    expectedDate: orNull(formData, "expectedDate", 10),
+    notes: orNull(formData, "notes", 500),
+    lines: lines.map((l) => ({
+      itemId: l.itemId || null,
+      description: String(l.description ?? "").slice(0, 300),
+      unitCode: String(l.unitCode ?? "EA").slice(0, 8),
+      quantity: Number(l.quantity) || 0,
+      unitPrice: Number(l.unitPrice) || 0,
+    })),
+  });
+  if (!res.ok) return res;
+
+  await audit({
+    action: "Created",
+    entity: "PurchaseOrder",
+    entityId: res.orderId,
+    summary: `Raised purchase order ${res.number}`,
+  });
+  revalidatePath("/inventory/orders");
+  return { ok: true };
+}
+
+/** Send an order for approval (INV-08). */
+export async function sendOrderForApproval(orderId: string): Promise<Result> {
+  if (!(await allow("inventory.orders", "edit"))) return { ok: false, error: "Not authorised" };
+  const order = await db.purchaseOrder.findUnique({ where: { id: orderId } });
+  if (!order) return { ok: false, error: "Not found" };
+  const session = await scoped(order.companyId);
+  if (!session) return { ok: false, error: "No access" };
+
+  const res = await submitOrder(orderId, session.tenant.id, session.user.name);
+  if (!res.ok) return res;
+
+  await audit({
+    action: "Updated",
+    entity: "PurchaseOrder",
+    entityId: orderId,
+    summary: `Sent purchase order ${order.number} for approval`,
+  });
+  revalidatePath("/inventory/orders");
+  revalidatePath("/approvals");
+  return { ok: true };
+}
+
+export async function callOffOrder(orderId: string): Promise<Result> {
+  if (!(await allow("inventory.orders", "edit"))) return { ok: false, error: "Not authorised" };
+  const order = await db.purchaseOrder.findUnique({ where: { id: orderId } });
+  if (!order) return { ok: false, error: "Not found" };
+  const session = await scoped(order.companyId);
+  if (!session) return { ok: false, error: "No access" };
+
+  const res = await cancelOrder(orderId, session.user.name);
+  if (!res.ok) return res;
+
+  await audit({
+    action: "Updated",
+    entity: "PurchaseOrder",
+    entityId: orderId,
+    summary: `Cancelled purchase order ${order.number}`,
+  });
+  revalidatePath("/inventory/orders");
+  return { ok: true };
+}
+
+/** Record a delivery against an order line (INV-10). */
+export async function receiveOrderLine(formData: FormData): Promise<Result> {
+  if (!(await allow("inventory.movements", "create"))) return { ok: false, error: "Not authorised" };
+  const lineId = str(formData, "orderLineId");
+  const line = await db.purchaseOrderLine.findUnique({ where: { id: lineId }, include: { order: true } });
+  if (!line) return { ok: false, error: "Not found" };
+  const session = await scoped(line.order.companyId);
+  if (!session) return { ok: false, error: "No access" };
+
+  const res = await receiveAgainstOrder({
+    orderLineId: lineId,
+    postedBy: session.user.name,
+    storeId: str(formData, "storeId"),
+    date: str(formData, "date", 10),
+    quantity: num(formData, "quantity"),
+    reference: str(formData, "reference", 120),
+    notes: orNull(formData, "notes", 500),
+  });
+  if (!res.ok) return res;
+
+  await audit({
+    action: "Posted",
+    entity: "PurchaseOrder",
+    entityId: line.orderId,
+    summary: `Received material against ${line.order.number} on ${str(formData, "reference", 120)}`,
+  });
+  revalidatePath("/inventory/orders");
+  revalidatePath("/inventory/stock");
+  revalidatePath("/inventory/movements");
   return { ok: true };
 }

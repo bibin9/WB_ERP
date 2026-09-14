@@ -28,6 +28,8 @@ const SCREEN_FILES = {
   "inventory.stock": "src/app/(app)/inventory/stock/page.tsx",
   "inventory.movements": "src/app/(app)/inventory/movements/page.tsx",
   "inventory.stores": "src/app/(app)/inventory/stores/page.tsx",
+  "inventory.requests": "src/app/(app)/inventory/requests/page.tsx",
+  "inventory.orders": "src/app/(app)/inventory/orders/page.tsx",
 };
 
 for (const [key, file] of Object.entries(SCREEN_FILES)) {
@@ -130,11 +132,22 @@ ok("the help says how material reaches a job",
 
 /* ======================================== the roles that need it have it = */
 {
+  // Read the whole block, not one line of it: the grant outgrew a single
+  // line the moment there were more than four screens, and a line-based
+  // check would have quietly stopped seeing the ones that came after.
   const seed = read("prisma/seed.mjs");
-  const line = seed.split(/\r?\n/).find((l) => l.includes("inventory: ["));
+  const from = seed.indexOf("inventory: [");
+  const block = seed.slice(from, seed.indexOf("]", from));
+  const granted = [...block.matchAll(/inventory\.(\w+)/g)].map((m) => m[1]);
+  const registered = SCREENS.filter((s) => s.module === "inventory").map((s) => s.key.split(".")[1]);
+  const missing = registered.filter((k) => !granted.includes(k));
+
   ok("the seed grants every inventory screen, not just the first",
-    ["items", "stock", "movements", "stores"].every((k) => line.includes(`inventory.${k}`)),
-    "a new screen granted to nobody is a screen only an administrator ever sees");
+    missing.length === 0,
+    missing.length ? `not granted: ${missing.join(", ")}` : granted.join(", "));
+  ok("  and grants nothing that does not exist",
+    granted.every((g) => registered.includes(g)),
+    "a grant for a screen nobody built is a permission nothing can ever check");
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
