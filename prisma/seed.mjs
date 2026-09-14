@@ -47,7 +47,7 @@ const MODULE_SCREENS = {
   hr: ["hr.employees", "hr.onboarding", "hr.payroll", "hr.leave", "hr.attendance", "hr.certifications", "hr.separation", "hr.reports", "hr.overtime", "hr.manhours", "hr.workforce", "hr.policy", "hr.tasks"],
   approvals: ["approvals.inbox"],
   users: ["users.list", "users.access"],
-  inventory: ["inventory.items"],
+  inventory: ["inventory.items", "inventory.stock", "inventory.movements", "inventory.stores"],
   crm: ["crm.leads"],
   projects: ["projects.list"],
   hse: ["hse.register"],

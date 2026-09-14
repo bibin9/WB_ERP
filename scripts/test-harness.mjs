@@ -72,6 +72,37 @@ ok("and it carries no trailing slash", !APP_BASE.endsWith("/"),
   }
 }
 
+/* ====================================== the server lands where it says === */
+
+/**
+ * The gap this file missed the first time.
+ *
+ * APP_BASE followed PORT correctly, and the dev server did not: `next dev`
+ * reads PORT from the real process environment rather than from .env, and
+ * silently takes the next free port when its default is busy. Phase 2 landed
+ * on 3001 only because phase 1 was holding 3000 at that moment, and would have
+ * taken 3000 the moment phase 1 stopped — with every QA script still looking
+ * at 3001 and finding nothing.
+ *
+ * Working by coincidence is worse than not working. The port is now passed to
+ * Next explicitly, and these hold it there.
+ */
+{
+  const pkg = JSON.parse(read("package.json"));
+  ok("the dev script does not start Next directly", pkg.scripts.dev !== "next dev",
+    "which would ignore PORT and drift onto whatever is free");
+  ok("  it goes through the launcher", /scripts\/dev\.mjs/.test(pkg.scripts.dev), pkg.scripts.dev);
+
+  const launcher = read("scripts/dev.mjs");
+  ok("the launcher reads the port from .env", /readFileSync\("\.env"/.test(launcher));
+  ok("  and passes it to Next explicitly", /"-p", String\(port\)/.test(launcher),
+    "so the port is chosen rather than fallen back into");
+  ok("  defaulting to 3000 when nothing says otherwise", /\|\| 3000/.test(launcher));
+  ok("  and refusing a port that is not one", /not a port/.test(launcher));
+  ok("  passing the exit code through", /process\.exit\(code/.test(launcher),
+    "a failed start has to be a failed command");
+}
+
 /* ============================================ the worktrees stay apart === */
 
 /**

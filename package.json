@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev.mjs",
     "build": "node scripts/set-db-provider.mjs && prisma generate && next build",
     "start": "node scripts/set-db-provider.mjs && node scripts/db-release.mjs && node prisma/seed.mjs && next start",
     "lint": "next lint",

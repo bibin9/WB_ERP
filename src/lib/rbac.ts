@@ -72,7 +72,10 @@ export const SCREENS: ScreenDef[] = [
   { key: "users.list", module: "users", label: "Users", href: "/users" },
   { key: "users.access", module: "users", label: "Roles & Access Control", href: "/settings/roles" },
 
-  { key: "inventory.items", module: "inventory", label: "Inventory & SCM", href: "/inventory" },
+  { key: "inventory.items", module: "inventory", label: "Items", href: "/inventory" },
+  { key: "inventory.stock", module: "inventory", label: "Stock on Hand", href: "/inventory/stock" },
+  { key: "inventory.movements", module: "inventory", label: "Receive & Issue", href: "/inventory/movements" },
+  { key: "inventory.stores", module: "inventory", label: "Stores", href: "/inventory/stores" },
 
   { key: "crm.leads", module: "crm", label: "CRM & Estimation", href: "/crm" },
 

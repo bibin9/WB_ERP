@@ -2,7 +2,8 @@ import {
   LayoutGrid, BookOpen, ScrollText, FileBarChart, Receipt, RefreshCw, Users, Clock,
   HardHat, Building2, Scale, Banknote, Lock, Landmark, Percent, Settings2, PenLine,
   FolderOpen, UserPlus, Wallet, CalendarDays, CalendarCheck, BadgeCheck, UserMinus,
-  ShieldAlert, ClipboardList, TrendingUp, Timer, UsersRound, FileText, Send, HandCoins, type LucideIcon,
+  ShieldAlert, ClipboardList, TrendingUp, Timer, UsersRound, FileText, Send, HandCoins,
+  Boxes, Package, PackagePlus, Warehouse, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -133,6 +134,33 @@ export const HR_GROUPS: TabGroup[] = [
   {
     key: "setup", label: "HR Policy", icon: Scale,
     screens: [{ href: "/hr/policy", label: "HR Policy", icon: Scale, screen: "hr.policy" }],
+  },
+];
+
+/**
+ * Stores is one row, not two.
+ *
+ * Four screens and no natural grouping among them: the storekeeper is in
+ * Receive & Issue all day, everybody else wants Stock on Hand, and the two
+ * master lists are opened once a month. A second level here would be
+ * ceremony around a list short enough to read.
+ */
+export const INVENTORY_GROUPS: TabGroup[] = [
+  {
+    key: "stock", label: "Stock on Hand", icon: Boxes,
+    screens: [{ href: "/inventory/stock", label: "Stock on Hand", icon: Boxes, screen: "inventory.stock" }],
+  },
+  {
+    key: "movements", label: "Receive & Issue", icon: PackagePlus,
+    screens: [{ href: "/inventory/movements", label: "Receive & Issue", icon: PackagePlus, screen: "inventory.movements" }],
+  },
+  {
+    key: "items", label: "Items", icon: Package,
+    screens: [{ href: "/inventory", label: "Items", icon: Package, screen: "inventory.items" }],
+  },
+  {
+    key: "stores", label: "Stores", icon: Warehouse,
+    screens: [{ href: "/inventory/stores", label: "Stores", icon: Warehouse, screen: "inventory.stores" }],
   },
 ];
 

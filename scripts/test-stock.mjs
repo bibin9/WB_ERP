@@ -181,6 +181,10 @@ ok("an empty store says what to do", /No items yet/.test(stockVerdict([])));
 {
   const rows = [item({ id: "a", movements: [receipt(100, 10)] })];
   ok("a healthy store states its value", /1,000\.00 of stock on hand/.test(stockVerdict(rows)), stockVerdict(rows));
+  // "across 1 items" is the kind of thing a reader notices and a writer does not.
+  ok("  counting one item reads as one", /across 1 item\./.test(stockVerdict(rows)), stockVerdict(rows));
+  const two = [...rows, item({ id: "b", movements: [receipt(5, 2)] })];
+  ok("  and two read as two", /across 2 items\./.test(stockVerdict(two)), stockVerdict(two));
 }
 {
   const rows = [item({ id: "a", reorder: 50, movements: [receipt(40, 10)] })];
@@ -189,6 +193,9 @@ ok("an empty store says what to do", /No items yet/.test(stockVerdict([])));
 {
   const rows = [item({ id: "a", movements: [] }), item({ id: "b", movements: [] })];
   ok("items set up with no stock say so", /none has any stock on hand/.test(stockVerdict(rows)), stockVerdict(rows));
+  ok("  and one of them reads as one",
+    /^1 item is set up/.test(stockVerdict([item({ id: "a", movements: [] })])),
+    stockVerdict([item({ id: "a", movements: [] })]));
 }
 
 /**

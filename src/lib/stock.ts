@@ -230,6 +230,7 @@ export function summariseStock(rows: ItemStock[]): StockTotals {
 }
 
 const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 
 /**
  * The sentence at the top of the stock screen.
@@ -245,10 +246,10 @@ export function stockVerdict(rows: ItemStock[]): string {
     const which = t.negative === 1 ? "One item shows" : `${t.negative} items show`;
     return `${which} less than nothing in stock. Something was issued that was never received, so count the shelf and adjust before trusting anything else here.`;
   }
-  if (t.stocked === 0) return `${t.items} items are set up, and none has any stock on hand.`;
+  if (t.stocked === 0) return `${plural(t.items, "item is", "items are")} set up, and none has any stock on hand.`;
   if (t.belowReorder > 0) {
     const which = t.belowReorder === 1 ? "1 item is" : `${t.belowReorder} items are`;
-    return `${fmt(t.value)} of stock on hand across ${t.stocked} items. ${which} at or below the reorder level.`;
+    return `${fmt(t.value)} of stock on hand across ${plural(t.stocked, "item")}. ${which} at or below the reorder level.`;
   }
-  return `${fmt(t.value)} of stock on hand across ${t.stocked} items.`;
+  return `${fmt(t.value)} of stock on hand across ${plural(t.stocked, "item")}.`;
 }
