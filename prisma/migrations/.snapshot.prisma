@@ -127,6 +127,8 @@ model Company {
   hrPolicy            HrPolicy?
   financePolicy       FinancePolicy?
   Invoice             Invoice[]
+  materialRequests    MaterialRequest[]
+  purchaseOrders      PurchaseOrder[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -1087,6 +1089,7 @@ model Party {
   stockMovements StockMovement[]
   createdAt      DateTime        @default(now())
   Invoice        Invoice[]
+  purchaseOrders PurchaseOrder[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1260,10 +1263,12 @@ model Item {
   /// stock — valuation comes from what was actually paid.
   standardCost Float   @default(0)
 
-  isActive  Boolean         @default(true)
-  movements StockMovement[]
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  isActive     Boolean               @default(true)
+  movements    StockMovement[]
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  requestLines MaterialRequestLine[]
+  orderLines   PurchaseOrderLine[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1286,9 +1291,11 @@ model Store {
   /// The one a form defaults to, so the usual case needs no thought.
   isDefault Boolean @default(false)
 
-  isActive  Boolean         @default(true)
-  movements StockMovement[]
-  createdAt DateTime        @default(now())
+  isActive         Boolean           @default(true)
+  movements        StockMovement[]
+  createdAt        DateTime          @default(now())
+  materialRequests MaterialRequest[]
+  purchaseOrders   PurchaseOrder[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1339,16 +1346,166 @@ model StockMovement {
   notes     String?
 
   /// The voucher this movement posted.
-  entryId   String?
-  entry     JournalEntry? @relation("StockPosting", fields: [entryId], references: [id])
-  createdBy String?
-  createdAt DateTime      @default(now())
+  entryId             String?
+  entry               JournalEntry?      @relation("StockPosting", fields: [entryId], references: [id])
+  createdBy           String?
+  createdAt           DateTime           @default(now())
+  /// The order line this receipt is against, where there is one. Material can
+  /// still arrive with no order behind it, but then nobody committed to it and
+  /// the three-way check has nothing to compare against.
+  purchaseOrderLineId String?
+  purchaseOrderLine   PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id])
 
   @@index([companyId])
   @@index([itemId, storeId])
   @@index([jobId])
   @@index([entryId])
   @@index([date])
+}
+
+/// Site saying what it needs, and for which job.
+///
+/// A separate document from the order on purpose. The people who know what the
+/// work needs are rarely the people allowed to commit the company's money, and
+/// collapsing the two either gives a storeman a chequebook or makes a director
+/// guess how much cable a riser takes.
+model MaterialRequest {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  number  String
+  /// Draft | Submitted | Ordered | Cancelled
+  status  String  @default("Draft")
+  jobId   String?
+  job     Job?    @relation(fields: [jobId], references: [id])
+  /// Where it should end up once bought.
+  storeId String?
+  store   Store?  @relation(fields: [storeId], references: [id])
+
+  neededBy    DateTime?
+  requestedBy String
+  notes       String?
+
+  lines     MaterialRequestLine[]
+  orders    PurchaseOrder[]
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@index([status])
+  @@index([jobId])
+}
+
+model MaterialRequestLine {
+  id        String          @id @default(cuid())
+  requestId String
+  request   MaterialRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  /// Where it is something already in the catalogue. Site is allowed to ask for
+  /// something that is not, which is how the catalogue grows.
+  itemId      String?
+  item        Item?   @relation(fields: [itemId], references: [id])
+  description String
+  unitCode    String  @default("EA")
+  quantity    Float
+  notes       String?
+  order       Int     @default(0)
+
+  @@index([requestId])
+  @@index([itemId])
+}
+
+/// The commitment to buy.
+///
+/// It goes through the approval route the tenant has already configured, and
+/// nothing may be received against it until somebody with the authority has
+/// approved it. An order that can be received before approval is a purchase
+/// order in name only.
+///
+/// No VAT anywhere on it. An order is a commitment, not a tax document: the tax
+/// point is the supplier's invoice, and a VAT figure here invites somebody to
+/// reclaim tax on a document the FTA has never seen.
+model PurchaseOrder {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  number String
+  /// Draft | Awaiting approval | Approved | Rejected | Partly received |
+  /// Received | Cancelled. Once approved it moves on its own, from what has
+  /// actually arrived rather than from anybody remembering to change it.
+  status String @default("Draft")
+
+  partyId   String
+  party     Party  @relation(fields: [partyId], references: [id])
+  /// Snapshotted, so a supplier renamed next year does not rewrite this order.
+  partyName String
+
+  jobId   String?
+  job     Job?    @relation(fields: [jobId], references: [id])
+  /// Where the material is to be delivered.
+  storeId String?
+  store   Store?  @relation(fields: [storeId], references: [id])
+
+  requestId String?
+  request   MaterialRequest? @relation(fields: [requestId], references: [id])
+
+  date         DateTime
+  /// What the supplier promised. An order past it with nothing delivered is
+  /// the thing that stops work on site.
+  expectedDate DateTime?
+  /// Sum of the lines. Held because the approval route reads it to decide who
+  /// has to sign, and that decision must not change under the approver.
+  total        Float     @default(0)
+  currency     String    @default("AED")
+
+  /// The approval this order is waiting on, or was approved by.
+  approvalRequestId String?
+  approvedBy        String?
+  approvedAt        DateTime?
+
+  raisedBy String
+  notes    String?
+
+  lines     PurchaseOrderLine[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@index([status])
+  @@index([partyId])
+  @@index([jobId])
+}
+
+model PurchaseOrderLine {
+  id      String        @id @default(cuid())
+  orderId String
+  order   PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  itemId      String?
+  item        Item?   @relation(fields: [itemId], references: [id])
+  description String
+  unitCode    String  @default("EA")
+  quantity    Float
+  unitPrice   Float
+  netAmount   Float   @default(0)
+
+  /// Charged to a job rather than to stock, where the line is for something
+  /// that never sits on a shelf.
+  jobId String?
+  job   Job?    @relation(fields: [jobId], references: [id])
+
+  /// The receipts against this line. How much has arrived is summed from
+  /// these, never stored, so a reversed receipt cannot leave an order claiming
+  /// to be complete.
+  receipts  StockMovement[]
+  sortOrder Int             @default(0)
+
+  @@index([orderId])
+  @@index([itemId])
 }
 
 model Cheque {
@@ -1394,43 +1551,46 @@ model Cheque {
 /// Costs and revenue are tagged to it so 'did we make money on the ADNOC job?'
 /// has an answer. BRD FIN-06.
 model Job {
-  id             String          @id @default(cuid())
-  companyId      String
-  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  code           String // e.g. J-2601
-  name           String
+  id                 String              @id @default(cuid())
+  companyId          String
+  company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code               String // e.g. J-2601
+  name               String
   /// A job and a project are the same record here. `type` is only the word the
   /// client uses for it, so one table serves a fixed-price contract, a service
   /// call and an internal cost pool without a second entity to keep in step.
-  type           String          @default("Contract") // Contract | Project | Service call | AMC | Internal
+  type               String              @default("Contract") // Contract | Project | Service call | AMC | Internal
   /// Contract -> package -> variation. Costs are tagged on the leaf and the
   /// report rolls them up, which is how a main contract shows a true total
   /// without anything being posted against the parent itself.
-  parentId       String?
-  parent         Job?            @relation("JobTree", fields: [parentId], references: [id])
-  children       Job[]           @relation("JobTree")
+  parentId           String?
+  parent             Job?                @relation("JobTree", fields: [parentId], references: [id])
+  children           Job[]               @relation("JobTree")
   /// The customer this job is for, so a job report can name them.
-  partyId        String?
-  party          Party?          @relation(fields: [partyId], references: [id])
+  partyId            String?
+  party              Party?              @relation(fields: [partyId], references: [id])
   /// What the job was sold for, and what it was expected to cost.
-  contractValue  Float           @default(0)
-  budgetCost     Float           @default(0)
+  contractValue      Float               @default(0)
+  budgetCost         Float               @default(0)
   /// Manhours the job was priced for. Zero means none was set, which the
   /// manhours report shows as "no budget" rather than as nought per cent used.
-  budgetHours    Float           @default(0)
-  startDate      DateTime?
-  endDate        DateTime?
-  status         String          @default("Open") // Open | On hold | Completed | Closed
-  notes          String?
-  lines          JournalLine[]
-  timesheets     Timesheet[]
-  retentions     Retention[]
-  partyAdvances  PartyAdvance[]
-  stockMovements StockMovement[]
-  isActive       Boolean         @default(true)
-  createdAt      DateTime        @default(now())
-  Invoice        Invoice[]
-  InvoiceLine    InvoiceLine[]
+  budgetHours        Float               @default(0)
+  startDate          DateTime?
+  endDate            DateTime?
+  status             String              @default("Open") // Open | On hold | Completed | Closed
+  notes              String?
+  lines              JournalLine[]
+  timesheets         Timesheet[]
+  retentions         Retention[]
+  partyAdvances      PartyAdvance[]
+  stockMovements     StockMovement[]
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  Invoice            Invoice[]
+  InvoiceLine        InvoiceLine[]
+  materialRequests   MaterialRequest[]
+  purchaseOrders     PurchaseOrder[]
+  purchaseOrderLines PurchaseOrderLine[]
 
   @@unique([companyId, code])
   @@index([companyId])
