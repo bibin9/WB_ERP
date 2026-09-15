@@ -175,7 +175,7 @@ export default function OrderForm({
                       ))}
                     </select>
                   </div>
-                  <div className="col-span-3">
+                  <div className="col-span-2">
                     <input
                       className="input h-9 py-1.5 text-sm"
                       value={l.description}
@@ -186,7 +186,7 @@ export default function OrderForm({
                   <div className="col-span-1">
                     <input className="input h-9 py-1.5 text-sm" value={l.unitCode} onChange={(e) => set(l.key, { unitCode: e.target.value })} />
                   </div>
-                  <div className="col-span-1">
+                  <div className="col-span-2">
                     <input
                       type="number" step="0.001" min="0" className="input h-9 py-1.5 text-sm"
                       value={l.quantity} onChange={(e) => set(l.key, { quantity: e.target.value })} placeholder="Qty"

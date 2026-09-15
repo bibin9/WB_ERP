@@ -58,7 +58,7 @@ export default function RfqForm({
 
   return (
     <div className="fixed inset-0 z-30 flex items-start justify-center overflow-y-auto bg-black/30 p-4 pt-12 whitespace-normal text-left">
-      <div className="card w-full max-w-2xl p-0">
+      <div className="card w-full max-w-3xl p-0">
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
           <h2 className="font-semibold text-heading">What do you want prices for?</h2>
           <button onClick={() => setOpen(false)} className="text-muted hover:text-ink">
@@ -126,7 +126,7 @@ export default function RfqForm({
             <div className="space-y-2 p-3">
               {lines.map((l) => (
                 <div key={l.key} className="grid grid-cols-12 gap-2">
-                  <div className="col-span-5">
+                  <div className="col-span-4">
                     <select
                       className="input h-9 py-1.5 text-sm"
                       value={l.itemId}
@@ -154,7 +154,7 @@ export default function RfqForm({
                       placeholder="EA"
                     />
                   </div>
-                  <div className="col-span-1">
+                  <div className="col-span-2">
                     <input
                       type="number" step="0.001" min="0"
                       className="input h-9 py-1.5 text-sm"

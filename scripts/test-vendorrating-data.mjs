@@ -229,13 +229,23 @@ try {
       "a stored rating is a rating that was true once");
   }
 } finally {
-  await db.rfq.deleteMany({ where: { companyId: co.id, notes: tag } });
-  await db.stockMovement.deleteMany({ where: { companyId: co.id, reference: tag } });
-  await db.purchaseOrderLine.deleteMany({ where: { order: { number: { startsWith: tag } } } });
-  await db.purchaseOrder.deleteMany({ where: { companyId: co.id, number: { startsWith: tag } } });
-  await db.item.deleteMany({ where: { companyId: co.id, code: { startsWith: tag } } });
-  await db.store.deleteMany({ where: { companyId: co.id, code: { startsWith: tag } } });
-  await db.party.deleteMany({ where: { companyId: co.id, code: { startsWith: "VR-" } } });
+  /**
+   * Swept by the suite's prefix, not this run's tag.
+   *
+   * A run that dies before its cleanup leaves rows behind under its own
+   * timestamp, and a tag-scoped sweep walks straight past them. They then show
+   * up on a real screen as a material request for five billion metres of
+   * cable, which is how this was found.
+   */
+  const P = "VR-";
+  await db.rfq.deleteMany({ where: { companyId: co.id, notes: { startsWith: P } } });
+  await db.stockMovement.deleteMany({ where: { companyId: co.id, reference: { startsWith: P } } });
+  await db.purchaseOrderLine.deleteMany({ where: { order: { number: { startsWith: P } } } });
+  await db.purchaseOrder.deleteMany({ where: { companyId: co.id, number: { startsWith: P } } });
+  await db.materialRequestLine.deleteMany({ where: { item: { code: { startsWith: P } } } });
+  await db.item.deleteMany({ where: { companyId: co.id, code: { startsWith: P } } });
+  await db.store.deleteMany({ where: { companyId: co.id, code: { startsWith: P } } });
+  await db.party.deleteMany({ where: { companyId: co.id, code: { startsWith: P } } });
 }
 
 /* ==================================================== how it is wired == */
