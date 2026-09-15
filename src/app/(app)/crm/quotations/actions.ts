@@ -90,16 +90,21 @@ export async function issue(formData: FormData): Promise<Result> {
   const session = await scoped(await companyOf(quotationId));
   if (!session) return { ok: false, error: "No access" };
 
+  const send = str(formData, "send") === "on";
   const res = await issueQuotation({
     quotationId,
-    issuedTo: str(formData, "issuedTo"),
+    issuedTo: str(formData, "issuedTo", 500),
+    cc: orNull(formData, "cc", 500),
     by: session.user.name,
+    send,
   });
   if (!res.ok) return res;
 
   await audit({
     action: "Updated", entity: "Quotation", entityId: quotationId,
-    summary: `Issued to ${str(formData, "issuedTo")}`,
+    summary: send
+      ? `Emailed to ${str(formData, "issuedTo", 500)}`
+      : `Recorded as sent by hand to ${str(formData, "issuedTo", 500)}`,
   });
   refresh(quotationId);
   return { ok: true };

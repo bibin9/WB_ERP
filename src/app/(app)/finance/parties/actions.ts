@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { allow } from "@/lib/guard";
 import { audit } from "@/lib/audit";
+import { looksLikeEmail } from "@/lib/mailsettings";
 
 const TYPES = ["Customer", "Supplier", "Both"];
 
@@ -33,11 +34,116 @@ function read(formData: FormData) {
   };
 }
 
-/** Next code in the C0001 / S0001 series, per company. */
+/**
+ * Next code in the C0001 / S0001 series, per company.
+ *
+ * Taken from the highest already issued rather than from a count. Counting
+ * assumes the series is dense: delete one party and count + 1 lands on a code
+ * somebody already has, and the create then fails on the unique index with a
+ * message nobody can read. The same assumption stopped a company posting
+ * vouchers for a financial year before it was found, so it is not repeated.
+ */
 async function nextCode(companyId: string, type: string): Promise<string> {
   const prefix = type === "Supplier" ? "S" : "C";
-  const n = await db.party.count({ where: { companyId, code: { startsWith: prefix } } });
-  return `${prefix}${String(n + 1).padStart(4, "0")}`;
+  const rows = await db.party.findMany({
+    where: { companyId, code: { startsWith: prefix } },
+    select: { code: true },
+  });
+  const highest = rows.reduce((top, r) => {
+    const n = Number(r.code.slice(prefix.length));
+    return Number.isFinite(n) && n > top ? n : top;
+  }, 0);
+  return `${prefix}${String(highest + 1).padStart(4, "0")}`;
+}
+
+/* ============================== the people at a customer, as master data = */
+
+const CONTACT_MAX = 200;
+const text = (fd: FormData, k: string, max = CONTACT_MAX) => String(fd.get(k) ?? "").trim().slice(0, max);
+
+/**
+ * Save one contact against a party.
+ *
+ * These are what a quotation picks its recipients from, which is the whole
+ * point: an address chosen from a list is right, and one typed from memory
+ * loses a letter and nobody notices for a week.
+ */
+export async function savePartyContact(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  if (!(await allow("finance.parties", "edit"))) return { ok: false, error: "Not authorised" };
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Not signed in" };
+
+  const id = text(formData, "id");
+  const partyId = id
+    ? (await db.partyContact.findUnique({ where: { id }, select: { partyId: true } }))?.partyId ?? ""
+    : text(formData, "partyId");
+
+  const party = partyId ? await db.party.findUnique({ where: { id: partyId } }) : null;
+  if (!party) return { ok: false, error: "That customer no longer exists." };
+  if (!session.companies.some((c) => c.id === party.companyId)) {
+    return { ok: false, error: "No access to this company" };
+  }
+
+  const name = text(formData, "name");
+  if (!name) return { ok: false, error: "Give the contact a name." };
+
+  const email = text(formData, "email");
+  if (email && !looksLikeEmail(email)) {
+    return { ok: false, error: `${email} does not look like an email address.` };
+  }
+
+  const isPrimary = text(formData, "isPrimary") === "on";
+  const data = {
+    name,
+    role: text(formData, "role", 80) || null,
+    email: email || null,
+    phone: text(formData, "phone", 40) || null,
+    notes: text(formData, "notes", 300) || null,
+    isPrimary,
+    isActive: text(formData, "isActive") !== "off",
+  };
+
+  // Only one main contact, or a quotation form would have to guess which of
+  // two it meant.
+  if (isPrimary) {
+    await db.partyContact.updateMany({
+      where: { partyId, ...(id ? { NOT: { id } } : {}) },
+      data: { isPrimary: false },
+    });
+  }
+
+  if (id) {
+    await db.partyContact.update({ where: { id }, data });
+  } else {
+    await db.partyContact.create({ data: { partyId, ...data } });
+  }
+
+  await audit({
+    action: id ? "Updated" : "Created",
+    entity: "PartyContact",
+    entityId: id || partyId,
+    summary: `${id ? "Updated" : "Added"} contact ${name} at ${party.name}`,
+  });
+  revalidatePath("/finance/parties");
+  return { ok: true };
+}
+
+export async function deletePartyContact(id: string): Promise<{ ok: boolean; error?: string }> {
+  if (!(await allow("finance.parties", "delete"))) return { ok: false, error: "Not authorised" };
+  const session = await getSession();
+  const contact = await db.partyContact.findUnique({ where: { id }, include: { party: true } });
+  if (!contact) return { ok: false, error: "Not found" };
+  if (!session?.companies.some((c) => c.id === contact.party.companyId)) {
+    return { ok: false, error: "No access to this company" };
+  }
+
+  await db.partyContact.delete({ where: { id } });
+  await audit({
+    action: "Deleted", entity: "PartyContact", entityId: id,
+    summary: `Removed contact ${contact.name} from ${contact.party.name}`,
+  });
+  revalidatePath("/finance/parties");
+  return { ok: true };
 }
 
 export async function createParty(formData: FormData): Promise<{ ok: boolean; error?: string }> {

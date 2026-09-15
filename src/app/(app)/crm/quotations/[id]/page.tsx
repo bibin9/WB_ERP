@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { money } from "@/lib/money";
 import { syncQuoteApproval } from "@/lib/quote-posting";
+import { mailReady, sendsFor } from "@/lib/mailer";
 import { priceEstimate } from "@/lib/estimate-posting";
 import { QUOTE_STATUS_HELP, poVariance } from "@/lib/quoting";
 import { markupToMargin } from "@/lib/estimating";
@@ -54,6 +55,18 @@ export default async function QuotationPage({ params }: { params: Promise<{ id: 
   if (!accessible.some((c) => c.id === quote.companyId)) notFound();
   const company = await db.company.findUnique({ where: { id: quote.companyId } });
 
+  // Contacts at this customer, so the issue dialog offers them rather than
+  // asking somebody to remember an address.
+  const contacts = quote.partyId
+    ? await db.partyContact.findMany({
+        where: { partyId: quote.partyId, isActive: true, email: { not: null } },
+        orderBy: [{ isPrimary: "desc" }, { name: "asc" }],
+      })
+    : [];
+
+  const canEmail = await mailReady(quote.companyId);
+  const sends = await sendsFor("quotation", quote.id);
+
   const totals = quote.estimate ? priceEstimate(quote.estimate) : null;
   const margin = quote.total > 0 ? (quote.total - quote.costAtQuote) / quote.total : 0;
   const markup = quote.costAtQuote > 0 ? (quote.total - quote.costAtQuote) / quote.costAtQuote : 0;
@@ -81,6 +94,11 @@ export default async function QuotationPage({ params }: { params: Promise<{ id: 
               total: quote.total, customerName: quote.customerName,
               contactEmail: quote.lead?.contactEmail ?? null,
             }}
+            contacts={contacts.map((c) => ({
+              id: c.id, name: c.name, role: c.role, email: c.email!, isPrimary: c.isPrimary,
+            }))}
+            mailReady={canEmail.ok}
+            mailProblem={canEmail.ok ? null : canEmail.error}
           />
         </div>
       </PageHeader>
@@ -158,6 +176,29 @@ export default async function QuotationPage({ params }: { params: Promise<{ id: 
           Issued {fmt(quote.issuedAt)} by {quote.issuedBy} to{" "}
           <span className="text-ink">{quote.issuedTo}</span>.
         </p>
+      )}
+
+      {sends.length > 0 && (
+        <div className="card mb-5 p-4">
+          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">Emails sent</h2>
+          <ul className="space-y-1.5 text-xs">
+            {sends.map((m) => (
+              <li key={m.id} className="flex flex-wrap items-baseline gap-2">
+                <span className={m.ok ? "text-brand-green-700" : "text-brand-gold"}>
+                  {m.ok ? "Accepted" : "Failed"}
+                </span>
+                <span className="text-muted">{fmt(m.sentAt)}</span>
+                <span className="text-ink">{m.toAddresses}</span>
+                {m.sentBy && <span className="text-muted">by {m.sentBy}</span>}
+                {!m.ok && m.error && <span className="w-full text-muted">{m.error}</span>}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 border-t border-line pt-2 text-xs text-muted">
+            <span className="font-medium">Accepted</span> means the mail server took it, which is the strongest
+            honest claim a sending system can make. Whether the customer read it is beyond anything this can know.
+          </p>
+        </div>
       )}
 
       <div className="grid gap-5 lg:grid-cols-3">

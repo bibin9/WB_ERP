@@ -4,6 +4,8 @@ import { documentStem, nextInSeries } from "./docnumber";
 import { resolveRoute } from "./approval-engine";
 import { priceEstimate } from "./estimate-posting";
 import { checkIssue, checkEdit, checkAccept, poVariance } from "./quoting";
+import { sendMail, escapeHtml, mailReady } from "./mailer";
+import { money } from "./money";
 
 /**
  * The quotation: raising it from an estimate, getting it approved, sending it,
@@ -221,21 +223,82 @@ export async function withdrawQuotation(quotationId: string): Promise<Outcome> {
 
 /* ====================================================== issuing (CRM-15) */
 
+/** Whether this company can email at all, for a screen to ask before offering. */
+export const quotationMailReady = mailReady;
+
 /**
- * Record that the quotation went to the customer.
+ * The quotation as an email, in the company's own words.
  *
- * The system does not send the email. There is no mail transport configured in
- * this application, and inventing one that silently does nothing would be
- * worse than saying so: somebody would believe a quotation had gone out when
- * it had not. What this records is the act — when, by whom, to which address —
- * and the printed document is produced from the quotation itself.
+ * Plain text as well as HTML, because a mail client set to show text only is
+ * still common on site and a quotation that arrives blank is worse than one
+ * that arrives plain.
+ */
+function quotationEmail(quote: {
+  number: string;
+  title: string;
+  customerName: string;
+  total: number;
+  validUntil: Date | null;
+  terms: string | null;
+}, companyName: string, signedBy: string) {
+  const valid = quote.validUntil
+    ? `This price is held until ${quote.validUntil.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })}.`
+    : "";
+
+  const text = [
+    `Dear Sir or Madam,`,
+    ``,
+    `Please find our quotation ${quote.number} for ${quote.title}.`,
+    ``,
+    `Total: ${money(quote.total)}`,
+    valid,
+    quote.terms ? `\nTerms\n${quote.terms}` : "",
+    ``,
+    `We should be glad to go through any of it with you.`,
+    ``,
+    `Kind regards,`,
+    signedBy,
+    companyName,
+  ].filter((l) => l !== "").join("\n");
+
+  const html = [
+    `<p>Dear Sir or Madam,</p>`,
+    `<p>Please find our quotation <strong>${escapeHtml(quote.number)}</strong> for ${escapeHtml(quote.title)}.</p>`,
+    `<p style="font-size:1.1em"><strong>Total: ${escapeHtml(money(quote.total))}</strong></p>`,
+    valid ? `<p>${escapeHtml(valid)}</p>` : "",
+    quote.terms ? `<p><strong>Terms</strong><br>${escapeHtml(quote.terms).replace(/\n/g, "<br>")}</p>` : "",
+    `<p>We should be glad to go through any of it with you.</p>`,
+    `<p>Kind regards,<br>${escapeHtml(signedBy)}<br>${escapeHtml(companyName)}</p>`,
+  ].filter(Boolean).join("");
+
+  return { subject: `Quotation ${quote.number} — ${quote.title}`, text, html };
+}
+
+/**
+ * Send the quotation to the customer, and record that it went.
+ *
+ * `send` decides whether the system does the sending or whether somebody has
+ * already sent it themselves. Both are real: a client with no mail server
+ * configured still issues quotations, and their record should say so.
+ *
+ * The rule that matters: when the system IS doing the sending and the mail
+ * server refuses, the quotation is NOT marked issued. Recording it as sent
+ * because a button was pressed is how a company waits three weeks for an
+ * answer to something that never left the building.
  */
 export async function issueQuotation(input: {
   quotationId: string;
   issuedTo: string;
+  cc?: string | null;
   by: string;
+  /** Send it through the company's mail server, rather than recording a send
+   *  somebody has already made by hand. */
+  send?: boolean;
 }): Promise<Outcome> {
-  const quote = await db.quotation.findUnique({ where: { id: input.quotationId } });
+  const quote = await db.quotation.findUnique({
+    where: { id: input.quotationId },
+    include: { company: { select: { name: true } } },
+  });
   if (!quote) return { ok: false, error: "Not found" };
 
   const permitted = checkIssue(quote);
@@ -243,6 +306,24 @@ export async function issueQuotation(input: {
 
   const to = String(input.issuedTo ?? "").trim();
   if (!to) return { ok: false, error: "Say who it went to, so there is a record of where it was sent." };
+
+  if (input.send) {
+    const body = quotationEmail(quote, quote.company.name, input.by);
+    const sent = await sendMail({
+      companyId: quote.companyId,
+      to,
+      cc: input.cc ?? null,
+      subject: body.subject,
+      text: body.text,
+      html: body.html,
+      kind: "quotation",
+      entity: "quotation",
+      entityId: quote.id,
+      sentBy: input.by,
+    });
+    // Not marked issued. See the note above.
+    if (!sent.ok) return sent;
+  }
 
   await db.quotation.update({
     where: { id: input.quotationId },

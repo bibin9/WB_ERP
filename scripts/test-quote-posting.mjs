@@ -283,6 +283,56 @@ try {
     ok("  recording how far it got", lead.closedFromStage === "Quoted", String(lead.closedFromStage));
   }
 
+  /* ============ a send that fails does not mark the quotation issued ===== */
+
+  /**
+   * The rule that decides whether a company knows what it has sent.
+   *
+   * Recording a quotation as issued because a button was pressed, when the
+   * mail server refused it, is how three weeks pass waiting for an answer to
+   * something that never left the building.
+   */
+  {
+    const { estimateId: e3 } = await pricedEstimate("Send failure");
+    const q = await createQuotation({ companyId: co.id, preparedBy: "E", estimateId: e3 });
+    await submitQuotation(q.quotationId, tenant.id, "E");
+    await decide(q.quotationId, "Approved");
+    await syncQuoteApproval(q.quotationId);
+
+    // A mail server that refuses everything: a closed port.
+    await db.emailSettings.deleteMany({ where: { companyId: co.id } });
+    await db.emailSettings.create({
+      data: {
+        companyId: co.id, host: "127.0.0.1", port: 1, security: "None",
+        fromEmail: "quotes@wandb.ae", isActive: true,
+      },
+    });
+
+    const failed = await issueQuotation({
+      quotationId: q.quotationId, issuedTo: "them@example.com", by: "Estimator", send: true,
+    });
+    ok("a quotation whose email is refused does not go out", failed.ok === false, failed.ok ? "" : failed.error);
+
+    const row = await db.quotation.findUnique({ where: { id: q.quotationId } });
+    ok("  and is NOT marked issued", row.status === "Approved" && row.issuedAt === null,
+      "otherwise the company waits three weeks for an answer to something that never left the building");
+
+    const logged = await db.emailLog.count({ where: { entity: "quotation", entityId: q.quotationId } });
+    ok("  though the attempt is recorded", logged === 1,
+      "so somebody can see it was tried and why it failed");
+
+    // Recording a send made by hand still works with no mail server at all.
+    await db.emailSettings.deleteMany({ where: { companyId: co.id } });
+    const byHand = await issueQuotation({
+      quotationId: q.quotationId, issuedTo: "them@example.com", by: "Estimator",
+    });
+    ok("recording a send made by hand still works", byHand.ok, byHand.ok ? "" : byHand.error,
+    );
+    const after = await db.quotation.findUnique({ where: { id: q.quotationId } });
+    ok("  and marks it issued", after.status === "Issued" && !!after.issuedAt,
+      "a client with no mail server still issues quotations");
+  }
+
   /* ====================================================== posts nothing == */
   {
     const vouchers = await db.journalEntry.count({ where: { companyId: co.id, memo: { contains: TAG } } });
@@ -299,6 +349,8 @@ try {
   await db.estimate.deleteMany({ where: { companyId: co.id, title: { startsWith: TAG } } });
   await db.lead.deleteMany({ where: { companyId: co.id, title: { startsWith: TAG } } });
   await db.approvalRequest.deleteMany({ where: { companyId: co.id, docType: QUOTE_DOC_TYPE, title: { contains: "WBE/QTN" } } });
+  await db.emailLog.deleteMany({ where: { companyId: co.id, entity: "quotation" } });
+  await db.emailSettings.deleteMany({ where: { companyId: co.id } });
 }
 
 /* ==================================================== how it is wired == */
@@ -306,8 +358,8 @@ try {
 const src = prose("src/lib/quote-posting.ts");
 ok("the file says why the total IS stored here, unlike the estimate",
   /it must not change under them because somebody carried on editing the estimate/.test(src));
-ok("and is honest that it does not send the email",
-  /inventing one that silently does nothing would be worse/.test(src));
+ok("and says why a refused send must not mark it issued",
+  /waits three weeks for an answer to something that never left the building/.test(src));
 ok("and why the job takes the customer's figure",
   /What they committed to, not what was quoted/.test(src));
 

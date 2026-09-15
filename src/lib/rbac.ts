@@ -97,6 +97,7 @@ export const SCREENS: ScreenDef[] = [
   { key: "settings.master", module: "settings", label: "Master Data", href: "/settings/master-data" },
   { key: "settings.approvals", module: "settings", label: "Approval Routes", href: "/settings/approvals" },
   { key: "settings.custom", module: "settings", label: "Custom Fields", href: "/settings/custom-fields" },
+  { key: "settings.email", module: "settings", label: "Email", href: "/settings/email" },
 ];
 
 export const ACTIONS = ["view", "create", "edit", "delete", "approve"] as const;

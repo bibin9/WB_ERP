@@ -64,7 +64,7 @@ Taken from the approved BRD rather than summarised. Eleven of eighteen are Must.
 | CRM-12 | Site visit recorded, report attached, status shown | Must | **Done** — status derived from the report existing |
 | CRM-13 | Estimation engineer prepares a quotation from the report | Must | **Done** — priced from the estimate, no box to type one |
 | CRM-14 | Quotation routed to management for approval | Must | **Done** — through the existing approval engine |
-| CRM-15 | On approval, issue the quotation as a PDF by email | Must | **Partly** — approval-gated issue, printable document and a recorded send; **no mail transport exists**, see below |
+| CRM-15 | On approval, issue the quotation as a PDF by email | Must | **Done** — sends through the client's own mail server, configured in Settings |
 | CRM-16 | Revisions with full version history | Should | **Done** — a revision supersedes, never edits |
 | CRM-17 | Capture the customer PO, hand over to Projects and Finance | Must | **Done** — the job takes THEIR figure, budgeted from the estimate |
 | CRM-18 | Markup rules, margin analysis, multi-currency, discount matrices | Should | Not started — multi-currency is the phase-1 item below |
@@ -72,15 +72,24 @@ Taken from the approved BRD rather than summarised. Eleven of eighteen are Must.
 Built in three slices: the lead and the pipeline (done), the estimate (done),
 the quotation (done).
 
-**Email is the one honest gap.** CRM-15 asks for the quotation to be issued as
-a PDF by email. There is no mail transport in this application — `notify` is
-in-app only and nothing else sends anything. So issuing is gated on approval,
-the document prints, the send is recorded with when, by whom and to which
-address, and the screen offers to open a draft in the user's own mail program.
-What it does not do is pretend to send, because somebody would then believe a
-quotation had gone out when it had not. Making this fully automatic needs an
-SMTP transport configured, which is a decision about the client's mail server
-rather than a piece of code missing.
+**Email now sends for real.** Settings → Email holds the mail server per
+company — host, port, security, the mailbox it signs in as, and the address it
+sends from — with a Microsoft 365 preset that fills in the settings people
+most often get wrong. Quotations go out from the Issue dialog, with recipients
+ticked from the customer's own contacts rather than typed.
+
+Three rules hold it up:
+
+- **The password is written and never read back.** It is encrypted at rest
+  (`lib/secrets.ts`), stripped out of any error a mail server returns, and the
+  settings shape handed to a screen has no password field at all.
+- **A refused send does not mark the quotation issued.** Otherwise a company
+  waits three weeks for an answer to something that never left the building.
+- **The log says "Accepted", never "Delivered."** That is the strongest honest
+  claim a sending system can make.
+
+Recording a send made by hand still works, because a client with no mail
+server configured still issues quotations.
 
 **The quotation rules, so they are not lost:** the price comes from the
 estimate and there is no box to type one; nothing reaches a customer before

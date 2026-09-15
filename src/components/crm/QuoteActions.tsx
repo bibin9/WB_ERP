@@ -17,6 +17,9 @@ type Quote = {
   contactEmail?: string | null;
 };
 
+/** The people on file at this customer, so nobody types an address from memory. */
+export type Contact = { id: string; name: string; role: string | null; email: string; isPrimary: boolean };
+
 /**
  * Everything that can be done to a quotation, offered only when it can.
  *
@@ -24,7 +27,19 @@ type Quote = {
  * decided by where it is, and six components each asking that question
  * separately is six places for the answer to drift.
  */
-export default function QuoteActions({ quote }: { quote: Quote }) {
+export default function QuoteActions({
+  quote,
+  contacts = [],
+  mailReady = false,
+  mailProblem,
+}: {
+  quote: Quote;
+  contacts?: Contact[];
+  /** Whether this company has a mail server configured and switched on. */
+  mailReady?: boolean;
+  /** Why not, if not. */
+  mailProblem?: string | null;
+}) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [dialog, setDialog] = useState<"" | "issue" | "accept" | "decline">("");
@@ -63,7 +78,7 @@ export default function QuoteActions({ quote }: { quote: Quote }) {
 
         {quote.status === "Approved" && (
           <button onClick={() => setDialog("issue")} className="btn-primary">
-            <Mail className="h-4 w-4" /> Issue to the customer
+            <Mail className="h-4 w-4" /> {mailReady ? "Email it to the customer" : "Issue to the customer"}
           </button>
         )}
 
@@ -92,51 +107,21 @@ export default function QuoteActions({ quote }: { quote: Quote }) {
       {error && <span className="max-w-md text-right text-xs text-brand-gold">{error}</span>}
 
       {dialog === "issue" && (
-        <Dialog title="Where is it going?" onClose={() => setDialog("")}>
-          <form
-            action={async (fd) => { await run("issue", () => issue(fd)); }}
-            className="space-y-3 p-5"
-          >
-            <input type="hidden" name="quotationId" value={quote.id} />
-            <div>
-              <label className="mb-1 block text-sm font-medium text-ink">Sent to</label>
-              <input
-                name="issuedTo" className="input" required
-                defaultValue={quote.contactEmail ?? ""}
-                placeholder="procurement@customer.ae"
-              />
-            </div>
-
-            {/*
-              The one thing worth being straight about: there is no mail
-              transport in this system, so nothing is sent from here. Saying so
-              is better than a button that appears to send and does not.
-            */}
-            <p className="rounded bg-brand-gold/10 p-3 text-xs text-ink">
-              <span className="font-semibold">This records that it went out; it does not send it.</span> There is
-              no email server configured, so print the quotation and attach it to your own message. The record
-              here is what the pipeline and the audit trail read.
-            </p>
-
-            <a
-              href={`mailto:${quote.contactEmail ?? ""}?subject=${encodeURIComponent(`Quotation ${quote.number}`)}&body=${encodeURIComponent(`Dear Sir,\n\nPlease find our quotation ${quote.number} attached, for ${quote.customerName}.\n\nKind regards,`)}`}
-              className="block rounded border border-line px-3 py-2 text-center text-xs text-brand-blue-600 hover:bg-line"
-            >
-              Open a draft in your mail program
-            </a>
-
-            {error && <p className="text-sm text-brand-gold">{error}</p>}
-            <div className="flex justify-end gap-2 pt-1">
-              <button type="button" onClick={() => setDialog("")} className="btn-ghost">Cancel</button>
-              <button disabled={!!busy} className="btn-primary disabled:opacity-50">
-                {busy === "issue" ? "Recording…" : "Record that it went"}
-              </button>
-            </div>
-          </form>
-        </Dialog>
+        <IssueDialog
+          quote={quote}
+          contacts={contacts}
+          mailReady={mailReady}
+          mailProblem={mailProblem}
+          busy={busy}
+          error={error}
+          run={run}
+          close={() => setDialog("")}
+        />
       )}
 
-      {dialog === "accept" && <AcceptDialog quote={quote} busy={busy} error={error} run={run} close={() => setDialog("")} />}
+      {dialog === "accept" && (
+        <AcceptDialog quote={quote} busy={busy} error={error} run={run} close={() => setDialog("")} />
+      )}
 
       {dialog === "decline" && (
         <Dialog title="Why did they turn it down?" onClose={() => setDialog("")}>
@@ -164,6 +149,133 @@ export default function QuoteActions({ quote }: { quote: Quote }) {
         </Dialog>
       )}
     </div>
+  );
+}
+
+/**
+ * Sending the quotation to the customer (CRM-15).
+ *
+ * Addresses are ticked from the customer's own contacts rather than typed,
+ * because an address typed from memory loses a letter and nobody notices for a
+ * week. Anything not on file can still be typed, and should then be added to
+ * the customer so the next person does not have to.
+ *
+ * Whether the system sends it or merely records a send made by hand depends on
+ * whether a mail server has been set up. Both are real: a client with no mail
+ * server still issues quotations, and their record should say so.
+ */
+function IssueDialog({
+  quote, contacts, mailReady, mailProblem, busy, error, run, close,
+}: {
+  quote: Quote;
+  contacts: Contact[];
+  mailReady: boolean;
+  mailProblem?: string | null;
+  busy: string;
+  error: string;
+  run: (name: string, fn: () => Promise<{ ok: boolean; error?: string }>) => Promise<void>;
+  close: () => void;
+}) {
+  const withEmail = contacts.filter((c) => c.email);
+  const [picked, setPicked] = useState<string[]>(() => {
+    const primary = withEmail.find((c) => c.isPrimary) ?? withEmail[0];
+    if (primary) return [primary.email];
+    return quote.contactEmail ? [quote.contactEmail] : [];
+  });
+  const [extra, setExtra] = useState("");
+  const [cc, setCc] = useState("");
+  const [send, setSend] = useState(mailReady);
+
+  const toggle = (email: string) =>
+    setPicked((p) => (p.includes(email) ? p.filter((x) => x !== email) : [...p, email]));
+
+  const typed = extra.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
+  const to = [...picked, ...typed];
+
+  return (
+    <Dialog title="Send it to the customer" onClose={close}>
+      <form action={async (fd) => { await run("issue", () => issue(fd)); }} className="space-y-3 p-5">
+        <input type="hidden" name="quotationId" value={quote.id} />
+        <input type="hidden" name="issuedTo" value={to.join(", ")} />
+        <input type="hidden" name="cc" value={cc} />
+        {send && <input type="hidden" name="send" value="on" />}
+
+        {withEmail.length > 0 ? (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-ink">
+              Who at {quote.customerName}
+            </label>
+            <div className="space-y-1 rounded-lg border border-line p-2">
+              {withEmail.map((c) => (
+                <label
+                  key={c.id}
+                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-line"
+                >
+                  <input type="checkbox" checked={picked.includes(c.email)} onChange={() => toggle(c.email)} />
+                  <span className="text-ink">{c.name}</span>
+                  {c.role && <span className="text-xs text-muted">{c.role}</span>}
+                  <span className="ml-auto text-xs text-muted">{c.email}</span>
+                  {c.isPrimary && (
+                    <span className="rounded bg-brand-blue/10 px-1.5 py-0.5 text-xs text-brand-blue-600">main</span>
+                  )}
+                </label>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="rounded bg-brand-paper p-3 text-xs text-muted">
+            No contacts are on file for {quote.customerName}. Add them under Finance &rarr; Parties and they will
+            be offered here next time, so nobody has to type an address from memory.
+          </p>
+        )}
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-ink">
+            Anyone else <span className="font-normal text-muted">(comma separated)</span>
+          </label>
+          <input
+            className="input" value={extra} onChange={(e) => setExtra(e.target.value)}
+            placeholder="someone@customer.ae"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-ink">Copy to</label>
+          <input className="input" value={cc} onChange={(e) => setCc(e.target.value)} placeholder="optional" />
+        </div>
+
+        {mailReady ? (
+          <label className="flex items-start gap-2 rounded bg-brand-paper p-3 text-sm">
+            <input type="checkbox" className="mt-0.5" checked={send} onChange={(e) => setSend(e.target.checked)} />
+            <span>
+              <span className="font-medium text-ink">Send it now from the system</span>
+              <span className="mt-0.5 block text-xs text-muted">
+                Goes out through your own mail server. Untick if you have already sent it yourself and are only
+                recording that here. If the mail server refuses it, the quotation is not marked as issued.
+              </span>
+            </span>
+          </label>
+        ) : (
+          <p className="rounded bg-brand-gold/10 p-3 text-xs text-ink">
+            <span className="font-semibold">This will record the send, not make it.</span>{" "}
+            {mailProblem ?? "No mail server is set up for this company."} Once one is configured under Settings
+            &rarr; Email, quotations go out from here with one click.
+          </p>
+        )}
+
+        <p className="text-xs text-muted">
+          {to.length === 0 ? "Nobody selected yet." : `Going to ${to.join(", ")}`}
+        </p>
+
+        {error && <p className="text-sm text-brand-gold">{error}</p>}
+        <div className="flex justify-end gap-2 pt-1">
+          <button type="button" onClick={close} className="btn-ghost">Cancel</button>
+          <button disabled={!!busy || to.length === 0} className="btn-primary disabled:opacity-50">
+            {busy === "issue" ? (send ? "Sending…" : "Recording…") : send ? "Send it" : "Record that it went"}
+          </button>
+        </div>
+      </form>
+    </Dialog>
   );
 }
 

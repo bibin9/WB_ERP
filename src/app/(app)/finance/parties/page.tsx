@@ -3,6 +3,7 @@ import PageHeader from "@/components/PageHeader";
 import CompanyPicker from "@/components/CompanyPicker";
 import FinanceTabs from "@/components/FinanceTabs";
 import PartyForm from "@/components/finance/PartyForm";
+import PartyContacts from "@/components/finance/PartyContacts";
 import GuardedDelete from "@/components/GuardedDelete";
 import ActiveToggle from "@/components/ActiveToggle";
 import { deleteParty, setPartyActive } from "./actions";
@@ -42,7 +43,10 @@ export default async function PartiesPage({ searchParams }: { searchParams: Prom
   const parties = companyId
     ? await db.party.findMany({
         where: partyWhere,
-        include: { _count: { select: { entries: true } } },
+        include: {
+          _count: { select: { entries: true } },
+          contacts: { orderBy: [{ isPrimary: "desc" }, { name: "asc" }] },
+        },
         orderBy: [{ isActive: "desc" }, { code: "asc" }],
         skip: (info.page - 1) * info.perPage,
         take: info.perPage,
@@ -92,6 +96,7 @@ export default async function PartiesPage({ searchParams }: { searchParams: Prom
                   <th className="px-4 py-2 font-semibold">Contact</th>
                   <th className="px-4 py-2 text-right font-semibold">Credit days</th>
                   <th className="px-4 py-2 text-right font-semibold">Vouchers</th>
+                  <th className="px-4 py-2 font-medium">Contacts</th>
                   <th className="px-4 py-2" />
                 </tr>
               </thead>
@@ -110,6 +115,16 @@ export default async function PartiesPage({ searchParams }: { searchParams: Prom
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-muted">{p.creditDays || "—"}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-muted">{p._count.entries}</td>
+                    <td className="px-4 py-2.5">
+                      <PartyContacts
+                        partyId={p.id}
+                        partyName={p.name}
+                        contacts={p.contacts.map((c) => ({
+                          id: c.id, name: c.name, role: c.role, email: c.email,
+                          phone: c.phone, notes: c.notes, isPrimary: c.isPrimary, isActive: c.isActive,
+                        }))}
+                      />
+                    </td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center justify-end gap-1">
                         <PartyForm

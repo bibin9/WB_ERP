@@ -135,6 +135,8 @@ model Company {
   leads               Lead[]
   estimates           Estimate[]
   quotations          Quotation[]
+  emailSettings       EmailSettings?
+  emailLogs           EmailLog[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -1099,6 +1101,7 @@ model Party {
   rfqQuotes      RfqQuote[]
   leads          Lead[]
   quotations     Quotation[]
+  contacts       PartyContact[]
   rfqsAwarded    Rfq[]
 
   @@unique([companyId, code])
@@ -2481,4 +2484,109 @@ model Quotation {
   @@index([status])
   @@index([leadId])
   @@index([estimateId])
+}
+
+/// Where this company's email goes out from (CRM-15).
+///
+/// Per company rather than per tenant: a group sends as White & Bright
+/// Engineering or as WB Technical Services depending on whose work it is, and
+/// the customer should see the right one. They may all point at the same
+/// Microsoft 365 tenant with different mailboxes.
+///
+/// The password is encrypted at rest and never read back to a browser. See
+/// lib/secrets.ts for what that does and does not protect against.
+model EmailSettings {
+  id        String  @id @default(cuid())
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  host     String
+  port     Int    @default(587)
+  /// STARTTLS | SSL/TLS | None
+  security String @default("STARTTLS")
+
+  /// Blank on a relay inside your own network that trusts the sender.
+  username String?
+  /// Sealed by lib/secrets. Never returned to the client, only replaced.
+  password String?
+
+  fromName  String?
+  fromEmail String
+  replyTo   String?
+
+  /// Off means nothing is sent, without losing the configuration.
+  isActive Boolean @default(true)
+
+  /// A configuration nobody has tested is one nobody should trust, so the
+  /// result of the last test is kept and shown.
+  lastTestedAt  DateTime?
+  lastTestOk    Boolean?
+  lastTestError String?
+
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// The people at a customer or supplier, as master data.
+///
+/// Party already carried one email, which is fine until somebody needs to send
+/// a quotation to procurement and copy the project manager. These are picked
+/// from a list when a quotation goes out rather than typed from memory, which
+/// is how an address ends up with a letter missing and nobody notices for a
+/// week.
+model PartyContact {
+  id      String @id @default(cuid())
+  partyId String
+  party   Party  @relation(fields: [partyId], references: [id], onDelete: Cascade)
+
+  name  String
+  /// What they do — Procurement, Projects, Accounts. Free text because every
+  /// customer names these differently.
+  role  String?
+  email String?
+  phone String?
+
+  /// The one a quotation defaults to for this customer.
+  isPrimary Boolean @default(false)
+  isActive  Boolean @default(true)
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partyId])
+}
+
+/// What was actually sent, and whether it arrived at the server.
+///
+/// Kept because "did they get the quotation" is asked constantly and the
+/// honest answer needs a record. It says what reached the mail server, which
+/// is not the same as what reached the customer — no sending system can know
+/// the second — and the wording on screen says so.
+model EmailLog {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// What it was about: "quotation", "test", and whatever comes later.
+  kind     String
+  /// The document it belongs to, so a screen can list its own sends.
+  entity   String?
+  entityId String?
+
+  toAddresses String
+  ccAddresses String?
+  subject     String
+
+  sentAt   DateTime @default(now())
+  sentBy   String?
+  ok       Boolean  @default(false)
+  /// What the server said when it refused. Never contains the password.
+  error    String?
+  /// The id the mail server gave it, for tracing with IT.
+  messageId String?
+
+  @@index([companyId])
+  @@index([entity, entityId])
 }
