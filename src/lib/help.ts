@@ -418,6 +418,20 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "Nothing here can be edited. A correction is a new movement, usually an adjustment, so the history still explains itself a year later.",
   },
   {
+    id: "stores-calibration", category: "Stores", screens: ["/inventory/equipment"],
+    title: "Equipment and calibration",
+    summary: "Every tool with a serial number, and whether its certificate is still good.",
+    body: "This register is for individuals rather than quantities. Five hundred metres of cable is a quantity and belongs in stock; a torque wrench is one specific thing with its own history and its own certificate, and the question asked of it is not how many but whether this one can still be trusted. The moment a certificate expires the tool is blocked from use, and nobody has to do anything for that to happen. A reading taken with an instrument whose certificate lapsed last month is not a reading, it is a number, and the difference only shows up when a client's inspector asks to see the paperwork.",
+    steps: [
+      "Open Stores -> Equipment and add each tool that carries a serial number.",
+      "Tick the certificate box for anything that needs calibrating. A shovel does not; a torque wrench does.",
+      "Click Calibrate when it comes back from the lab. Record the date it was done, the result, and the certificate number.",
+      "The expiry is worked out from the calibration date, not from today, so the postal delay does not quietly extend it.",
+      "Read the sentence at the top. It leads with anything already out of calibration, then anything never calibrated, then what lapses soonest.",
+    ],
+    tip: "Equipment away at the lab, under repair or withdrawn is blocked too, whatever its certificate says. Where it is beats what the paperwork says.",
+  },
+  {
     id: "stores-inspection", category: "Stores", screens: ["/inventory/movements"],
     title: "Inspecting a delivery before it can be used",
     summary: "Material that has to pass QA/QC arrives on the shelf but is not free to issue until somebody has looked at it.",

@@ -49,7 +49,7 @@ const MODULE_SCREENS = {
   users: ["users.list", "users.access"],
   inventory: [
     "inventory.items", "inventory.stock", "inventory.movements", "inventory.stores",
-    "inventory.requests", "inventory.orders",
+    "inventory.requests", "inventory.orders", "inventory.equipment",
   ],
   crm: ["crm.leads"],
   projects: ["projects.list"],

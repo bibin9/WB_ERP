@@ -30,6 +30,7 @@ const SCREEN_FILES = {
   "inventory.stores": "src/app/(app)/inventory/stores/page.tsx",
   "inventory.requests": "src/app/(app)/inventory/requests/page.tsx",
   "inventory.orders": "src/app/(app)/inventory/orders/page.tsx",
+  "inventory.equipment": "src/app/(app)/inventory/equipment/page.tsx",
 };
 
 for (const [key, file] of Object.entries(SCREEN_FILES)) {
@@ -125,6 +126,7 @@ ok("nor quietly turned into a non-stocked one",
 const help = read("src/lib/help.ts");
 for (const id of [
   "stores-items", "stores-stock", "stores-movements", "stores-material-on-jobs", "stores-inspection",
+  "stores-calibration",
 ]) {
   ok(`there is help for ${id}`, new RegExp(`id: "${id}"`).test(help));
 }
@@ -211,6 +213,26 @@ ok("the help says how material reaches a job",
     "on the shelf and free to use are two different questions");
   ok("  and the issue check reads usable rather than present",
     /balance\.usable/.test(stockLib));
+
+  // INV-12 and INV-13: calibration, and the block once it expires.
+  const equipment = read("src/app/(app)/inventory/equipment/page.tsx");
+  const calLib = read("src/lib/calibration.ts");
+  ok("INV-12 a calibration can be recorded against the equipment",
+    /<CalibrationForm/.test(equipment));
+  ok("  with the certificate running from the calibration date",
+    /expiryFrom/.test(read("src/components/inventory/CalibrationForm.tsx")),
+    "counting from today would extend every certificate by the postal delay");
+  ok("INV-13 the block is worked out, never stored",
+    /never stored/.test(calLib) && !/isBlocked|blocked Boolean/.test(calLib),
+    "a flag is wrong on exactly the day it matters");
+  ok("  and the screen says so", /never read\s+from a stored flag/.test(equipment));
+
+  // INV-17: minimum stock and calibration alerts.
+  ok("INV-17 the register leads with what has expired",
+    /out of calibration/.test(equipment));
+  ok("  and warns about what lapses soon", /Due within/.test(equipment));
+  ok("  using the same warning window as the rest of the system",
+    /expiryWarningDays/.test(equipment));
 
   // INV-15: transfers move stock without changing ownership.
   ok("INV-15 a transfer between our stores posts nothing",

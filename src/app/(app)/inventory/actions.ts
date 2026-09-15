@@ -7,6 +7,7 @@ import { allow } from "@/lib/guard";
 import { audit } from "@/lib/audit";
 import { money } from "@/lib/money";
 import { recordMovement, transferStock, inspectReceipt } from "@/lib/stock-posting";
+import { EQUIPMENT_STATUSES, CALIBRATION_RESULTS, expiryFrom } from "@/lib/calibration";
 import { createRequest, createOrder, submitOrder, cancelOrder, receiveAgainstOrder } from "@/lib/purchase-posting";
 
 /**
@@ -434,5 +435,141 @@ export async function recordInspection(formData: FormData): Promise<Result> {
   });
   revalidatePath("/inventory/movements");
   revalidatePath("/inventory/stock");
+  return { ok: true };
+}
+
+
+/* ================================ equipment and calibration (INV-12/13) == */
+
+export async function saveEquipment(formData: FormData): Promise<Result> {
+  const id = str(formData, "id");
+  const editing = !!id;
+  if (!(await allow("inventory.equipment", editing ? "edit" : "create"))) return { ok: false, error: "Not authorised" };
+
+  const companyId = editing
+    ? (await db.equipment.findUnique({ where: { id } }))?.companyId ?? ""
+    : str(formData, "companyId");
+  const session = await scoped(companyId);
+  if (!session) return { ok: false, error: "No access to this company" };
+
+  const serialNo = str(formData, "serialNo", 80);
+  const description = str(formData, "description", 200);
+  if (!serialNo) return { ok: false, error: "Enter the serial number. It is what tells one wrench from another." };
+  if (!description) return { ok: false, error: "Enter what it is." };
+
+  const clash = await db.equipment.findFirst({ where: { companyId, serialNo, ...(editing ? { NOT: { id } } : {}) } });
+  if (clash) return { ok: false, error: `${serialNo} is already on the register as ${clash.description}.` };
+
+  const status = str(formData, "status");
+  if (!(EQUIPMENT_STATUSES as readonly string[]).includes(status)) {
+    return { ok: false, error: "Choose a status." };
+  }
+  const jobId = orNull(formData, "jobId");
+  if (jobId && !(await db.job.findFirst({ where: { id: jobId, companyId } }))) {
+    return { ok: false, error: "That job is not in this company." };
+  }
+  const storeId = orNull(formData, "storeId");
+  if (storeId && !(await db.store.findFirst({ where: { id: storeId, companyId } }))) {
+    return { ok: false, error: "That store is not in this company." };
+  }
+
+  const months = Math.round(num(formData, "calibrationMonths"));
+  const data = {
+    serialNo,
+    description,
+    category: orNull(formData, "category", 80),
+    manufacturer: orNull(formData, "manufacturer", 120),
+    model: orNull(formData, "model", 120),
+    status,
+    requiresCalibration: str(formData, "requiresCalibration") === "on",
+    calibrationMonths: months >= 1 && months <= 120 ? months : 12,
+    storeId,
+    jobId,
+    heldBy: orNull(formData, "heldBy", 120),
+    notes: orNull(formData, "notes", 500),
+    isActive: editing ? str(formData, "isActive") === "on" : true,
+  };
+
+  if (editing) {
+    await db.equipment.update({ where: { id }, data });
+    await audit({ action: "Updated", entity: "Equipment", entityId: id, summary: `Updated equipment ${serialNo}` });
+  } else {
+    const created = await db.equipment.create({ data: { companyId, ...data } });
+    await audit({ action: "Created", entity: "Equipment", entityId: created.id, summary: `Added equipment ${serialNo} — ${description}` });
+  }
+  revalidatePath("/inventory/equipment");
+  return { ok: true };
+}
+
+/**
+ * Record a calibration (INV-12).
+ *
+ * Nothing is posted. What the lab charged arrives on their invoice like any
+ * other service; this is the certificate, not the money.
+ *
+ * The expiry is computed from the calibration date rather than from today,
+ * because a certificate for work done last week runs from when the work was
+ * done. Counting from today would extend every certificate by however long the
+ * paperwork took to come back.
+ */
+export async function saveCalibration(formData: FormData): Promise<Result> {
+  if (!(await allow("inventory.equipment", "edit"))) return { ok: false, error: "Not authorised" };
+  const equipmentId = str(formData, "equipmentId");
+  const equipment = await db.equipment.findUnique({ where: { id: equipmentId } });
+  if (!equipment) return { ok: false, error: "Not found" };
+  const session = await scoped(equipment.companyId);
+  if (!session) return { ok: false, error: "No access" };
+
+  if (!equipment.requiresCalibration) {
+    return {
+      ok: false,
+      error: `${equipment.serialNo} is not set to carry a certificate, so there is nothing to calibrate. Turn that on first if it should.`,
+    };
+  }
+
+  const result = str(formData, "result");
+  if (!(CALIBRATION_RESULTS as readonly string[]).includes(result)) {
+    return { ok: false, error: "Say whether it passed or failed." };
+  }
+  const calibratedOn = str(formData, "calibratedOn", 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(calibratedOn)) return { ok: false, error: "Enter the date it was calibrated." };
+
+  // A date in the future would hand out a certificate that has not happened.
+  const when = new Date(calibratedOn + "T00:00:00.000Z");
+  if (when.getTime() > Date.now() + 86_400_000) {
+    return { ok: false, error: "That date is in the future. A certificate cannot start before the work was done." };
+  }
+
+  const months = Math.round(num(formData, "months")) || equipment.calibrationMonths || 12;
+  const validTo = result === "Passed" ? expiryFrom(calibratedOn, months) : null;
+
+  await db.calibrationRecord.create({
+    data: {
+      equipmentId,
+      calibratedOn: when,
+      result,
+      validTo,
+      certificateNo: orNull(formData, "certificateNo", 80),
+      calibratedBy: orNull(formData, "calibratedBy", 120),
+      notes: orNull(formData, "notes", 500),
+      recordedBy: session.user.name,
+    },
+  });
+
+  // Back in service once it has been calibrated, wherever it was before. A
+  // failure leaves it blocked by the result rather than by the status.
+  if (equipment.status === "Out for calibration") {
+    await db.equipment.update({ where: { id: equipmentId }, data: { status: "In service" } });
+  }
+
+  await audit({
+    action: "Created",
+    entity: "Equipment",
+    entityId: equipmentId,
+    summary:
+      `${result} calibration for ${equipment.serialNo}` +
+      (validTo ? `, valid to ${validTo.toISOString().slice(0, 10)}` : ""),
+  });
+  revalidatePath("/inventory/equipment");
   return { ok: true };
 }

@@ -77,6 +77,7 @@ export const SCREENS: ScreenDef[] = [
   { key: "inventory.movements", module: "inventory", label: "Receive & Issue", href: "/inventory/movements" },
   { key: "inventory.requests", module: "inventory", label: "Material Requests", href: "/inventory/requests" },
   { key: "inventory.orders", module: "inventory", label: "Purchase Orders", href: "/inventory/orders" },
+  { key: "inventory.equipment", module: "inventory", label: "Equipment & Calibration", href: "/inventory/equipment" },
   { key: "inventory.stores", module: "inventory", label: "Stores", href: "/inventory/stores" },
 
   { key: "crm.leads", module: "crm", label: "CRM & Estimation", href: "/crm" },

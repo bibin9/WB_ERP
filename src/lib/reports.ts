@@ -2,7 +2,7 @@ import {
   Scale, FileBarChart, Clock, HardHat, Building2, Receipt, Percent,
   ShieldAlert, BadgeCheck, Wallet, CalendarCheck, Banknote, Lock, Landmark,
   BookOpen, ScrollText, Users, TrendingUp, Timer, AlarmClock, UsersRound, HandCoins, ClipboardList,
-  Boxes, type LucideIcon,
+  Boxes, Wrench, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -69,6 +69,11 @@ export const REPORTS: ReportDef[] = [
     key: "retention", label: "Retention Register", href: "/finance/retention",
     screen: "finance.retention", module: "finance", area: "Money coming in and going out",
     question: "How much of our money is being held back, and when is it released?", icon: Lock,
+  },
+  {
+    key: "calibration", label: "Equipment & Calibration", href: "/inventory/equipment",
+    screen: "inventory.equipment", module: "inventory", area: "Records",
+    question: "Which tools are out of calibration, and which lapse next month?", icon: Wrench,
   },
   {
     key: "stock", label: "Stock on Hand", href: "/inventory/stock",

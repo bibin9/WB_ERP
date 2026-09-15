@@ -32,12 +32,12 @@ inferred.
 | INV-09 | Bid comparison sheets, PO from the chosen quotation | Should | Not started |
 | INV-10 | Goods receipt on delivery | Must | **Done** |
 | INV-11 | QA/QC inspection; accepted stored, rejected flagged for return | Must | **Done** |
-| INV-12 | Calibration: identify, send, track, record results | Must | Not started |
-| INV-13 | Lock serialised equipment once calibration expires | Must | Not started |
+| INV-12 | Calibration: identify, send, track, record results | Must | **Done** |
+| INV-13 | Lock serialised equipment once calibration expires | Must | **Done** — derived, never a stored flag |
 | INV-14 | Plant/site, storage locations, zones, bins by material type | Must | Partly — stores exist, no zones or bins |
 | INV-15 | Internal movements and transfers without changing ownership | Must | **Done** — a transfer posts nothing |
 | INV-16 | Material Return Note; reusable or scrap | Must | Partly — returns exist, no note or flag |
-| INV-17 | Minimum stock and calibration alerts | Must | Partly — reorder level done |
+| INV-17 | Minimum stock and calibration alerts | Must | **Done** |
 | INV-18 | Cycle counts and physical stock audits | Should | Partly — adjustments exist |
 | INV-19 | Maintenance work orders for power tools | Should | Not started |
 | INV-20 | Vendor self-service registration with compliance checks | Should | Not started |

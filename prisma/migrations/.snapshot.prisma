@@ -129,6 +129,7 @@ model Company {
   Invoice             Invoice[]
   materialRequests    MaterialRequest[]
   purchaseOrders      PurchaseOrder[]
+  Equipment           Equipment[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -1275,6 +1276,7 @@ model Item {
   updatedAt    DateTime              @updatedAt
   requestLines MaterialRequestLine[]
   orderLines   PurchaseOrderLine[]
+  Equipment    Equipment[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1302,6 +1304,7 @@ model Store {
   createdAt        DateTime          @default(now())
   materialRequests MaterialRequest[]
   purchaseOrders   PurchaseOrder[]
+  Equipment        Equipment[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1526,6 +1529,86 @@ model PurchaseOrderLine {
   @@index([itemId])
 }
 
+/// One physical tool or instrument, with a serial number and a history.
+///
+/// This is what separates it from stock. Five hundred metres of cable is a
+/// quantity; a torque wrench is an individual, and the question asked of it is
+/// not "how many" but "is this one still trustworthy".
+model Equipment {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  serialNo     String
+  description  String
+  /// Where it came from in the catalogue, when it was bought as an item.
+  itemId       String?
+  item         Item?   @relation(fields: [itemId], references: [id])
+  category     String?
+  manufacturer String?
+  model        String?
+
+  /// In service | Out for calibration | Under repair | Withdrawn
+  status String @default("In service")
+
+  /// Whether it carries a certificate at all. A shovel does not.
+  requiresCalibration Boolean @default(true)
+  /// How long a certificate runs, in months. Offered when recording one.
+  calibrationMonths   Int     @default(12)
+
+  /// Where it normally lives, and who has it now.
+  storeId String?
+  store   Store?  @relation(fields: [storeId], references: [id])
+  jobId   String?
+  job     Job?    @relation(fields: [jobId], references: [id])
+  heldBy  String?
+
+  notes        String?
+  calibrations CalibrationRecord[]
+  isActive     Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@unique([companyId, serialNo])
+  @@index([companyId])
+  @@index([status])
+  @@index([itemId])
+}
+
+/// One calibration, passed or failed.
+///
+/// Whether the equipment is usable is worked out from the most recent of these
+/// every time it is asked for, and is never stored on the equipment itself. A
+/// flag somebody has to set when a date passes is wrong on exactly the day it
+/// matters, because nobody sets a flag on a Friday for a certificate that
+/// lapses on Saturday.
+model CalibrationRecord {
+  id          String    @id @default(cuid())
+  equipmentId String
+  equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  /// When the calibration was actually done. The certificate runs from here,
+  /// not from the day the paperwork arrived.
+  calibratedOn DateTime
+  /// Passed | Failed
+  result       String
+  validTo      DateTime?
+
+  certificateNo String?
+  /// The lab, or our own name where it was done in-house.
+  calibratedBy  String?
+  /// What it cost, for the record. The money itself arrives on the supplier's
+  /// invoice like any other service.
+  cost          Float?
+
+  notes      String?
+  recordedBy String?
+  createdAt  DateTime @default(now())
+
+  @@index([equipmentId])
+  @@index([validTo])
+}
+
 model Cheque {
   id          String        @id @default(cuid())
   companyId   String
@@ -1609,6 +1692,7 @@ model Job {
   materialRequests   MaterialRequest[]
   purchaseOrders     PurchaseOrder[]
   purchaseOrderLines PurchaseOrderLine[]
+  Equipment          Equipment[]
 
   @@unique([companyId, code])
   @@index([companyId])
