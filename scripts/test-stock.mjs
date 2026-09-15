@@ -150,6 +150,65 @@ ok("nil quantity is always nil value",
   ok("issuing a negative is refused", checkIssue(-5, b, "conduit").ok === false);
 }
 
+/* ====================== on the shelf is not the same as usable (INV-11) == */
+
+/**
+ * The distinction the whole inspection rule turns on. Material waiting on
+ * QA/QC is on the shelf and owned by the company, so it counts in the balance
+ * and the ledger agrees. It is not free to use, and conflating the two is how
+ * uncertified material gets welded into a line.
+ */
+const insp = (qty, cost, outcome) => ({ kind: "Receipt", ...priceReceipt(qty, cost), inspection: outcome });
+
+{
+  const b = balanceOf([insp(100, 10, "Pending")]);
+  ok("material awaiting inspection is on the shelf", b.quantity === 100);
+  ok("  and in the stock value, because the company owns it", b.value === 1000);
+  ok("  but none of it is usable", b.usable === 0);
+  ok("  and it is counted as waiting", b.awaitingInspection === 100);
+}
+{
+  const b = balanceOf([insp(100, 10, "Accepted")]);
+  ok("material that passed is usable", b.usable === 100 && b.awaitingInspection === 0);
+}
+{
+  const b = balanceOf([insp(100, 10, "Rejected")]);
+  ok("material that failed stays on the shelf", b.quantity === 100 && b.value === 1000,
+    "it is still ours until it physically goes back");
+  ok("  and is never usable", b.usable === 0);
+  ok("  counted separately from the ones still waiting", b.rejected === 100 && b.awaitingInspection === 0);
+}
+{
+  const b = balanceOf([receipt(50, 10)]);
+  ok("an item that needs no inspection is usable on arrival", b.usable === 50,
+    "not everything needs a QA/QC gate");
+}
+{
+  const b = balanceOf([insp(100, 10, "Accepted"), insp(60, 10, "Pending"), insp(40, 10, "Rejected")]);
+  ok("a mixed shelf reports all three", b.quantity === 200 && b.usable === 100);
+  ok("  waiting and rejected add up to what is held back",
+    b.awaitingInspection + b.rejected === 100);
+}
+
+/* ---------------------------------- and the issue check reads usable ---- */
+{
+  const b = balanceOf([insp(200, 10, "Pending")]);
+  const r = checkIssue(50, b, "16mm cable");
+  ok("nothing can be issued from an uninspected delivery", r.ok === false);
+  ok("  and the refusal explains the shelf is not empty",
+    /There is more on the shelf/.test(r.error), r.error);
+  ok("  naming what is waiting on inspection",
+    /200 waiting on inspection/.test(r.error), r.error);
+}
+{
+  const b = balanceOf([insp(100, 10, "Accepted"), insp(100, 10, "Rejected")]);
+  const r = checkIssue(150, b, "cable");
+  ok("issuing beyond what passed is refused", r.ok === false);
+  ok("  saying how much can actually be issued", /Only 100 of cable can be issued/.test(r.error), r.error);
+  ok("  and why the rest cannot", /rejected and due back to the supplier/.test(r.error), r.error);
+  ok("issuing what passed is allowed", checkIssue(100, b, "cable").ok === true);
+}
+
 /* ======================================================== the reporting == */
 
 const item = (o) => ({

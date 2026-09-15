@@ -8,13 +8,14 @@ import PrintReport from "@/components/finance/PrintReport";
 import SearchBox from "@/components/SearchBox";
 import Pager from "@/components/Pager";
 import MovementForm from "@/components/inventory/MovementForm";
+import InspectDelivery from "@/components/inventory/InspectDelivery";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { money } from "@/lib/money";
 import { readPaging, pageInfo } from "@/lib/paging";
 import { readSearch, matchAny } from "@/lib/search";
-import { balanceOf, isInward, MOVEMENT_HELP } from "@/lib/stock";
+import { balanceOf, isInward, MOVEMENT_HELP, INSPECTION_HELP } from "@/lib/stock";
 
 export const dynamic = "force-dynamic";
 
@@ -93,7 +94,7 @@ export default async function MovementsPage({
   if (companyId) {
     const all = await db.stockMovement.findMany({
       where: { companyId },
-      select: { itemId: true, storeId: true, kind: true, quantity: true, value: true },
+      select: { itemId: true, storeId: true, kind: true, quantity: true, value: true, inspection: true },
     });
     const grouped = new Map<string, { kind: string; quantity: number; value: number }[]>();
     for (const m of all) {
@@ -160,13 +161,14 @@ export default async function MovementsPage({
               <th className="px-4 py-2.5 text-right font-medium">Unit cost</th>
               <th className="px-4 py-2.5 text-right font-medium">Value</th>
               <th className="px-4 py-2.5 font-medium">Job / supplier</th>
+              <th className="px-4 py-2.5 font-medium">QA/QC</th>
               <th className="px-4 py-2.5 font-medium">Reference</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {movements.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-10 text-center text-muted">
+                <td colSpan={10} className="px-4 py-10 text-center text-muted">
                   {total === 0 && !term
                     ? "Nothing has moved yet. Record a delivery when material arrives."
                     : "Nothing matches."}
@@ -201,6 +203,34 @@ export default async function MovementsPage({
                   <td className="px-4 py-2.5 text-xs text-muted">
                     {m.job ? m.job.code : m.party ? m.party.name : "—"}
                   </td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-xs">
+                    {m.inspection ? (
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          title={INSPECTION_HELP[m.inspection]}
+                          className={`rounded px-1.5 py-0.5 ${
+                            m.inspection === "Accepted"
+                              ? "bg-brand-green/10 text-brand-green-700"
+                              : m.inspection === "Rejected"
+                                ? "bg-red-50 text-red-600"
+                                : "bg-brand-gold/10 text-brand-gold"
+                          }`}
+                        >
+                          {m.inspection}
+                        </span>
+                        {m.inspection === "Pending" && (
+                          <InspectDelivery
+                            movementId={m.id}
+                            label={`${m.item.code} — ${m.item.name} on ${m.reference}`}
+                            quantity={m.quantity}
+                            unitCode={m.item.unitCode}
+                          />
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted/60">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-2.5 text-xs">
                     <span className="font-mono text-heading">{m.reference}</span>
                     <div className="text-muted">
@@ -223,7 +253,8 @@ export default async function MovementsPage({
       <div className="mt-6 flex items-start gap-2 text-xs text-muted">
         <PackagePlus className="mt-0.5 h-4 w-4 shrink-0" />
         <p className="max-w-3xl">
-          Material arriving is an asset, not a cost. It becomes a cost on the day it is issued to a job, which is why
+          Material that has to pass QA/QC arrives on the shelf but is not free to use until somebody has looked at
+          it, so the issue check reads what is usable rather than what is present. Material arriving is an asset, not a cost. It becomes a cost on the day it is issued to a job, which is why
           an issue has to name one. A transfer between our own stores posts nothing at all: it changes where the stock
           is, not what the company owns. Nothing here can be edited — a correction is a new movement, so the history
           still explains itself.

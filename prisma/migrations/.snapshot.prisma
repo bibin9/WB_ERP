@@ -1255,13 +1255,19 @@ model Item {
   unitCode    String  @default("EA")
 
   /// Whether stock is tracked for it at all.
-  isStocked    Boolean @default(true)
+  isStocked          Boolean @default(true)
+  /// Whether QA/QC has to pass it before it can be issued (INV-11).
+  ///
+  /// Not everything needs inspecting. Gland nuts do not; a batch of bolts for
+  /// a pressure joint does, and issuing those before anybody looked at them is
+  /// how uncertified material ends up welded into a line.
+  requiresInspection Boolean @default(false)
   /// Chase it when the balance reaches this. Nought means nobody set one, and
   /// is never treated as "order immediately".
-  reorderLevel Float   @default(0)
+  reorderLevel       Float   @default(0)
   /// For estimating and for pricing a first receipt. Never used to value
   /// stock — valuation comes from what was actually paid.
-  standardCost Float   @default(0)
+  standardCost       Float   @default(0)
 
   isActive     Boolean               @default(true)
   movements    StockMovement[]
@@ -1340,6 +1346,16 @@ model StockMovement {
   /// The supplier a receipt came from.
   partyId String?
   party   Party?  @relation(fields: [partyId], references: [id])
+
+  /// QA/QC on a receipt (INV-11): Pending | Accepted | Rejected.
+  ///
+  /// Null where inspection does not apply. Material awaiting inspection is on
+  /// the shelf and owned, so it counts in the balance — but it is not usable,
+  /// and the issue check reads the usable figure rather than the total.
+  inspection     String?
+  inspectedBy    String?
+  inspectedAt    DateTime?
+  inspectionNote String?
 
   /// Delivery note, issue note, or the count sheet behind an adjustment.
   reference String

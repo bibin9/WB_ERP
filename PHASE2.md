@@ -21,17 +21,17 @@ inferred.
 
 | Ref | Requirement | Priority | State |
 |---|---|---|---|
-| INV-01 | Material request linked to the project | Must | Engine built, no screen |
-| INV-02 | Check stock and flag shortages against the request | Must | **Next** |
-| INV-03 | MR approval: Site In-Charge → Project Manager → Procurement | Must | **Next** |
-| INV-04 | Approved MR triggers purchase or internal allocation | Must | Partly — an order can cite a request |
-| INV-05 | Convert MR to PO; RFQ to vendors | Must | PO done, RFQ not started |
+| INV-01 | Material request linked to the project | Must | **Done** |
+| INV-02 | Check stock and flag shortages against the request | Must | **Done** |
+| INV-03 | MR approval: Site In-Charge → Project Manager → Procurement | Must | **Done** |
+| INV-04 | Approved MR triggers purchase or internal allocation | Must | **Done** — its lines carry across |
+| INV-05 | Convert MR to PO; RFQ to vendors | Must | PO **done**; RFQ not started |
 | INV-06 | Vendor selection on price, lead time, past performance, min three | Must | Not started |
 | INV-07 | Repeat purchases without re-bidding | Should | Not started |
 | INV-08 | PO approval PM → OM → Director → MD | Must | **Done**, using the seeded route |
 | INV-09 | Bid comparison sheets, PO from the chosen quotation | Should | Not started |
 | INV-10 | Goods receipt on delivery | Must | **Done** |
-| INV-11 | QA/QC inspection; accepted stored, rejected flagged for return | Must | Not started |
+| INV-11 | QA/QC inspection; accepted stored, rejected flagged for return | Must | **Done** |
 | INV-12 | Calibration: identify, send, track, record results | Must | Not started |
 | INV-13 | Lock serialised equipment once calibration expires | Must | Not started |
 | INV-14 | Plant/site, storage locations, zones, bins by material type | Must | Partly — stores exist, no zones or bins |

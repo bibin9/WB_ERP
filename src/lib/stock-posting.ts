@@ -45,7 +45,7 @@ export type StockResult =
 export async function balanceFor(companyId: string, itemId: string, storeId: string): Promise<StockBalance> {
   const movements = await db.stockMovement.findMany({
     where: { companyId, itemId, storeId },
-    select: { kind: true, quantity: true, value: true },
+    select: { kind: true, quantity: true, value: true, inspection: true },
   });
   return balanceOf(movements);
 }
@@ -124,12 +124,17 @@ export async function recordMovement(input: MovementInput): Promise<StockResult>
     if (priced.quantity <= 0) return { ok: false, error: "Enter how much arrived." };
   }
 
+  // INV-11: material that has to be inspected arrives on the shelf but is not
+  // free to use until somebody has looked at it.
+  const inspection = kind === "Receipt" && item.requiresInspection ? "Pending" : null;
+
   const row = await db.stockMovement.create({
     data: {
       companyId: input.companyId,
       itemId: item.id,
       storeId: store.id,
       kind,
+      inspection,
       date: new Date(input.date + "T00:00:00.000Z"),
       quantity: priced.quantity,
       unitCost: priced.unitCost,
@@ -232,4 +237,86 @@ export async function transferStock(
     return arrival;
   }
   return { ok: true, out: out.movementId, in: arrival.movementId };
+}
+
+
+/* ================================================ QA/QC inspection ====== */
+
+export type InspectionInput = {
+  movementId: string;
+  inspectedBy: string;
+  outcome: "Accepted" | "Rejected";
+  note?: string | null;
+};
+
+/**
+ * Pass or fail a delivery (INV-11).
+ *
+ * Nothing is posted either way. The material is already on the shelf and
+ * already owned — the inspection decides whether it can be used, which is a
+ * different question from whether it is there. Rejected material stays exactly
+ * where it is and stays in the stock value, because it is still the company's
+ * until it physically goes back, and a return to the supplier is the movement
+ * that takes it away.
+ *
+ * An inspection is never revised. Changing a pass to a fail after material has
+ * been issued would rewrite a decision somebody acted on, so it is recorded
+ * once and corrected, if at all, by a fresh look at fresh material.
+ */
+export async function inspectReceipt(input: InspectionInput): Promise<StockResult> {
+  const movement = await db.stockMovement.findUnique({
+    where: { id: input.movementId },
+    include: { item: true },
+  });
+  if (!movement) return { ok: false, error: "That delivery was not found." };
+  if (movement.kind !== "Receipt") {
+    return { ok: false, error: "Only a delivery can be inspected." };
+  }
+  if (!movement.inspection) {
+    return {
+      ok: false,
+      error: `${movement.item.name} is not set to need inspection, so there is nothing to pass or fail. Turn that on for the item first.`,
+    };
+  }
+  if (movement.inspection !== "Pending") {
+    return {
+      ok: false,
+      error: `This delivery was already ${movement.inspection.toLowerCase()}${movement.inspectedBy ? ` by ${movement.inspectedBy}` : ""}. An inspection is recorded once.`,
+    };
+  }
+  if (input.outcome !== "Accepted" && input.outcome !== "Rejected") {
+    return { ok: false, error: "Say whether it passed or failed." };
+  }
+
+  await db.stockMovement.update({
+    where: { id: movement.id },
+    data: {
+      inspection: input.outcome,
+      inspectedBy: input.inspectedBy,
+      inspectedAt: new Date(),
+      inspectionNote: input.note ?? null,
+    },
+  });
+
+  return {
+    ok: true,
+    movementId: movement.id,
+    entryId: movement.entryId,
+    reference: null,
+    unitCost: movement.unitCost,
+    value: movement.value,
+  };
+}
+
+/** Deliveries still waiting on QA/QC. */
+export async function awaitingInspection(companyId: string) {
+  return db.stockMovement.findMany({
+    where: { companyId, kind: "Receipt", inspection: "Pending" },
+    include: {
+      item: { select: { code: true, name: true, unitCode: true } },
+      store: { select: { code: true, name: true } },
+      party: { select: { name: true } },
+    },
+    orderBy: { date: "asc" },
+  });
 }

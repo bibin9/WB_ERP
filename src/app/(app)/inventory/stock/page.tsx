@@ -53,7 +53,7 @@ export default async function StockPage({
         include: {
           movements: {
             where: storeFilter ? { storeId: storeFilter } : {},
-            select: { kind: true, quantity: true, value: true },
+            select: { kind: true, quantity: true, value: true, inspection: true },
           },
         },
         orderBy: { code: "asc" },
@@ -176,6 +176,7 @@ export default async function StockPage({
               <th className="px-4 py-2.5 font-medium">Item</th>
               <th className="px-4 py-2.5 font-medium">Category</th>
               <th className="px-4 py-2.5 text-right font-medium">On hand</th>
+              <th className="px-4 py-2.5 text-right font-medium">Free to issue</th>
               <th className="px-4 py-2.5 font-medium">Unit</th>
               <th className="px-4 py-2.5 text-right font-medium">Average cost</th>
               <th className="px-4 py-2.5 text-right font-medium">Value</th>
@@ -185,7 +186,7 @@ export default async function StockPage({
           <tbody className="divide-y divide-line">
             {shown.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-muted">
+                <td colSpan={9} className="px-4 py-10 text-center text-muted">
                   {rows.length === 0
                     ? "No stocked items yet. Add what you buy and keep, then record what arrives."
                     : "Nothing on any shelf. Show empty to see the items that are set up."}
@@ -206,6 +207,18 @@ export default async function StockPage({
                     }`}
                   >
                     {r.balance.quantity.toLocaleString()}
+                  </td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">
+                    {r.balance.usable === r.balance.quantity ? (
+                      <span className="text-muted">all of it</span>
+                    ) : (
+                      <span
+                        className="font-medium text-brand-gold"
+                        title={`${r.balance.awaitingInspection.toLocaleString()} waiting on QA/QC, ${r.balance.rejected.toLocaleString()} rejected`}
+                      >
+                        {r.balance.usable.toLocaleString()}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-xs text-muted">{r.unitCode}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-muted">

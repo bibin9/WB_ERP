@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth";
 import { allow } from "@/lib/guard";
 import { audit } from "@/lib/audit";
 import { money } from "@/lib/money";
-import { recordMovement, transferStock } from "@/lib/stock-posting";
+import { recordMovement, transferStock, inspectReceipt } from "@/lib/stock-posting";
 import { createRequest, createOrder, submitOrder, cancelOrder, receiveAgainstOrder } from "@/lib/purchase-posting";
 
 /**
@@ -403,5 +403,36 @@ export async function receiveOrderLine(formData: FormData): Promise<Result> {
   revalidatePath("/inventory/orders");
   revalidatePath("/inventory/stock");
   revalidatePath("/inventory/movements");
+  return { ok: true };
+}
+
+
+/* ================================================ QA/QC inspection (INV-11) */
+
+export async function recordInspection(formData: FormData): Promise<Result> {
+  if (!(await allow("inventory.movements", "edit"))) return { ok: false, error: "Not authorised" };
+  const movementId = str(formData, "movementId");
+  const movement = await db.stockMovement.findUnique({ where: { id: movementId }, include: { item: true } });
+  if (!movement) return { ok: false, error: "Not found" };
+  const session = await scoped(movement.companyId);
+  if (!session) return { ok: false, error: "No access" };
+
+  const outcome = str(formData, "outcome") === "Rejected" ? "Rejected" : "Accepted";
+  const res = await inspectReceipt({
+    movementId,
+    inspectedBy: session.user.name,
+    outcome,
+    note: orNull(formData, "note", 500),
+  });
+  if (!res.ok) return res;
+
+  await audit({
+    action: "Updated",
+    entity: "StockMovement",
+    entityId: movementId,
+    summary: `${outcome} ${movement.quantity} ${movement.item.unitCode} of ${movement.item.code} on ${movement.reference}`,
+  });
+  revalidatePath("/inventory/movements");
+  revalidatePath("/inventory/stock");
   return { ok: true };
 }

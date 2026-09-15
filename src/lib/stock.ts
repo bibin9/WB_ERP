@@ -78,11 +78,21 @@ const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 /** Quantities carry more precision than money: 0.001 of a tonne is a kilogram. */
 const round3 = (n: number) => Math.round((Number(n) || 0) * 1000) / 1000;
 
+export const INSPECTION_STATES = ["Pending", "Accepted", "Rejected"] as const;
+
+export const INSPECTION_HELP: Record<string, string> = {
+  Pending: "On the shelf but not yet looked at. It cannot be issued until QA/QC passes it.",
+  Accepted: "Inspected and passed. Free to issue.",
+  Rejected: "Failed inspection. It stays on the shelf until it goes back to the supplier, and cannot be issued.",
+};
+
 export type MovementLike = {
   kind: string;
   quantity: number;
   /** The value of this movement, always positive; the kind decides the sign. */
   value: number;
+  /** QA/QC outcome on a receipt. Null where inspection does not apply. */
+  inspection?: string | null;
 };
 
 export type StockBalance = {
@@ -90,6 +100,21 @@ export type StockBalance = {
   value: number;
   /** Value divided by quantity, or nought when there is nothing on hand. */
   averageCost: number;
+  /**
+   * What can actually be issued (INV-11).
+   *
+   * Material waiting on QA/QC, and material QA/QC turned down, is on the shelf
+   * and owned by the company — so it is in `quantity` and in `value`, and the
+   * stock report and the ledger agree. It is not usable, and that is a
+   * different question from whether it is there.
+   *
+   * Conflating the two is how uncertified material gets welded into a line.
+   */
+  usable: number;
+  /** On the shelf, waiting on an inspector. */
+  awaitingInspection: number;
+  /** On the shelf, failed, and due back to the supplier. */
+  rejected: number;
 };
 
 /**
@@ -101,19 +126,37 @@ export type StockBalance = {
 export function balanceOf(movements: MovementLike[]): StockBalance {
   let quantity = 0;
   let value = 0;
+  let awaitingInspection = 0;
+  let rejected = 0;
+
   for (const m of movements) {
     const sign = direction(m.kind);
-    quantity += sign * (Number(m.quantity) || 0);
+    const q = Number(m.quantity) || 0;
+    quantity += sign * q;
     value += sign * (Number(m.value) || 0);
+
+    // Only a receipt carries an inspection outcome. A return to the supplier
+    // takes the failed material away again, and its own sign does that.
+    if (m.inspection === "Pending") awaitingInspection += sign * q;
+    else if (m.inspection === "Rejected") rejected += sign * q;
   }
   quantity = round3(quantity);
   value = round2(value);
+  awaitingInspection = round3(Math.max(0, awaitingInspection));
+  rejected = round3(Math.max(0, rejected));
 
   // Nothing on the shelf is worth nothing. Anything else is drift, and it is
   // better corrected here than left to be discovered on a stock report.
   if (quantity === 0) value = 0;
 
-  return { quantity, value, averageCost: quantity > 0 ? round2(value / quantity) : 0 };
+  return {
+    quantity,
+    value,
+    averageCost: quantity > 0 ? round2(value / quantity) : 0,
+    usable: round3(Math.max(0, quantity - awaitingInspection - rejected)),
+    awaitingInspection,
+    rejected,
+  };
 }
 
 export type PricedMovement = {
@@ -171,7 +214,26 @@ export function checkIssue(
   if (balance.quantity <= 0) {
     return { ok: false, error: `There is none of ${itemName} in this store. Receive it first, or issue from the store that has it.` };
   }
-  if (q > balance.quantity) {
+
+  /**
+   * Read against what is usable, not what is present (INV-11).
+   *
+   * Material on the shelf that QA/QC has not passed cannot be issued, and the
+   * refusal has to say why — otherwise somebody stares at a shelf holding two
+   * hundred metres of cable while the system insists there is none.
+   */
+  if (q > balance.usable) {
+    if (balance.awaitingInspection > 0 || balance.rejected > 0) {
+      const held: string[] = [];
+      if (balance.awaitingInspection > 0) held.push(`${balance.awaitingInspection.toLocaleString()} waiting on inspection`);
+      if (balance.rejected > 0) held.push(`${balance.rejected.toLocaleString()} rejected and due back to the supplier`);
+      return {
+        ok: false,
+        error:
+          `Only ${balance.usable.toLocaleString()} of ${itemName} can be issued. ` +
+          `There is more on the shelf — ${held.join(", ")} — but it is not free to use yet.`,
+      };
+    }
     return {
       ok: false,
       error: `Only ${balance.quantity.toLocaleString()} of ${itemName} is in this store. Issue that or less, or receive more first.`,

@@ -17,7 +17,7 @@ const libs = await importLibs([
   "stock-posting", "stock", "posting", "accounts", "financepolicy", "money", "db", "period", "vat",
 ]);
 const { db } = libs["db"];
-const { recordMovement, transferStock, balanceFor } = libs["stock-posting"];
+const { recordMovement, transferStock, balanceFor, inspectReceipt, awaitingInspection } = libs["stock-posting"];
 const { balanceOf } = libs["stock"];
 
 let pass = 0, fail = 0;
@@ -142,6 +142,76 @@ try {
     ok("  naming the store that does have it", /Receive it first/.test(r.error || ""), r.error);
   }
 
+  /* =============================== QA/QC before it can be used (INV-11) == */
+
+  {
+    const checked = await db.item.create({
+      data: {
+        companyId: co.id, code: `${tag}-BOLT`, name: "M20 bolts, pressure joint",
+        unitCode: "EA", requiresInspection: true,
+      },
+    });
+
+    const arrived = await move({ kind: "Receipt", itemId: checked.id, storeId: main.id, quantity: 500, unitCost: 2, partyId: supplier.id });
+    ok("a delivery of an item needing inspection is recorded", arrived.ok, arrived.ok ? "" : arrived.error);
+
+    const row = await db.stockMovement.findUnique({ where: { id: arrived.movementId } });
+    ok("  and starts as pending", row.inspection === "Pending");
+
+    const shelf = await balanceFor(co.id, checked.id, main.id);
+    ok("  it is on the shelf", shelf.quantity === 500);
+    ok("  and in the stock value, because the company owns it", shelf.value === 1000);
+    ok("  but none of it is free to issue", shelf.usable === 0,
+      "issuing uncertified bolts into a pressure joint is the failure this prevents");
+
+    const early = await move({ kind: "Issue", itemId: checked.id, storeId: main.id, quantity: 10, jobId: job.id });
+    ok("  so an issue is refused", early.ok === false);
+    ok("  and the refusal says the shelf is not empty",
+      /There is more on the shelf/.test(early.error || ""), early.error);
+
+    /* rejecting */
+    const bad = await move({ kind: "Receipt", itemId: checked.id, storeId: main.id, quantity: 100, unitCost: 2, partyId: supplier.id });
+    const failed = await inspectReceipt({ movementId: bad.movementId, inspectedBy: "qaqc", outcome: "Rejected", note: "No mill cert" });
+    ok("a delivery can be failed", failed.ok, failed.ok ? "" : failed.error);
+
+    const afterReject = await balanceFor(co.id, checked.id, main.id);
+    ok("  rejected material stays on the shelf", afterReject.quantity === 600,
+      "it is still ours until it physically goes back");
+    ok("  and is counted apart from what is merely waiting", afterReject.rejected === 100);
+    ok("  still nothing is usable", afterReject.usable === 0);
+
+    /* accepting */
+    const passed = await inspectReceipt({ movementId: arrived.movementId, inspectedBy: "qaqc", outcome: "Accepted", note: "Cert 4471" });
+    ok("a delivery can be passed", passed.ok, passed.ok ? "" : passed.error);
+
+    const afterAccept = await balanceFor(co.id, checked.id, main.id);
+    ok("  and then it is free to issue", afterAccept.usable === 500);
+    ok("  while the rejected hundred still is not", afterAccept.rejected === 100 && afterAccept.quantity === 600);
+
+    const out = await move({ kind: "Issue", itemId: checked.id, storeId: main.id, quantity: 500, jobId: job.id });
+    ok("  the passed material can now be issued", out.ok, out.ok ? "" : out.error);
+
+    /* an inspection is recorded once */
+    const again = await inspectReceipt({ movementId: arrived.movementId, inspectedBy: "qaqc", outcome: "Rejected" });
+    ok("an inspection cannot be revised", again.ok === false);
+    ok("  because somebody has already acted on it",
+      /recorded once/.test(again.error || ""), again.error);
+
+    /* and only where it applies */
+    // A throwaway item, so this does not disturb the quantities the transfer
+    // and reconciliation checks below are counting.
+    const plainItem = await db.item.create({
+      data: { companyId: co.id, code: `${tag}-NUT`, name: "Gland nut", unitCode: "EA" },
+    });
+    const plain = await move({ kind: "Receipt", itemId: plainItem.id, storeId: main.id, quantity: 1, unitCost: 1 });
+    const none = await inspectReceipt({ movementId: plain.movementId, inspectedBy: "qaqc", outcome: "Accepted" });
+    ok("an item that needs no inspection has nothing to pass", none.ok === false, none.error);
+
+    const waiting = await awaitingInspection(co.id);
+    ok("the list of deliveries waiting on QA/QC holds only pending ones",
+      waiting.every((w) => w.inspection === "Pending"), `${waiting.length} waiting`);
+  }
+
   /* ================================================ material coming back = */
   {
     const res = await move({ kind: "Return to store", itemId: item.id, storeId: main.id, quantity: 10, unitCost: 15, jobId: job.id });
@@ -221,11 +291,25 @@ try {
         if (l.code === "1200") inventoryNet += l.debit - l.credit;
       }
     }
-    const here = await balanceFor(co.id, item.id, main.id);
-    const there = await balanceFor(co.id, item.id, site.id);
+    /**
+     * Every item this suite touched, not one of them.
+     *
+     * Scoping it to the cable passed only while the cable was the only thing
+     * being moved. The moment a second item appeared the ledger covered it and
+     * the shelf side did not, and the check failed for a reason that had
+     * nothing to do with the code.
+     */
+    const touched = await db.stockMovement.findMany({
+      where: { companyId: co.id, reference: { startsWith: tag } },
+      select: { itemId: true, storeId: true },
+      distinct: ["itemId", "storeId"],
+    });
+    let shelves = 0;
+    for (const t of touched) shelves += (await balanceFor(co.id, t.itemId, t.storeId)).value;
+
     ok("what the ledger says inventory is worth is what is on the shelves",
-      Math.round(inventoryNet * 100) / 100 === Math.round((here.value + there.value) * 100) / 100,
-      `ledger ${Math.round(inventoryNet * 100) / 100} against shelves ${here.value + there.value}`);
+      Math.round(inventoryNet * 100) / 100 === Math.round(shelves * 100) / 100,
+      `ledger ${Math.round(inventoryNet * 100) / 100} against shelves ${Math.round(shelves * 100) / 100}`);
   }
 } finally {
   const rows = await db.stockMovement.findMany({

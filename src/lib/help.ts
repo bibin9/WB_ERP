@@ -418,6 +418,20 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "Nothing here can be edited. A correction is a new movement, usually an adjustment, so the history still explains itself a year later.",
   },
   {
+    id: "stores-inspection", category: "Stores", screens: ["/inventory/movements"],
+    title: "Inspecting a delivery before it can be used",
+    summary: "Material that has to pass QA/QC arrives on the shelf but is not free to issue until somebody has looked at it.",
+    body: "Not everything needs inspecting. Gland nuts do not; a batch of bolts for a pressure joint does. Tick 'needs QA/QC inspection' on the item and every delivery of it arrives as Pending. It is on the shelf and it is in your stock value, because you own it the moment it arrives. What it is not is free to use, and those are two different questions. Issuing uncertified material into the work is exactly what this prevents.",
+    steps: [
+      "Turn on inspection for the items that need it, on Stores -> Items.",
+      "When a delivery arrives it shows as Pending in the QA/QC column.",
+      "Click Inspect, say whether it passed or failed, and record the certificate number in the notes.",
+      "Passed material becomes free to issue straight away.",
+      "Failed material stays on the shelf and stays in your stock value, because it is still yours until it physically goes back. Record a return to the supplier when it does.",
+    ],
+    tip: "An inspection is recorded once. Changing a pass to a fail afterwards would rewrite a decision somebody has already acted on, so the answer to a mistake is a fresh look at fresh material.",
+  },
+  {
     id: "stores-material-on-jobs", category: "Stores", screens: ["/inventory/movements"],
     title: "How material reaches a job",
     summary: "Issuing from the store is what puts material cost on a contract.",
