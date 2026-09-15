@@ -96,8 +96,20 @@ export default function MovementForm({
           </button>
         </div>
 
+        {/*
+          onSubmit rather than action, because React resets a form with an
+          action prop once the action resolves — including when it was refused.
+          Every select here is controlled, so the reset put the DOM back to its
+          defaults while the state driving the helper text kept the old values:
+          a storeman who tried to issue more than was free to use got the right
+          refusal above a form that had lost his item, store, bin and job, and
+          still said "that bin holds 181" about an item no longer chosen.
+          Losing his typing on a refusal is bad; contradicting itself is worse.
+        */}
         <form
-          action={async (fd) => {
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.currentTarget);
             setError("");
             setSaving(true);
             const res = await saveMovement(fd);
