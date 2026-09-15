@@ -7,7 +7,12 @@ import { allow } from "@/lib/guard";
 import { audit } from "@/lib/audit";
 import { money } from "@/lib/money";
 import { recordMovement, transferStock, inspectReceipt, postReturn } from "@/lib/stock-posting";
-import { EQUIPMENT_STATUSES, CALIBRATION_RESULTS, expiryFrom } from "@/lib/calibration";
+import {
+  EQUIPMENT_STATUSES,
+  CALIBRATION_RESULTS,
+  expiryFrom,
+  checkIssue as checkEquipmentIssue,
+} from "@/lib/calibration";
 import { createRequest, createOrder, submitOrder, cancelOrder, receiveAgainstOrder } from "@/lib/purchase-posting";
 import { createRfq, inviteVendors, recordQuotation, awardRfq, cancelRfq } from "@/lib/rfq-posting";
 import { STORE_KINDS } from "@/lib/bins";
@@ -736,6 +741,41 @@ export async function saveEquipment(formData: FormData): Promise<Result> {
   }
 
   const months = Math.round(num(formData, "calibrationMonths"));
+  const requiresCalibration = str(formData, "requiresCalibration") === "on";
+
+  /**
+   * Equipment out of calibration does not go to a job.
+   *
+   * The rule was written and tested, the register said "blocked from use", and
+   * nothing enforced it: a torque wrench months past its certificate could be
+   * sent to site by filling in the job field, and the only trace was a red
+   * label on a screen nobody had to open. On a pressure joint that is a reading
+   * the client can reject and a certificate the company cannot support.
+   *
+   * Only the move to a job is refused. Where a lapsed instrument physically
+   * sits still has to be recordable, or the register stops matching the yard —
+   * and "Out for calibration" is exactly the status it should be given, so it
+   * would be perverse to block saving that.
+   */
+  if (jobId && requiresCalibration && status === "In service") {
+    const existing = editing
+      ? await db.equipment.findFirst({
+          where: { id, companyId },
+          include: { calibrations: { orderBy: { calibratedOn: "desc" }, take: 1 } },
+        })
+      : null;
+    const wasOnThisJob = existing?.jobId === jobId;
+    // Only when it is being sent somewhere new. Editing the notes on a wrench
+    // already out on site should not be blocked by a lapse it already had.
+    if (!wasOnThisJob) {
+      const permitted = checkEquipmentIssue(
+        { status, requiresCalibration, latest: existing?.calibrations[0] ?? null },
+        serialNo,
+      );
+      if (!permitted.ok) return { ok: false, error: permitted.error };
+    }
+  }
+
   const data = {
     serialNo,
     description,
@@ -743,7 +783,7 @@ export async function saveEquipment(formData: FormData): Promise<Result> {
     manufacturer: orNull(formData, "manufacturer", 120),
     model: orNull(formData, "model", 120),
     status,
-    requiresCalibration: str(formData, "requiresCalibration") === "on",
+    requiresCalibration,
     calibrationMonths: months >= 1 && months <= 120 ? months : 12,
     storeId,
     jobId,

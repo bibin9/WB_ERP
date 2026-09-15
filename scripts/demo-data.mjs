@@ -610,7 +610,7 @@ async function build() {
     ["PRG-0033", "Pressure gauge 0-40 bar", "Instrumentation", 6, "On site"],
     ["PRG-0034", "Pressure gauge 0-100 bar", "Instrumentation", 6, "In store"],
     ["MMT-0012", "Insulation resistance tester 5kV", "Electrical test", 12, "On site"],
-    ["MMT-0013", "Earth loop impedance tester", "Electrical test", 12, "In store"],
+    ["MMT-0013", "Earth loop impedance tester", "Electrical test", 12, "On site"],
     ["WLD-0007", "Welding machine 400A", "Welding", 24, "On site"],
     ["LFT-0021", "Chain block 5t", "Lifting and torque", 12, "In store"],
     ["LFT-0022", "Webbing sling 4t x 3m", "Lifting and torque", 6, "On site"],

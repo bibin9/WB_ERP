@@ -250,5 +250,33 @@ ok("and the file says why that matters",
   ok("  and one day further out is not", s.expiringSoon === false, `${s.daysToExpiry} days`);
 }
 
+/*
+ * The rule is wired to the thing that actually sends a wrench to site.
+ *
+ * checkIssue was written, tested, and shown on the register as "blocked from
+ * use" — and called from nowhere. Equipment is put on a job by filling in the
+ * job field on its record, and that action validated the serial, the status,
+ * the job and the store, and never once looked at the certificate. So the one
+ * rule the module exists for was decoration: a torque wrench months out of
+ * calibration went to site by typing, and a client's inspector would find it
+ * before anybody here did.
+ *
+ * Checked as text because a server action needs a request behind it, and text
+ * is worth more than nothing for a rule that was missing entirely.
+ */
+{
+  const actions = fs.readFileSync("src/app/(app)/inventory/actions.ts", "utf8");
+  ok("the equipment action imports the calibration check",
+    /checkIssue as checkEquipmentIssue/.test(actions));
+  ok("  and calls it before putting equipment on a job",
+    /if \(jobId && requiresCalibration && status === "In service"\)/.test(actions) &&
+      /checkEquipmentIssue\(/.test(actions));
+  ok("  refusing the save rather than warning",
+    /if \(!permitted\.ok\) return \{ ok: false, error: permitted\.error \};/.test(actions));
+  ok("  and still letting a lapsed item be recorded where it physically is",
+    /Only the move to a job is refused/.test(actions),
+    "the register has to keep matching the yard");
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
