@@ -50,5 +50,42 @@ const pages = walk("src/app").filter((f) => f.endsWith(".tsx") && read(f).includ
 const unwrapped = pages.filter((f) => !read(f).includes("overflow-x-auto"));
 ok("every page with a table has a scroll wrapper", unwrapped.length === 0, unwrapped.join(", ") || `${pages.length} pages checked`);
 
+/*
+ * 6. A count and its noun agree.
+ *
+ * "1 enquiries" and "across 1 items" were on four screens, and none of them
+ * showed while the tables held a couple of rows each — the count was never one.
+ * Loading a database with real test data put a single won enquiry on the
+ * dashboard and the wrong word appeared immediately. That is the whole class:
+ * it hides until a number happens to land on one, in front of the client.
+ */
+const NOUNS = [
+  "enquiries", "quotations", "estimates", "items", "movements", "orders", "requests",
+  "leads", "visits", "suppliers", "jobs", "vouchers", "contacts", "certificates",
+  "bins", "stores", "employees", "invoices", "payslips",
+];
+// On one line and in text position. `items={items}` on one line followed by
+// `jobs={jobs}` on the next is a list of props, not a sentence, and matching
+// across the newline found dozens of those and nothing real.
+// `${n} items` inside a template literal is almost always the many-branch of a
+// ternary that already gets this right, so a `$` before the brace rules it out.
+const counted = new RegExp(String.raw`(?<!\$)\{[^{}?:\n]{1,40}\}[ \t]+(${NOUNS.join("|")})\b(?!\s*=)`, "g");
+
+const screens = walk("src").filter((f) => f.endsWith(".tsx"));
+const bare = [];
+for (const file of screens) {
+  for (const m of read(file).matchAll(counted)) {
+    // A SCREAMING_CASE constant is fixed at build time and somebody has already
+    // chosen the wording that goes with it.
+    if (/^\{[A-Z_][A-Z0-9_]*\}/.test(m[0])) continue;
+    bare.push(`${file.replace("src/", "")}: ${m[0].trim()}`);
+  }
+}
+ok(
+  "a count is never followed by a bare plural",
+  bare.length === 0,
+  bare.join(" | ") || `${screens.length} screens checked`,
+);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

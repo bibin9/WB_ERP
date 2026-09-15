@@ -114,7 +114,9 @@ export default async function StockPage({
         <div className={card}>
           <div className="text-sm text-muted">Stock value</div>
           <div className="mt-1 text-2xl font-bold tabular-nums text-heading">{money(totals.value)}</div>
-          <div className="mt-0.5 text-xs text-muted">across {totals.stocked} items</div>
+          <div className="mt-0.5 text-xs text-muted">
+            across {totals.stocked} {totals.stocked === 1 ? "item" : "items"}
+          </div>
         </div>
         <div className={card}>
           <div className="text-sm text-muted">Items set up</div>

@@ -124,7 +124,9 @@ export default async function QuotationsPage({
         <div className="card p-4">
           <div className="text-xs uppercase tracking-wide text-muted">Out with customers</div>
           <div className="mt-1 text-2xl font-semibold tabular-nums text-heading">{money(totals.outstandingValue)}</div>
-          <div className="text-xs text-muted">{totals.outstanding} quotations</div>
+          <div className="text-xs text-muted">
+            {totals.outstanding} {totals.outstanding === 1 ? "quotation" : "quotations"}
+          </div>
         </div>
         <div className="card p-4">
           <div className="text-xs uppercase tracking-wide text-muted">Won</div>

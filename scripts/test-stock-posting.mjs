@@ -290,6 +290,12 @@ try {
      * the storekeeper is still holding.
      */
     const shelfBefore = (await balanceFor(co.id, retItem.id, main.id)).quantity;
+    // Counted before and after rather than against a fixed number. The
+    // assertion is that the refused note wrote nothing, and a total only says
+    // that while this suite is the only thing that has ever put a return in
+    // this company — which stopped being true the moment the database had
+    // demo data in it.
+    const notesBefore = await db.materialReturn.count({ where: { companyId: co.id, jobId: job.id } });
     const mixed = await postReturn({
       companyId: co.id, postedBy: "storeman", jobId: job.id, storeId: main.id,
       date: today(), returnedBy: "site",
@@ -303,7 +309,7 @@ try {
       (await balanceFor(co.id, retItem.id, main.id)).quantity === shelfBefore,
       "half a return note is worse than none");
     ok("  and no note behind it",
-      (await db.materialReturn.count({ where: { companyId: co.id, jobId: job.id } })) === 1);
+      (await db.materialReturn.count({ where: { companyId: co.id, jobId: job.id } })) === notesBefore);
 
     /**
      * The note has to add up as a whole, not line by line.

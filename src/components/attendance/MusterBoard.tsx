@@ -131,7 +131,7 @@ export default function MusterBoard({
       {/* Save bar */}
       <div className="flex items-center justify-between gap-3 border-t border-line bg-brand-paper px-4 py-3">
         <span className="text-xs text-muted">
-          {employees.length} employees · saving marks attendance for <span className="font-medium text-ink">{new Date(date).toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}</span>
+          {employees.length} {employees.length === 1 ? "employee" : "employees"} · saving marks attendance for <span className="font-medium text-ink">{new Date(date).toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}</span>
         </span>
         <div className="flex items-center gap-3">
           {saved && !pending && <span className="flex items-center gap-1 text-sm text-brand-green-700"><Check className="h-4 w-4" /> Saved</span>}

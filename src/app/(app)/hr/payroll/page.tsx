@@ -62,7 +62,9 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
                 <div key={r.id} className="flex items-center gap-3 px-5 py-3">
                   <div className="flex-1">
                     <Link href={`/hr/payroll?c=${companyId}&run=${r.id}`} className="text-sm font-medium text-ink hover:text-brand-blue-600">{fmtPeriod(r.period)}</Link>
-                    <div className="text-xs text-muted">{r._count.payslips} payslips · AED {money(total)} · by {r.runBy}</div>
+                    <div className="text-xs text-muted">
+                      {r._count.payslips} {r._count.payslips === 1 ? "payslip" : "payslips"} · AED {money(total)} · by {r.runBy}
+                    </div>
                   </div>
                   <RunStatus id={r.id} status={r.status} />
                   {r.status === "Draft" && <GuardedDelete screen="hr.payroll" action={deletePayrollRun.bind(null, r.id)} label={`Delete draft payroll ${r.period}?`} />}

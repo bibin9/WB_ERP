@@ -138,7 +138,9 @@ export default async function VendorsPage({
                         <span className={r.delivery.otifRate < 0.8 ? "text-brand-gold" : "text-ink"}>
                           {asPct(r.delivery.otifRate)}
                         </span>
-                        <div className="text-xs text-muted">of {r.delivery.considered} orders</div>
+                        <div className="text-xs text-muted">
+                          of {r.delivery.considered} {r.delivery.considered === 1 ? "order" : "orders"}
+                        </div>
                         {r.delivery.undated > 0 && (
                           <div
                             className="text-xs text-muted/60"

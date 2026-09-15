@@ -123,7 +123,9 @@ export default async function CrmPage({
         <div className="card p-4">
           <div className="text-xs uppercase tracking-wide text-muted">Won</div>
           <div className="mt-1 text-2xl font-semibold tabular-nums text-brand-green-700">{money(totals.wonValue)}</div>
-          <div className="text-xs text-muted">{totals.won} enquiries</div>
+          <div className="text-xs text-muted">
+            {totals.won} {totals.won === 1 ? "enquiry" : "enquiries"}
+          </div>
         </div>
         <div className="card p-4">
           <div className="text-xs uppercase tracking-wide text-muted">Win rate</div>

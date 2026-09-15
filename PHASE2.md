@@ -264,3 +264,43 @@ A phase-1 bug is fixed from the `main` worktree, never from this one. That
 matters most for migrations: the authoring script diffs against a snapshot
 committed alongside them, and a migration written from this tree would carry
 phase-2 tables into production.
+
+---
+
+## Test data for a UAT run
+
+```bash
+npm run db:demo          # build it
+npm run db:demo:clean    # take it all out again
+```
+
+Around 460 rows across everything phase 2 added: stores and bins, 24 items,
+suppliers and customers with named contacts, four months of receipts, issues,
+transfers and count adjustments, material requests and purchase orders at every
+status, RFQs with competing supplier quotes, plant with calibration in all three
+states, returns from site, fourteen enquiries walked up the pipeline one stage at
+a time, estimates with take-offs behind the material figures, and quotations from
+draft through to a won job.
+
+Two things about it are deliberate.
+
+**It goes through the same libraries the screens do** — `recordMovement`,
+`createLead`, `saveLine`, `createQuotation` — rather than writing rows into the
+tables. Data inserted behind the rules looks right in a list and is wrong the
+moment anybody opens it. Driving the real path means the trial balance, the job
+cost report and the pipeline agree with each other: the run above leaves the
+books balancing to the cent and no item showing a negative balance. It also means
+the script exercises those paths every time, so it is a smoke test that happens
+to leave something behind.
+
+**It is marked and removable.** Every master it creates is coded `T-…` and every
+document carries `[test data]` in its notes. `--clean` takes all of it out,
+including the vouchers the postings raised, and runs first on every build so a
+second run replaces the data rather than colliding with it. Test data that cannot
+be told from the real thing is a liability — somebody invoices against it
+eventually.
+
+It refuses production and unnamed live Railway databases, the same way the
+rehearsal scripts do. Use `--company=WBE` to choose which books it lands in;
+by default it picks the company with the most jobs, because material cost is
+worth far more sitting against real contracts.
