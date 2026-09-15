@@ -223,6 +223,35 @@ ok("an enquiry with nobody asked says so", /No supplier has been asked yet/.test
   ok("an expired quote is called out", /has expired and would need confirming/.test(v), v);
 }
 
+
+/* ============================== boundaries, found by mutation testing == */
+
+{
+  const r = rankQuotes(
+    [quote("a", "Alpha", 12, { leadTimeDays: 9 })],
+    { asOf: "2026-01-01", neededBy: "2026-01-10" },
+  );
+  ok("a lead time landing exactly on the date site needs it is not late", r[0].late === false,
+    "nine days from the first is the tenth, which is the day it is wanted");
+}
+
+ok("a quotation whose validity runs to today has not expired",
+  rankQuotes([quote("a", "Alpha", 12, { validUntil: "2026-01-01" })], { asOf: "2026-01-01" })[0].expired === false,
+  "held until the 31st still means the 31st");
+
+{
+  const r = rankQuotes([quote("a", "Alpha", 0), quote("b", "Beta", 0)]);
+  ok("quotes that all come to nothing do not produce NaN",
+    r.every((x) => !Number.isNaN(x.extraFraction) && x.extraFraction === 0),
+    r.map((x) => x.extraFraction).join(","));
+}
+
+{
+  const v = rfqVerdict([quote("a", "Alpha", 12), quote("b", "Beta", 12), quote("c", "Gamma", 12)]);
+  ok("three identical quotes report no spread", !/spread/.test(v), v);
+  ok("  and nobody outstanding", !/not replied/.test(v), v);
+}
+
 /* ==================================================== how it is written = */
 
 const src = prose("src/lib/rfq.ts");

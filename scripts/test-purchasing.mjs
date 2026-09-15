@@ -263,5 +263,24 @@ ok("progress is derived, not stored",
 ok("the three documents are explained, with why each exists",
   /Material request/.test(src) && /Purchase order/.test(src) && /Goods receipt/.test(src));
 
+/* ============================== boundaries, found by mutation testing == */
+
+{
+  const p = lineProgress(100, [{ quantity: 100 }]);
+  ok("receiving exactly what was ordered is not over-received", p.over === false,
+    "the ordinary complete delivery, and the one an off-by-one would flag");
+  ok("  and leaves nothing outstanding", p.outstanding === 0);
+  ok("  at exactly the whole share", p.share === 1, String(p.share));
+}
+
+ok("receiving one more than ordered IS over-received",
+  lineProgress(100, [{ quantity: 101 }]).over === true);
+
+{
+  const p = lineProgress(0, []);
+  ok("a line ordering nothing has a share of nought, not NaN",
+    p.share === 0 && !Number.isNaN(p.share), String(p.share));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

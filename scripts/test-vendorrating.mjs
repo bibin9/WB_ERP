@@ -233,6 +233,64 @@ ok("  and no enquiries at all is not enough", rateResponsiveness([]).enough === 
   ok("  and that it is too few to call", /too few to call/.test(v), v);
 }
 
+
+/* ============================== boundaries, found by mutation testing == */
+
+/**
+ * Every one of these is the inclusive/exclusive edge of a comparison. The
+ * behaviour was already right; nothing was stopping a later refactor flipping
+ * it, which is exactly the kind of change that passes review.
+ */
+
+{
+  const r = rateDelivery([order({ lastReceiptDate: "2026-01-10" }), order(), order()], NOW);
+  ok("a delivery arriving ON the promised date is on time", r.onTime === 3,
+    "the commonest on-time case of all, and the one an off-by-one would break");
+}
+
+{
+  const due = rateDelivery([
+    order({ closed: false, expectedDate: NOW, receivedQuantity: 0, lastReceiptDate: null }),
+    order(), order(), order(),
+  ], NOW);
+  ok("an order due TODAY and still open is not judged yet", due.considered === 3,
+    "the supplier has until the end of the day");
+}
+
+ok("a rate with nothing to divide by is nought, not NaN",
+  rateDelivery([], NOW).otifRate === 0 && !Number.isNaN(rateDelivery([], NOW).otifRate));
+
+{
+  const r = ratePrice([
+    { total: 100, lowest: 100, competitors: 2 },
+    { total: 110, lowest: 100, competitors: 2 },
+    { total: 120, lowest: 100, competitors: 2 },
+  ]);
+  ok("exactly two bidders is a real comparison", r.compared === 3, String(r.compared));
+  ok("  and enough of them is enough history", r.enough === true);
+}
+
+{
+  const r = ratePrice([
+    { total: 0, lowest: 0, competitors: 3 },
+    { total: 100, lowest: 100, competitors: 3 },
+    { total: 100, lowest: 100, competitors: 3 },
+    { total: 100, lowest: 100, competitors: 3 },
+  ]);
+  ok("an enquiry where the lowest quote was nil is thrown out", r.compared === 3, String(r.compared));
+  ok("  so the average cannot become NaN", !Number.isNaN(r.averageAboveLowest), String(r.averageAboveLowest));
+}
+
+{
+  const r = rateResponsiveness([
+    { invitedAt: "2026-01-01", receivedAt: "2026-01-01" },
+    { invitedAt: "2026-01-01", receivedAt: "2026-01-01" },
+    { invitedAt: "2026-01-01", receivedAt: "2026-01-01" },
+  ]);
+  ok("a supplier who replies the same day counts as replying", r.replied === 3);
+  ok("  in nought days, not excluded for it", r.medianDays === 0, String(r.medianDays));
+}
+
 /* ==================================================== how it is written = */
 
 const src = prose("src/lib/vendorrating.ts");

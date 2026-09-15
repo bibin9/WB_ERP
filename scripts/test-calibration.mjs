@@ -231,5 +231,24 @@ ok("and the file says why that matters",
   /not a reading/.test(src) && /It is a number/.test(src),
   "the distinction only surfaces when a client's inspector asks for the certificate");
 
+/* ============================== boundaries, found by mutation testing == */
+
+{
+  const s = equipmentState({
+    status: "In service", requiresCalibration: true,
+    latest: { result: "Passed", validTo: new Date(Date.now() + 30 * 86400000) },
+  });
+  ok("a certificate expiring exactly on the warning boundary is warned about",
+    s.expiringSoon === true, `${s.daysToExpiry} days`);
+}
+
+{
+  const s = equipmentState({
+    status: "In service", requiresCalibration: true,
+    latest: { result: "Passed", validTo: new Date(Date.now() + 31 * 86400000) },
+  });
+  ok("  and one day further out is not", s.expiringSoon === false, `${s.daysToExpiry} days`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

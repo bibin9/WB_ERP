@@ -282,5 +282,31 @@ ok("the balance is derived, never stored",
 ok("the valuation method is written down, with why",
   /[Ww]eighted average/.test(src) && /FIFO/.test(src));
 
+/* ============================== boundaries, found by mutation testing == */
+
+{
+  const t = summariseStock([
+    { code: "A", name: "a", reorderLevel: 50, balance: { quantity: 50, value: 500, averageCost: 10 } },
+  ]);
+  ok("stock sitting exactly on its reorder level is flagged", t.belowReorder === 1,
+    "at the level is the moment to reorder, not one unit later");
+}
+
+{
+  const t = summariseStock([
+    { code: "A", name: "a", reorderLevel: 50, balance: { quantity: 51, value: 510, averageCost: 10 } },
+  ]);
+  ok("  and one above it is not", t.belowReorder === 0);
+}
+
+ok("issuing nothing is priced at nothing, not NaN",
+  priceIssue(0, { quantity: 100, value: 1000, averageCost: 10 }).value === 0);
+
+{
+  const b = balanceOf([{ kind: "Receipt", quantity: 0, value: 0 }]);
+  ok("an empty shelf has an average of nought, not Infinity",
+    b.averageCost === 0 && Number.isFinite(b.averageCost), String(b.averageCost));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
