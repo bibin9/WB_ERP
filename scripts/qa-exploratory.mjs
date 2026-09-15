@@ -225,22 +225,38 @@ const good = (area, what) => ok.push(`${area}: ${what}`);
   // matching that text would report the fix as the defect.
   const stripComments = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
   // A bare toLocaleString() is wrong on money and right on a count: "237 rows"
-  // rather than "237.00 rows". The question is asked of the FILE, not the line —
-  // a formatter is usually defined as `(v) => v.toLocaleString()`, which names
-  // no money on its own line while every one of its callers does. Pager.tsx
-  // formats row counts and mentions no amount anywhere, so it stays quiet;
-  // a screen full of grossTotal does not.
+  // rather than "237.00 rows", and "250 MTR" rather than "250.00 MTR".
+  //
+  // This used to ask the question of the FILE — does it call toLocaleString()
+  // anywhere, and does it mention money anywhere. That reported every stores
+  // screen, because a stock screen naturally says both "balance" and
+  // "unitPrice" while the bare calls on it are all quantities with a unit code
+  // beside them. Eight false Mediums standing forever is how a report stops
+  // being read, so the question is now asked of each call.
   //
   // The money fields are named rather than guessed at from a pattern. Anything
   // ending in "Total" was tried and is no good: grossTotal is money, and
   // liveTotal and archiveTotal on the audit screen are counts of rows.
-  const MONEYISH = /(amount|balance|salary|payable|debit|credit|fils|aed|unitPrice|grossTotal|netTotal|vatTotal|contractValue|budgetCost)/;
-  const bareNum = files.filter((f) => {
+  const MONEYISH = /(amount|salary|payable|debit|credit|fils|aed|unitPrice|grossTotal|netTotal|vatTotal|contractValue|budgetCost)/i;
+  // Counted things. Checked first, because "balance" is money in the ledger and
+  // a quantity in the stores — `r.balance.quantity` is a number of metres.
+  const COUNTISH = /(quantity|qty|ordered|received|outstanding|usable|rejected|awaiting|reorder|hours|days|count|rows|length|employees|items)/i;
+
+  const bareNum = [];
+  for (const f of files) {
     const src = stripComments(read(f));
-    return /toLocaleString\(\)/.test(src) && MONEYISH.test(src);
-  });
+    for (const line of src.split(/\r?\n/)) {
+      for (const [, receiver] of line.matchAll(/([A-Za-z_$][\w$.?[\]]*)\.toLocaleString\(\)/g)) {
+        if (COUNTISH.test(receiver)) continue;
+        // A formatter written as `(v) => v.toLocaleString()` names nothing on
+        // its own, so fall back to what the line around it is talking about.
+        const moneyHere = MONEYISH.test(receiver) || (!/[.[]/.test(receiver) && MONEYISH.test(line));
+        if (moneyHere && !bareNum.includes(f)) bareNum.push(f);
+      }
+    }
+  }
   if (bareNum.length) {
-    note("Medium", "UX / UAE", `${bareNum.length} file(s) render a number with toLocaleString() and no options`,
+    note("Medium", "UX / UAE", `${bareNum.length} file(s) render money with toLocaleString() and no options`,
       "Without minimumFractionDigits the same column shows 1,000 and 1,000.50 on adjacent rows, and " +
         "the fils are dropped entirely on whole amounts. " +
         bareNum.map((f) => f.replace("src/", "")).slice(0, 8).join(", "));
