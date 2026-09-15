@@ -131,6 +131,7 @@ model Company {
   purchaseOrders      PurchaseOrder[]
   Equipment           Equipment[]
   MaterialReturn      MaterialReturn[]
+  rfqs                Rfq[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -1092,6 +1093,8 @@ model Party {
   createdAt      DateTime        @default(now())
   Invoice        Invoice[]
   purchaseOrders PurchaseOrder[]
+  rfqQuotes      RfqQuote[]
+  rfqsAwarded    Rfq[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1279,6 +1282,7 @@ model Item {
   orderLines         PurchaseOrderLine[]
   Equipment          Equipment[]
   MaterialReturnLine MaterialReturnLine[]
+  rfqLines           RfqLine[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1414,6 +1418,7 @@ model MaterialRequest {
 
   lines     MaterialRequestLine[]
   orders    PurchaseOrder[]
+  rfqs      Rfq[]
   createdAt DateTime              @default(now())
   updatedAt DateTime              @updatedAt
 
@@ -1759,6 +1764,7 @@ model Job {
   InvoiceLine        InvoiceLine[]
   materialRequests   MaterialRequest[]
   purchaseOrders     PurchaseOrder[]
+  rfqs               Rfq[]
   purchaseOrderLines PurchaseOrderLine[]
   Equipment          Equipment[]
   MaterialReturn     MaterialReturn[]
@@ -1980,4 +1986,130 @@ model FinancePolicy {
   updatedBy String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Asking several suppliers what they would charge (INV-05 RFQ, INV-09).
+///
+/// Separate from the purchase order because it is a different act: this is a
+/// question, the order is a commitment. Keeping them apart is what makes it
+/// possible to show, a year later, that three suppliers were asked before one
+/// was chosen.
+model Rfq {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  number String
+  /// Draft | Sent | Quoted | Awarded | Cancelled
+  status String @default("Draft")
+
+  /// What site asked for, when the enquiry came from a material request.
+  requestId String?
+  request   MaterialRequest? @relation(fields: [requestId], references: [id])
+
+  jobId String?
+  job   Job?    @relation(fields: [jobId], references: [id])
+
+  date     DateTime
+  /// The date site needs it. A quote whose lead time misses this is flagged in
+  /// the comparison, because the cheapest price that arrives too late is not
+  /// the cheapest anything.
+  neededBy DateTime?
+
+  raisedBy String
+  notes    String?
+
+  /// The decision. Held on the enquiry rather than only on the order, so the
+  /// comparison and its outcome stay one document.
+  awardedPartyId String?
+  awardedParty   Party?    @relation(fields: [awardedPartyId], references: [id])
+  awardedAt      DateTime?
+  awardedBy      String?
+  /// Why this supplier, when they were not the cheapest. Required in that case
+  /// and empty otherwise: the lowest bid needs no defence.
+  awardReason    String?
+  /// The purchase order raised from the winning quotation.
+  orderId        String?
+
+  lines  RfqLine[]
+  quotes RfqQuote[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@index([status])
+  @@index([jobId])
+}
+
+model RfqLine {
+  id    String @id @default(cuid())
+  rfqId String
+  rfq   Rfq    @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+
+  itemId String?
+  item   Item?   @relation(fields: [itemId], references: [id])
+
+  description String
+  unitCode    String @default("EA")
+  quantity    Float
+
+  sortOrder  Int            @default(0)
+  quoteLines RfqQuoteLine[]
+
+  @@index([rfqId])
+}
+
+/// One supplier who was asked, whether or not they answered.
+///
+/// A row exists from the moment they are invited. A supplier who was asked and
+/// stayed silent is part of the record — leaving them off would make a
+/// comparison of two quotes look like a comparison of two suppliers.
+model RfqQuote {
+  id    String @id @default(cuid())
+  rfqId String
+  rfq   Rfq    @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+
+  partyId   String
+  party     Party  @relation(fields: [partyId], references: [id])
+  /// Snapshotted, like every other document that names a party.
+  partyName String
+
+  invitedAt DateTime  @default(now())
+  /// Null until a price actually comes back.
+  receivedAt DateTime?
+
+  /// Carriage and packing, charged on top of the lines.
+  delivery     Float     @default(0)
+  /// Working days from order to delivery, as the supplier states it.
+  leadTimeDays Int?
+  /// The last day the supplier will hold this price.
+  validUntil   DateTime?
+  notes        String?
+
+  lines RfqQuoteLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// A supplier is asked once. Without this, three invitations to the same
+  /// supplier would satisfy the rule that exists to prevent exactly that.
+  @@unique([rfqId, partyId])
+  @@index([rfqId])
+  @@index([partyId])
+}
+
+model RfqQuoteLine {
+  id      String   @id @default(cuid())
+  quoteId String
+  quote   RfqQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  rfqLineId String
+  rfqLine   RfqLine @relation(fields: [rfqLineId], references: [id], onDelete: Cascade)
+
+  unitPrice Float @default(0)
+
+  @@unique([quoteId, rfqLineId])
+  @@index([quoteId])
 }

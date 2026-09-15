@@ -432,6 +432,21 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "Equipment away at the lab, under repair or withdrawn is blocked too, whatever its certificate says. Where it is beats what the paperwork says.",
   },
   {
+    id: "stores-rfq", category: "Stores", screens: ["/inventory/rfq"],
+    title: "Getting three quotes, and choosing between them",
+    summary: "Ask several suppliers, compare them side by side, and record why one of them won.",
+    body: "Without an enquiry, a buyer rings the supplier they always ring. That is not dishonest and it is usually not even wrong, but there is no record that anybody else was asked, so a year later nobody can tell the difference between a good relationship and a bad habit. On a cost-reimbursable contract the client's auditor asks to see the three quotes, and \"we know them\" is not an answer. So at least three suppliers have to be asked before an enquiry can be awarded. The cheapest is not forced on anybody, because the cheapest is often the wrong answer: it can arrive three weeks after site needs it, from a supplier who shorted the last two orders. What the system insists on is a reason, written down at the moment of the decision, because that is the only time anybody still remembers it. The purchase order is then built from the winning quotation, so the price on the order is the price the supplier actually quoted rather than what the buyer remembered.",
+    steps: [
+      "Open Stores -> Enquiries and Quotes and click Raise an enquiry. Say what the work needs and how much. There is no price box, on purpose.",
+      "Click Ask suppliers and tick at least three. They all appear on the comparison, whether or not they reply.",
+      "As each quotation comes in, click Enter price on that supplier's column and type their rates, carriage, lead time and how long they will hold the price.",
+      "Read the comparison across a row to compare one line, or down a column to compare a supplier. The cheapest figure on each line is marked in green, which is not always the same supplier as the cheapest total.",
+      "Click Award and choose the winner. If they are not the cheapest you will be asked why, and what it costs extra is shown while you type.",
+      "A draft purchase order is raised at their quoted prices. It still goes through the normal approval route before anything can be received against it.",
+    ],
+    tip: "A supplier who was asked and never replied keeps their column, greyed. Leaving them off would make a comparison of two quotes look like a comparison of two suppliers, and their silence is worth seeing.",
+  },
+  {
     id: "stores-returns", category: "Stores", screens: ["/inventory/returns"],
     title: "Material coming back from site",
     summary: "Reusable material goes back on the shelf and credits the job. Scrap does neither.",

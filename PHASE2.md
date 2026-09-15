@@ -25,11 +25,11 @@ inferred.
 | INV-02 | Check stock and flag shortages against the request | Must | **Done** |
 | INV-03 | MR approval: Site In-Charge → Project Manager → Procurement | Must | **Done** |
 | INV-04 | Approved MR triggers purchase or internal allocation | Must | **Done** — its lines carry across |
-| INV-05 | Convert MR to PO; RFQ to vendors | Must | PO **done**; RFQ not started |
-| INV-06 | Vendor selection on price, lead time, past performance, min three | Must | Not started |
+| INV-05 | Convert MR to PO; RFQ to vendors | Must | **Done** — PO and RFQ both |
+| INV-06 | Vendor selection on price, lead time, past performance, min three | Must | **Done** — three enforced, reason required off-lowest; past performance is INV-21 |
 | INV-07 | Repeat purchases without re-bidding | Should | Not started |
 | INV-08 | PO approval PM → OM → Director → MD | Must | **Done**, using the seeded route |
-| INV-09 | Bid comparison sheets, PO from the chosen quotation | Should | Not started |
+| INV-09 | Bid comparison sheets, PO from the chosen quotation | Should | **Done** — the PO is built from the winning quote |
 | INV-10 | Goods receipt on delivery | Must | **Done** |
 | INV-11 | QA/QC inspection; accepted stored, rejected flagged for return | Must | **Done** |
 | INV-12 | Calibration: identify, send, track, record results | Must | **Done** |

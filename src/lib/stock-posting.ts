@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./db";
+import { documentStem, nextInSeries } from "./docnumber";
 import { postVoucher } from "./posting";
 import { accountsForPosting } from "./accounts";
 import {
@@ -483,13 +484,11 @@ export async function postReturn(input: ReturnInput): Promise<ReturnResult> {
 
 async function nextReturnNumber(companyId: string): Promise<string> {
   const company = await db.company.findUnique({ where: { id: companyId }, select: { code: true } });
-  const year = String(new Date().getUTCFullYear()).slice(2);
-  const stem = `${company?.code ?? "CO"}/MRN/${year}/`;
+  const stem = documentStem(company?.code ?? "", "MRN");
   const last = await db.materialReturn.findFirst({
     where: { companyId, number: { startsWith: stem } },
     orderBy: { number: "desc" },
     select: { number: true },
   });
-  const n = last ? Number(last.number.slice(stem.length)) + 1 : 1;
-  return stem + String(n).padStart(4, "0");
+  return nextInSeries(stem, last?.number);
 }

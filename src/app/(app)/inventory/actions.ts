@@ -9,6 +9,7 @@ import { money } from "@/lib/money";
 import { recordMovement, transferStock, inspectReceipt, postReturn } from "@/lib/stock-posting";
 import { EQUIPMENT_STATUSES, CALIBRATION_RESULTS, expiryFrom } from "@/lib/calibration";
 import { createRequest, createOrder, submitOrder, cancelOrder, receiveAgainstOrder } from "@/lib/purchase-posting";
+import { createRfq, inviteVendors, recordQuotation, awardRfq, cancelRfq } from "@/lib/rfq-posting";
 
 /**
  * The stores screens.
@@ -285,6 +286,136 @@ export async function saveRequest(formData: FormData): Promise<Result> {
   });
   revalidatePath("/inventory/requests");
   revalidatePath("/approvals");
+  return { ok: true };
+}
+
+/* ================================ enquiries and quotations (INV-05/06/09) = */
+
+export async function saveRfq(formData: FormData): Promise<Result> {
+  if (!(await allow("inventory.rfq", "create"))) return { ok: false, error: "Not authorised" };
+  const companyId = str(formData, "companyId");
+  const session = await scoped(companyId);
+  if (!session) return { ok: false, error: "No access to this company" };
+
+  let lines: { itemId?: string; description: string; unitCode?: string; quantity: number }[] = [];
+  try {
+    lines = JSON.parse(String(formData.get("lines") ?? "[]"));
+  } catch {
+    return { ok: false, error: "Could not read the lines. Try again." };
+  }
+
+  const res = await createRfq({
+    companyId,
+    raisedBy: session.user.name,
+    jobId: orNull(formData, "jobId"),
+    requestId: orNull(formData, "requestId"),
+    date: str(formData, "date", 10),
+    neededBy: orNull(formData, "neededBy", 10),
+    notes: orNull(formData, "notes", 500),
+    lines: lines.map((l) => ({
+      itemId: l.itemId || null,
+      description: String(l.description ?? "").slice(0, 300),
+      unitCode: String(l.unitCode ?? "EA").slice(0, 8),
+      quantity: Number(l.quantity) || 0,
+    })),
+  });
+  if (!res.ok) return res;
+
+  await audit({
+    action: "Created",
+    entity: "Rfq",
+    entityId: res.rfqId,
+    summary: `Raised enquiry ${res.number}`,
+  });
+  revalidatePath("/inventory/rfq");
+  return { ok: true };
+}
+
+export async function askVendors(formData: FormData): Promise<Result> {
+  if (!(await allow("inventory.rfq", "edit"))) return { ok: false, error: "Not authorised" };
+  const rfqId = str(formData, "rfqId");
+  const partyIds = String(formData.get("partyIds") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+
+  const res = await inviteVendors(rfqId, partyIds);
+  if (!res.ok) return res;
+
+  await audit({
+    action: "Updated",
+    entity: "Rfq",
+    entityId: rfqId,
+    summary: `Asked ${partyIds.length} supplier${partyIds.length === 1 ? "" : "s"} for a price`,
+  });
+  revalidatePath(`/inventory/rfq/${rfqId}`);
+  revalidatePath("/inventory/rfq");
+  return { ok: true };
+}
+
+export async function saveQuotation(formData: FormData): Promise<Result> {
+  if (!(await allow("inventory.rfq", "edit"))) return { ok: false, error: "Not authorised" };
+  const rfqId = str(formData, "rfqId");
+
+  let prices: Record<string, number> = {};
+  try {
+    prices = JSON.parse(String(formData.get("prices") ?? "{}"));
+  } catch {
+    return { ok: false, error: "Could not read the prices. Try again." };
+  }
+
+  const leadRaw = str(formData, "leadTimeDays");
+  const res = await recordQuotation({
+    rfqId,
+    partyId: str(formData, "partyId"),
+    prices,
+    delivery: num(formData, "delivery"),
+    leadTimeDays: leadRaw === "" ? null : Number(leadRaw),
+    validUntil: orNull(formData, "validUntil", 10),
+    notes: orNull(formData, "notes", 500),
+  });
+  if (!res.ok) return res;
+
+  await audit({
+    action: "Updated",
+    entity: "Rfq",
+    entityId: rfqId,
+    summary: `Recorded a quotation`,
+  });
+  revalidatePath(`/inventory/rfq/${rfqId}`);
+  return { ok: true };
+}
+
+export async function awardEnquiry(formData: FormData): Promise<Result> {
+  if (!(await allow("inventory.rfq", "approve"))) return { ok: false, error: "Not authorised" };
+  const rfqId = str(formData, "rfqId");
+  const session = await getSession();
+
+  const res = await awardRfq({
+    rfqId,
+    partyId: str(formData, "partyId"),
+    awardedBy: session?.user.name ?? "",
+    reason: orNull(formData, "reason", 500),
+    storeId: orNull(formData, "storeId"),
+    date: orNull(formData, "date", 10),
+  });
+  if (!res.ok) return res;
+
+  await audit({
+    action: "Approved",
+    entity: "Rfq",
+    entityId: rfqId,
+    summary: `Awarded the enquiry and raised purchase order ${res.number}`,
+  });
+  revalidatePath(`/inventory/rfq/${rfqId}`);
+  revalidatePath("/inventory/rfq");
+  revalidatePath("/inventory/orders");
+  return { ok: true };
+}
+
+export async function callOffEnquiry(rfqId: string): Promise<Result> {
+  if (!(await allow("inventory.rfq", "edit"))) return { ok: false, error: "Not authorised" };
+  const res = await cancelRfq(rfqId);
+  if (!res.ok) return res;
+  await audit({ action: "Updated", entity: "Rfq", entityId: rfqId, summary: "Called off the enquiry" });
+  revalidatePath("/inventory/rfq");
   return { ok: true };
 }
 

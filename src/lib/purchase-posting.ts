@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./db";
+import { documentStem, nextInSeries } from "./docnumber";
 import { resolveRoute } from "./approval-engine";
 import { recordMovement } from "./stock-posting";
 import { toFils } from "./money";
@@ -42,8 +43,7 @@ export type Outcome = { ok: true } | Failed;
  */
 async function nextNumber(companyId: string, prefix: string): Promise<string> {
   const company = await db.company.findUnique({ where: { id: companyId }, select: { code: true } });
-  const year = String(new Date().getUTCFullYear()).slice(2);
-  const stem = `${company?.code ?? "CO"}/${prefix}/${year}/`;
+  const stem = documentStem(company?.code ?? "", prefix);
 
   const table = prefix === "MR" ? db.materialRequest : db.purchaseOrder;
   const last = await (table as typeof db.purchaseOrder).findFirst({
@@ -51,8 +51,7 @@ async function nextNumber(companyId: string, prefix: string): Promise<string> {
     orderBy: { number: "desc" },
     select: { number: true },
   });
-  const n = last ? Number(last.number.slice(stem.length)) + 1 : 1;
-  return stem + String(n).padStart(4, "0");
+  return nextInSeries(stem, last?.number);
 }
 
 /* ====================================================== material request = */

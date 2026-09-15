@@ -158,6 +158,7 @@ export const INVENTORY_GROUPS: TabGroup[] = [
     key: "buying", label: "Buying", icon: ClipboardList,
     screens: [
       { href: "/inventory/requests", label: "Material Requests", icon: ClipboardList, screen: "inventory.requests" },
+      { href: "/inventory/rfq", label: "Enquiries & Quotes", icon: Scale, screen: "inventory.rfq" },
       { href: "/inventory/orders", label: "Purchase Orders", icon: FileText, screen: "inventory.orders" },
     ],
   },
