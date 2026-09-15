@@ -3,7 +3,7 @@ import {
   HardHat, Building2, Scale, Banknote, Lock, Landmark, Percent, Settings2, PenLine,
   FolderOpen, UserPlus, Wallet, CalendarDays, CalendarCheck, BadgeCheck, UserMinus,
   ShieldAlert, ClipboardList, TrendingUp, Timer, UsersRound, FileText, Send, HandCoins,
-  Boxes, Package, PackagePlus, Warehouse, Wrench, Undo2, Gauge, type LucideIcon,
+  Boxes, Package, PackagePlus, Warehouse, Wrench, Undo2, Gauge, Calculator, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -204,3 +204,21 @@ export function activeGroup(groups: TabGroup[], pathname: string): TabGroup | un
   }
   return best?.group;
 }
+
+/**
+ * CRM is two screens: where the work is, and what it will cost.
+ *
+ * The pipeline is opened every morning; an estimate is opened when somebody
+ * sits down to price one. Two tabs rather than a second level, because a list
+ * this short is quicker to read than it is to navigate.
+ */
+export const CRM_GROUPS: TabGroup[] = [
+  {
+    key: "pipeline", label: "Pipeline", icon: TrendingUp,
+    screens: [{ href: "/crm", label: "Pipeline", icon: TrendingUp, screen: "crm.leads" }],
+  },
+  {
+    key: "estimates", label: "Estimates", icon: Calculator,
+    screens: [{ href: "/crm/estimates", label: "Estimates", icon: Calculator, screen: "crm.estimates" }],
+  },
+];

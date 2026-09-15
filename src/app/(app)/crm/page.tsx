@@ -5,6 +5,7 @@ import PrintHeader from "@/components/finance/PrintHeader";
 import CompanyPicker from "@/components/CompanyPicker";
 import PrintReport from "@/components/finance/PrintReport";
 import SearchBox from "@/components/SearchBox";
+import CrmTabs from "@/components/CrmTabs";
 import LeadForm from "@/components/crm/LeadForm";
 import PipelineFunnel from "@/components/crm/PipelineFunnel";
 import QualificationDots from "@/components/crm/QualificationDots";
@@ -99,6 +100,7 @@ export default async function CrmPage({
           {companyId && <LeadForm companyId={companyId} parties={parties} />}
         </div>
       </PageHeader>
+      <CrmTabs />
 
       <div className="mb-5">
         <CompanyPicker

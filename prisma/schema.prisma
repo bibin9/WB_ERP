@@ -133,6 +133,7 @@ model Company {
   MaterialReturn      MaterialReturn[]
   rfqs                Rfq[]
   leads               Lead[]
+  estimates           Estimate[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -1285,6 +1286,7 @@ model Item {
   Equipment          Equipment[]
   MaterialReturnLine MaterialReturnLine[]
   rfqLines           RfqLine[]
+  takeoffLines       TakeoffLine[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -2224,6 +2226,7 @@ model Lead {
   notes     String?
 
   visits       SiteVisit[]
+  estimates    Estimate[]
   interactions LeadInteraction[]
 
   createdAt DateTime @default(now())
@@ -2279,4 +2282,111 @@ model LeadInteraction {
   createdAt DateTime @default(now())
 
   @@index([leadId])
+}
+
+/// Pricing the work (CRM-05, CRM-06, CRM-07).
+///
+/// Nothing here is a selling price somebody typed. The rate on every line is
+/// built up from material, labour hours, plant hours and subcontract; the
+/// overheads go on after that; and the margin goes on after them. Reverse the
+/// last two and the estimate shows twenty per cent while the job returns four.
+///
+/// Posts nothing. An estimate is an opinion about what work will cost.
+model Estimate {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  number String
+  title  String
+  /// Draft | Priced | Quoted | Superseded
+  status String @default("Draft")
+
+  /// The enquiry it prices. An estimate without one is a study.
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id])
+
+  /// CRM-06 indirects, applied to the direct cost BEFORE any margin.
+  overheadPct Float @default(0)
+  fixedCosts  Float @default(0)
+
+  /// "markup" or "margin" — which of the two the percentage below actually
+  /// means. Held explicitly because they are different numbers and an
+  /// estimate that does not say which it used cannot be checked later.
+  basisKind  String  @default("markup")
+  basisValue Float   @default(0)
+  /// Somebody has said out loud that this is priced below cost.
+  acceptLoss Boolean @default(false)
+
+  preparedBy String
+  notes      String?
+
+  lines EstimateLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@index([leadId])
+  @@index([status])
+}
+
+/// One item in the bill of quantities.
+model EstimateLine {
+  id         String   @id @default(cuid())
+  estimateId String
+  estimate   Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+
+  /// The customer's own item number, so a priced BOQ can be read against theirs.
+  ref         String?
+  description String
+  /// Tonne | Metre | Square metre | Cubic metre | Piece | Lump sum.
+  unit        String  @default("Piece")
+  /// Ignored on a lump sum, which is one price for the package.
+  quantity    Float   @default(0)
+
+  /// The build-up. Material is only used where there is no takeoff below —
+  /// when there is, the takeoff is the material cost, because two figures
+  /// meant to agree eventually will not.
+  materialCost    Float @default(0)
+  labourHours     Float @default(0)
+  labourRate      Float @default(0)
+  plantHours      Float @default(0)
+  plantRate       Float @default(0)
+  subcontractCost Float @default(0)
+
+  notes     String?
+  sortOrder Int    @default(0)
+
+  takeoffs TakeoffLine[]
+
+  @@index([estimateId])
+}
+
+/// What one unit of a bid item actually consumes (CRM-05).
+///
+/// Wastage lives here rather than being added at the end, because it differs
+/// by material: five per cent on a cable drum is a rounding error and five per
+/// cent on structural steel is a week of somebody's wages.
+model TakeoffLine {
+  id     String       @id @default(cuid())
+  lineId String
+  line   EstimateLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+
+  /// The catalogue item, where it is one.
+  itemId String?
+  item   Item?   @relation(fields: [itemId], references: [id])
+
+  description String
+  unitCode    String @default("EA")
+  /// How much is needed for ONE unit of the bid item, before wastage.
+  perUnit     Float  @default(0)
+  /// As a fraction: 0.05 is five per cent.
+  wastage     Float  @default(0)
+  unitCost    Float  @default(0)
+
+  sortOrder Int @default(0)
+
+  @@index([lineId])
 }

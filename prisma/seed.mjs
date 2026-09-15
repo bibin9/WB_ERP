@@ -52,7 +52,7 @@ const MODULE_SCREENS = {
     "inventory.requests", "inventory.orders", "inventory.equipment", "inventory.returns",
     "inventory.rfq", "inventory.vendors",
   ],
-  crm: ["crm.leads"],
+  crm: ["crm.leads", "crm.estimates"],
   projects: ["projects.list"],
   hse: ["hse.register"],
   audit: ["audit.log"],

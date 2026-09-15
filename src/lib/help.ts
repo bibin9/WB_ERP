@@ -433,6 +433,21 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "Equipment away at the lab, under repair or withdrawn is blocked too, whatever its certificate says. Where it is beats what the paperwork says.",
   },
   {
+    id: "crm-estimate", category: "CRM & Estimation", screens: ["/crm/estimates"],
+    title: "Pricing the work, and the margin trap",
+    summary: "Build the rate up from what it costs. Never type it.",
+    body: "A twenty per cent markup is a sixteen point seven per cent margin. They are different numbers, estimators say \"twenty per cent\" meaning either, and on a two million dirham job the gap is sixty-seven thousand dirhams of profit that was never there. So this system always shows both, everywhere either appears, and asks which one you mean rather than taking a number called \"percent\" and hoping. The second trap is the order: overheads go on the direct cost BEFORE the margin. Apply the margin first and the overheads come straight back out of it, so the estimate shows twenty per cent and the job returns four. The bar at the top of an estimate draws the money in the order it is added — material, labour, plant, subcontract, then the gold overhead band, then what is left as green profit — so you can see the overhead sitting inside the price rather than eating the profit. And no rate is ever typed: every one is built from material, labour hours at a rate, plant hours at a rate, and subcontract, because six months later the only question worth asking is why a line is losing money, and a rate somebody typed cannot answer it.",
+    steps: [
+      "Open CRM -> Estimates and click Start an estimate. Set the overhead and the margin now; they are the two things nobody goes back to set.",
+      "Add each bill of quantities item. Choose how it is measured — tonne, metre, piece or lump sum. A lump sum does not ask for a quantity, because the customer is buying an outcome, not a measurement.",
+      "Fill in the build-up: material, labour hours and rate, plant hours and rate, subcontract. The unit cost adds itself up as you type.",
+      "For anything worth measuring, click Add material to take it off: how much one unit needs, and the wastage. The takeoff then becomes the material cost for that line.",
+      "Use Overheads and margin to see the two percentages against each other before committing.",
+      "Click Mark it priced when it is finished. An estimate that costs nothing, or quotes below cost without somebody saying so, is refused.",
+    ],
+    tip: "Wastage is asked for on each takeoff line rather than added once at the end, because it differs by material — five per cent on a cable drum is a rounding error, five per cent on structural steel is a week of somebody's wages.",
+  },
+  {
     id: "crm-pipeline", category: "CRM & Estimation", screens: ["/crm"],
     title: "The sales pipeline, and what it is really worth",
     summary: "A board of where every enquiry has got to, weighted honestly.",

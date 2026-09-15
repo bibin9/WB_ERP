@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { LibraryBig } from "lucide-react";
-import { FINANCE_GROUPS, HR_GROUPS, INVENTORY_GROUPS, allowedGroups, activeGroup } from "@/lib/moduletabs";
+import { FINANCE_GROUPS, HR_GROUPS, INVENTORY_GROUPS, allowedGroups, activeGroup, CRM_GROUPS } from "@/lib/moduletabs";
 
-const SETS = { finance: FINANCE_GROUPS, hr: HR_GROUPS, inventory: INVENTORY_GROUPS };
+const SETS = { finance: FINANCE_GROUPS, hr: HR_GROUPS, inventory: INVENTORY_GROUPS, crm: CRM_GROUPS };
 
 /**
  * The two-level tab strip. See lib/moduletabs.ts for why it is two levels.

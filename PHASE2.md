@@ -54,9 +54,9 @@ Taken from the approved BRD rather than summarised. Eleven of eighteen are Must.
 | CRM-02 | Pipeline with stage tracking, probability weighting, competitor intelligence | Must | **Done** — probability from the stage, never per deal |
 | CRM-03 | Tender / bid logging | Should | Not started |
 | CRM-04 | Marketing campaigns, event tracking, ROI | Could | Not started |
-| CRM-05 | Bill of Quantities and material takeoff | Must | Not started — slice 2 |
-| CRM-06 | Cost build-up: labour rates, machine hours, indirects | Must | Not started — slice 2 |
-| CRM-07 | Bidding units: per tonne, metre, piece or lump sum | Must | Not started — slice 2 |
+| CRM-05 | Bill of Quantities and material takeoff | Must | **Done** — takeoff carries its own wastage |
+| CRM-06 | Cost build-up: labour rates, machine hours, indirects | Must | **Done** — no rate can be typed; overhead before margin |
+| CRM-07 | Bidding units: per tonne, metre, piece or lump sum | Must | **Done** — a lump sum carries no quantity |
 | CRM-08 | Material supply models: FOC and turnkey | Should | Not started |
 | CRM-09 | Subcontractor bidding and comparison within the estimate | Should | Not started |
 | CRM-10 | Attach ITP, NDT, hydrotest and mill certificates | Should | Not started |
@@ -70,7 +70,13 @@ Taken from the approved BRD rather than summarised. Eleven of eighteen are Must.
 | CRM-18 | Markup rules, margin analysis, multi-currency, discount matrices | Should | Not started — multi-currency is the phase-1 item below |
 
 Built in three slices: the lead and the pipeline (done), the estimate
-(CRM-05/06/07), then the quotation (CRM-13/14/15/17).
+(done), then the quotation (CRM-13/14/15/17).
+
+**The estimating rules, so they are not lost:** margin is not markup and both
+are shown wherever either appears; overheads go on the direct cost *before* the
+margin, or they come straight back out of the profit; no rate is ever typed,
+only built up from material, labour hours, plant hours and subcontract; and
+wastage lives on each takeoff line because it differs by material.
 
 ---
 
