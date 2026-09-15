@@ -110,16 +110,32 @@ export type Qualification = {
   of: number;
   /** Which questions have no answer yet, in words. */
   missing: string[];
+  /** Every question with its own answer, in order, for anything drawing them. */
+  questions: { key: string; label: string; answered: boolean }[];
   /** Answered out of five, as a fraction. */
   score: number;
 };
 
-const QUESTIONS: { key: string; ask: (l: LeadLike) => boolean; missing: string }[] = [
-  { key: "budget", ask: (l) => (Number(l.budgetStated) || 0) > 0, missing: "no budget has been stated" },
-  { key: "decisionMaker", ask: (l) => !!String(l.decisionMaker ?? "").trim(), missing: "nobody is named as the decision-maker" },
-  { key: "requiredBy", ask: (l) => !!l.requiredBy, missing: "no date they need it by" },
-  { key: "siteVisit", ask: (l) => !!l.siteReportOn, missing: "nobody has been to site" },
-  { key: "scope", ask: (l) => l.scopeDefined === true, missing: "the scope is not defined" },
+/**
+ * The five questions, and the only place their wording lives.
+ *
+ * A screen drawing these as lamps needs to know which lamp is which. Returning
+ * them from here rather than letting the component keep its own copy is what
+ * stops the two drifting apart and lighting the wrong one.
+ */
+export const QUESTIONS: {
+  key: string;
+  /** For a label beside a lamp. */
+  label: string;
+  /** For a sentence about what is still unknown. */
+  missing: string;
+  ask: (l: LeadLike) => boolean;
+}[] = [
+  { key: "budget", label: "Budget stated", missing: "no budget has been stated", ask: (l) => (Number(l.budgetStated) || 0) > 0 },
+  { key: "decisionMaker", label: "Decision-maker named", missing: "nobody is named as the decision-maker", ask: (l) => !!String(l.decisionMaker ?? "").trim() },
+  { key: "requiredBy", label: "Date they need it", missing: "no date they need it by", ask: (l) => !!l.requiredBy },
+  { key: "siteVisit", label: "Somebody has been to site", missing: "nobody has been to site", ask: (l) => !!l.siteReportOn },
+  { key: "scope", label: "Scope defined", missing: "the scope is not defined", ask: (l) => l.scopeDefined === true },
 ];
 
 /**
@@ -130,12 +146,14 @@ const QUESTIONS: { key: string; ask: (l: LeadLike) => boolean; missing: string }
  * a low opinion is not.
  */
 export function qualify(lead: LeadLike): Qualification {
+  const questions = QUESTIONS.map((q) => ({ key: q.key, label: q.label, answered: q.ask(lead) }));
   const missing = QUESTIONS.filter((q) => !q.ask(lead)).map((q) => q.missing);
-  const answered = QUESTIONS.length - missing.length;
+  const answered = questions.filter((q) => q.answered).length;
   return {
     answered,
     of: QUESTIONS.length,
     missing,
+    questions,
     score: QUESTIONS.length ? round2(answered / QUESTIONS.length) : 0,
   };
 }

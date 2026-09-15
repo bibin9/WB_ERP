@@ -46,14 +46,60 @@ inferred.
 
 ### CRM, Sales and Estimation (§6.4)
 
-Not started. Eleven of its eighteen requirements are Must: lead capture and
-pipeline (CRM-01, 02), bill of quantities and takeoff (CRM-05), cost build-up
-(CRM-06), bidding units per tonne, metre, piece or lump sum (CRM-07), and the
-enquiry → site visit → quotation → approval → customer PO workflow
-(CRM-11 to 15, 17).
+Taken from the approved BRD rather than summarised. Eleven of eighteen are Must.
 
-CRM-18 wants multi-currency quotations, which is the same multi-currency work
-already on this list from phase 1.
+| Ref | Requirement | Priority | State |
+|---|---|---|---|
+| CRM-01 | Lead capture, segmentation, qualification scoring, interaction history | Must | **Done** — scoring counts what is known, never typed |
+| CRM-02 | Pipeline with stage tracking, probability weighting, competitor intelligence | Must | **Done** — probability from the stage, never per deal |
+| CRM-03 | Tender / bid logging | Should | Not started |
+| CRM-04 | Marketing campaigns, event tracking, ROI | Could | Not started |
+| CRM-05 | Bill of Quantities and material takeoff | Must | Not started — slice 2 |
+| CRM-06 | Cost build-up: labour rates, machine hours, indirects | Must | Not started — slice 2 |
+| CRM-07 | Bidding units: per tonne, metre, piece or lump sum | Must | Not started — slice 2 |
+| CRM-08 | Material supply models: FOC and turnkey | Should | Not started |
+| CRM-09 | Subcontractor bidding and comparison within the estimate | Should | Not started |
+| CRM-10 | Attach ITP, NDT, hydrotest and mill certificates | Should | Not started |
+| CRM-11 | Enquiry logged as a lead with defined data fields | Must | **Done** |
+| CRM-12 | Site visit recorded, report attached, status shown | Must | **Done** — status derived from the report existing |
+| CRM-13 | Estimation engineer prepares a quotation from the report | Must | Not started — slice 3 |
+| CRM-14 | Quotation routed to management for approval | Must | Not started — slice 3 |
+| CRM-15 | On approval, issue the quotation as a PDF by email | Must | Not started — slice 3 |
+| CRM-16 | Revisions with full version history | Should | Not started |
+| CRM-17 | Capture the customer PO, hand over to Projects and Finance | Must | Not started — slice 3 |
+| CRM-18 | Markup rules, margin analysis, multi-currency, discount matrices | Should | Not started — multi-currency is the phase-1 item below |
+
+Built in three slices: the lead and the pipeline (done), the estimate
+(CRM-05/06/07), then the quotation (CRM-13/14/15/17).
+
+---
+
+## How phase 2 touches the accounts
+
+Only one module posts, and only for stock. `recordMovement()` in
+`lib/stock-posting.ts` calls `postVoucher()`; nothing else in phase 2 reaches
+the ledger at all.
+
+| Event | Posts |
+|---|---|
+| Goods receipt | Dr inventory / Cr goods received not invoiced |
+| Issue to a job | Dr site materials, tagged to the job / Cr inventory |
+| Reusable return, adjustments | the same pair, reversed as appropriate |
+| Transfer between stores | nothing — it changes where stock is, not what is owned |
+| Scrap return | nothing — the job already has the cost |
+| Purchase order, RFQ, award | nothing — a commitment is not a transaction |
+| Equipment, bins, vendor rating, enquiries | nothing |
+
+Accounts are named by **role** rather than code (`inventory`,
+`goodsReceivedNotInvoiced`, `materialCost`), so a customer with their own chart
+remaps in settings instead of editing code. Nothing bypasses `postVoucher`, so
+the period lock, the balance check and the numbering apply to stock exactly as
+they do to a manual journal.
+
+CRM posts nothing either. The accounting link arrives at CRM-17, when a won
+enquiry becomes a job carrying its contract value — master data, not a voucher.
+Revenue reaches the books when invoices are raised against that job, which is
+phase-1 Finance already.
 
 ---
 

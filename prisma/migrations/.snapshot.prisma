@@ -132,6 +132,7 @@ model Company {
   Equipment           Equipment[]
   MaterialReturn      MaterialReturn[]
   rfqs                Rfq[]
+  leads               Lead[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -1094,6 +1095,7 @@ model Party {
   Invoice        Invoice[]
   purchaseOrders PurchaseOrder[]
   rfqQuotes      RfqQuote[]
+  leads          Lead[]
   rfqsAwarded    Rfq[]
 
   @@unique([companyId, code])
@@ -1774,6 +1776,7 @@ model Job {
   materialRequests   MaterialRequest[]
   purchaseOrders     PurchaseOrder[]
   rfqs               Rfq[]
+  leads              Lead[]
   purchaseOrderLines PurchaseOrderLine[]
   Equipment          Equipment[]
   MaterialReturn     MaterialReturn[]
@@ -2153,4 +2156,127 @@ model StorageBin {
 
   @@unique([storeId, code])
   @@index([storeId])
+}
+
+/// An enquiry, from first contact to won or lost (CRM-01, CRM-02, CRM-11).
+///
+/// Separate from Party on purpose: an enquiry can arrive from somebody who is
+/// not a customer yet, and forcing them onto the customer master before
+/// anybody knows whether the work is real fills it with names that never
+/// became anything. The name is held here and the link made when it matters.
+///
+/// Posts nothing. An enquiry is not a transaction — the accounting link
+/// arrives only when a won lead becomes a job (CRM-17), and even that is
+/// master data rather than a voucher.
+model Lead {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  number String
+  title  String
+  /// New | Qualifying | Site visit | Estimating | Quoted | Negotiating | Won |
+  /// Lost. The probability used in the forecast comes from this, never typed.
+  stage  String @default("New")
+  source String?
+
+  /// The customer, once they are on the master. Null while it is only a name.
+  partyId      String?
+  party        Party?  @relation(fields: [partyId], references: [id])
+  /// Snapshotted, and the only name there is until a party exists.
+  customerName String
+
+  contactName  String?
+  contactEmail String?
+  contactPhone String?
+
+  description    String?
+  /// What the work is thought to be worth. Weighted by stage for the forecast.
+  estimatedValue Float   @default(0)
+
+  /// The five qualification facts. Counted, never scored by hand.
+  budgetStated Float?
+  decisionMaker String?
+  requiredBy    DateTime?
+  scopeDefined  Boolean   @default(false)
+
+  /// CRM-02: who else is bidding, as far as anybody knows.
+  competitors String?
+
+  /// Why it was lost, and to whom. Required on losing, because six months
+  /// later the file says Lost and nobody can reconstruct it.
+  lostReason String?
+  lostTo     String?
+  closedAt   DateTime?
+  closedBy   String?
+  /// The stage it had reached when it was won or lost.
+  ///
+  /// Without this every closed enquiry looks as though it went the whole way,
+  /// and losing at Quoted becomes indistinguishable from losing at New — which
+  /// are completely different events and the second is much the worse news.
+  closedFromStage String?
+
+  /// The job it became, once won (CRM-17).
+  jobId String?
+  job   Job?    @relation(fields: [jobId], references: [id])
+
+  ownerName String
+  notes     String?
+
+  visits       SiteVisit[]
+  interactions LeadInteraction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@index([stage])
+  @@index([partyId])
+}
+
+/// A visit to site, and the report that comes back (CRM-12).
+///
+/// The visit and the report are two events, not one. Somebody goes on Tuesday
+/// and writes it up on Friday, and "Site Report Submitted" has to be able to
+/// tell those apart — so the status is derived from the findings existing
+/// rather than from a box anybody ticks.
+model SiteVisit {
+  id     String @id @default(cuid())
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  visitedOn DateTime
+  visitedBy String
+  /// The report itself. Null until it has been written up.
+  findings  String?
+  /// When the report was filed. What the status is read from.
+  reportOn  DateTime?
+  /// Where the signed report or photographs live, if anywhere.
+  reportRef String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+}
+
+/// Everything anybody has said to this customer about this enquiry (CRM-01).
+///
+/// Append-only. A history that can be edited is a history somebody tidies
+/// before a difficult meeting.
+model LeadInteraction {
+  id     String @id @default(cuid())
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  at      DateTime @default(now())
+  /// Call | Email | Meeting | Site visit | Quotation sent | Note
+  kind    String
+  summary String
+  by      String
+
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
 }
