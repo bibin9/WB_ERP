@@ -312,5 +312,74 @@ await db.$disconnect();
   for (const r of rows) await db.journalEntry.delete({ where: { id: r.id } });
 }
 
+/* ------------------------------------------ numbering survives a gap ---- */
+
+/**
+ * A voucher series with a hole in it must keep issuing numbers.
+ *
+ * Numbering used to guess from a count of vouchers, which silently assumes the
+ * series is dense. Delete one voucher — a mistake put right, a test tidying up,
+ * a reversal removed — and count + 1 lands on a number somebody already has.
+ * The retry loop then re-read the same count, rebuilt the same reference and
+ * collided again, twenty-five times, before telling one person at a quiet desk
+ * that too many people were posting at once.
+ *
+ * That was not a slow path. It could never succeed again for the rest of that
+ * financial year: the company simply stopped being able to post.
+ */
+{
+  const series = { ...base, voucherType: "Contra" };
+  const first = await postVoucher({ ...series, memo: `${TAG} gap 1`, lines: balanced() });
+  const second = await postVoucher({ ...series, memo: `${TAG} gap 2`, lines: balanced() });
+  const third = await postVoucher({ ...series, memo: `${TAG} gap 3`, lines: balanced() });
+  ok("three vouchers number in sequence",
+    first.ok && second.ok && third.ok, [first, second, third].find((r) => !r.ok)?.error ?? "");
+
+  const numberOf = (r) => Number(r.reference.slice(r.reference.lastIndexOf("/") + 1));
+  ok("  each one after the last",
+    numberOf(second) === numberOf(first) + 1 && numberOf(third) === numberOf(second) + 1,
+    [first, second, third].map((r) => r.reference).join(", "));
+
+  // Punch a hole in the middle of the series.
+  await db.journalLine.deleteMany({ where: { entryId: second.entryId } });
+  await db.journalEntry.delete({ where: { id: second.entryId } });
+
+  const fourth = await postVoucher({ ...series, memo: `${TAG} gap 4`, lines: balanced() });
+  ok("a deleted voucher does not stop the next one", fourth.ok,
+    fourth.ok ? fourth.reference : fourth.error);
+  ok("  which carries on past the highest, not into the hole",
+    fourth.ok && numberOf(fourth) === numberOf(third) + 1,
+    "reusing a gap hands out a number that is already on a printed document");
+}
+
+/**
+ * The same fault, reached without deleting anything.
+ *
+ * A voucher type with no entry in VOUCHER_PREFIX falls back to "JV" — so it
+ * shares a prefix with Journal while being counted separately from it. The
+ * count is then of the wrong set entirely, and the first such voucher collides
+ * with a Journal that already holds that number.
+ */
+{
+  const numberOf = (r) => Number(r.reference.slice(r.reference.lastIndexOf("/") + 1));
+
+  const jv = await postVoucher({ ...base, voucherType: "Journal", memo: `${TAG} plain journal`, lines: balanced() });
+  ok("a journal takes the next number in the JV series", jv.ok, jv.ok ? jv.reference : jv.error);
+
+  const odd = await postVoucher({
+    ...base, voucherType: "Stock Adjustment", memo: `${TAG} shared prefix`, lines: balanced(),
+  });
+  ok("a voucher type sharing the JV prefix also posts", odd.ok, odd.ok ? odd.reference : odd.error);
+
+  // The rule: the number belongs to the prefix, not to the voucher type. A
+  // count of "Stock Adjustment" rows knows nothing about the journals already
+  // holding numbers in the very same series.
+  ok("  and takes a number above the journal, not from the start of the series",
+    odd.ok && jv.ok && numberOf(odd) > numberOf(jv),
+    odd.ok && jv.ok ? `${jv.reference} then ${odd.reference}` : "");
+}
+
+await cleanup();
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
