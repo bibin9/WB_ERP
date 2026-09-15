@@ -340,6 +340,69 @@ try {
     ok("a return with nobody's name on it is refused", nameless.ok === false,
       "material reappearing on a shelf anonymously is what a stock count can never explain");
     ok("  and asks for the name", /who brought it back/i.test(nameless.error || ""), nameless.error);
+
+    /*
+     * Reusable material goes back into a store that uses bins.
+     *
+     * Every other return here posts into a store with no bins, which is why
+     * this went unnoticed: a store divided into bins refuses a movement that
+     * does not name one, and the return carried no bin at all. The store most
+     * likely to be binned is the main store, so in practice nothing could be
+     * returned into the one place returns actually go.
+     */
+    const binned = await db.store.create({
+      data: { companyId: co.id, code: `${tag}-BINS`, name: "Binned store" },
+    });
+    const shelf = await db.storageBin.create({
+      data: { storeId: binned.id, code: "C-01", zone: "C", materialType: "Conduit" },
+    });
+    made.push(binned.id);
+
+    await recordMovement({
+      companyId: co.id, postedBy: "storeman", kind: "Receipt", itemId: retItem.id,
+      storeId: binned.id, binId: shelf.id, date: today(), quantity: 50, unitCost: 10,
+      reference: `${tag}-BIN-IN`,
+    });
+    const binJob = await recordMovement({
+      companyId: co.id, postedBy: "storeman", kind: "Issue", itemId: retItem.id,
+      storeId: binned.id, binId: shelf.id, date: today(), quantity: 30,
+      jobId: job.id, reference: `${tag}-BIN-OUT`,
+    });
+    ok("  material can be issued out of a binned store", binJob.ok === true, binJob.ok ? "" : binJob.error);
+
+    const backToBin = await postReturn({
+      companyId: co.id, postedBy: "storeman", jobId: job.id, storeId: binned.id,
+      date: today(), returnedBy: "site",
+      lines: [{ itemId: retItem.id, condition: "Reusable", quantity: 10, binId: shelf.id }],
+    });
+    ok("reusable material goes back into a store that uses bins", backToBin.ok === true,
+      backToBin.ok ? "" : backToBin.error);
+
+    if (backToBin.ok) {
+      const back = await db.stockMovement.findFirst({
+        where: { companyId: co.id, kind: "Return to store", storeId: binned.id },
+        orderBy: { createdAt: "desc" },
+      });
+      ok("  and the movement says which bin it went into", back?.binId === shelf.id,
+        back?.binId ? `bin ${back.binId.slice(-6)}` : "no bin on the movement");
+    }
+
+    const noBin = await postReturn({
+      companyId: co.id, postedBy: "storeman", jobId: job.id, storeId: binned.id,
+      date: today(), returnedBy: "site",
+      lines: [{ itemId: retItem.id, condition: "Reusable", quantity: 5 }],
+    });
+    ok("  and a return into a binned store still has to name one", noBin.ok === false,
+      noBin.ok ? "it was allowed in with no bin" : noBin.error);
+
+    // Scrap never reaches a shelf, so it is never asked for a bin.
+    const scrapNoBin = await postReturn({
+      companyId: co.id, postedBy: "storeman", jobId: job.id, storeId: binned.id,
+      date: today(), returnedBy: "site",
+      lines: [{ itemId: retItem.id, condition: "Scrap", quantity: 5 }],
+    });
+    ok("  scrap needs no bin, because it never reaches a shelf", scrapNoBin.ok === true,
+      scrapNoBin.ok ? "" : scrapNoBin.error);
   }
 
   /* ====================================== a transfer moves no money ===== */

@@ -8,7 +8,10 @@ type Emp = { id: string; label: string };
 export function CertForm({ employees }: { employees: Emp[] }) {
   const ref = useRef<HTMLFormElement>(null);
   return (
-    <form ref={ref} action={async (fd) => { await addCertification(fd); ref.current?.reset(); }}
+    <form ref={ref} onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form); await addCertification(fd); ref.current?.reset(); }}
       className="flex flex-wrap items-end gap-2 rounded-lg border border-line bg-brand-paper p-3">
       <div>
         <label className="mb-1 block text-xs font-medium text-muted">Employee / worker</label>
@@ -36,7 +39,10 @@ export function CertForm({ employees }: { employees: Emp[] }) {
 export function AppraisalForm({ employees }: { employees: Emp[] }) {
   const ref = useRef<HTMLFormElement>(null);
   return (
-    <form ref={ref} action={async (fd) => { await addAppraisal(fd); ref.current?.reset(); }}
+    <form ref={ref} onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form); await addAppraisal(fd); ref.current?.reset(); }}
       className="flex flex-wrap items-end gap-2 rounded-lg border border-line bg-brand-paper p-3">
       <div>
         <label className="mb-1 block text-xs font-medium text-muted">Employee</label>

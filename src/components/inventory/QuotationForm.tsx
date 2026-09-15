@@ -78,7 +78,10 @@ export default function QuotationForm({
         </div>
 
         <form
-          action={async (fd) => {
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form);
             setError("");
             setBusy(true);
             fd.set(

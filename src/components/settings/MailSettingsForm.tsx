@@ -87,7 +87,10 @@ export default function MailSettingsForm({
   return (
     <div className="space-y-5">
       <form
-        action={async (fd) => { await run("save", () => saveMailSettings(fd)); }}
+        onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form); await run("save", () => saveMailSettings(fd)); }}
         className="card space-y-4 p-5"
       >
         <input type="hidden" name="companyId" value={companyId} />
@@ -216,7 +219,10 @@ export default function MailSettingsForm({
 
       {existing && (
         <form
-          action={async (fd) => { await run("test", () => testMailSettings(fd)); }}
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form); await run("test", () => testMailSettings(fd)); }}
           className="card space-y-3 p-5"
         >
           <input type="hidden" name="companyId" value={companyId} />

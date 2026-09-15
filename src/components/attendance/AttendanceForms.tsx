@@ -10,7 +10,10 @@ const today = () => new Date().toISOString().slice(0, 10);
 export function MarkAttendanceForm({ employees }: { employees: Emp[] }) {
   const ref = useRef<HTMLFormElement>(null);
   return (
-    <form ref={ref} action={async (fd) => { await markAttendance(fd); ref.current?.reset(); }}
+    <form ref={ref} onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form); await markAttendance(fd); ref.current?.reset(); }}
       className="flex flex-wrap items-end gap-2 rounded-lg border border-line bg-brand-paper p-3">
       <div>
         <label className="mb-1 block text-xs font-medium text-muted">Employee</label>
@@ -73,7 +76,10 @@ export function TimesheetForm({
   return (
     <form
       ref={ref}
-      action={async (fd) => {
+      onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form);
         setError("");
         const res = await addTimesheet(fd);
         if (res?.ok) ref.current?.reset();

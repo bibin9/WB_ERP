@@ -63,7 +63,10 @@ export default function OpenTaxPeriod({
         </div>
 
         <form
-          action={async (fd) => {
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form);
             setError("");
             setSaving(true);
             const res = await openReturn(fd);

@@ -107,7 +107,10 @@ export default function HrPolicyForm({
 
   return (
     <form
-      action={async (fd) => {
+      onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form);
         setError("");
         setProblems([]);
         setSaving(true);

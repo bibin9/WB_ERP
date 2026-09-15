@@ -31,7 +31,10 @@ export default function AccountForm({ companyId, account }: { companyId: string;
           <button onClick={() => setOpen(false)} className="text-muted hover:text-ink"><X className="h-5 w-5" /></button>
         </div>
         <form
-          action={async (fd) => { editing ? await updateAccount(fd) : await createAccount(fd); setOpen(false); }}
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form); editing ? await updateAccount(fd) : await createAccount(fd); setOpen(false); }}
           className="space-y-4 p-5"
         >
           {editing ? <input type="hidden" name="id" value={account!.id} /> : <input type="hidden" name="companyId" value={companyId} />}

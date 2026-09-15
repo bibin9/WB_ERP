@@ -27,7 +27,10 @@ export default function RaiseRequestForm({ companies, docTypes }: { companies: O
           </button>
         </div>
         <form
-          action={async (fd) => {
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form);
             await createApprovalRequest(fd);
             setOpen(false);
           }}

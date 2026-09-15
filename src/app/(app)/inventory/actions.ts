@@ -513,7 +513,7 @@ export async function saveReturn(formData: FormData): Promise<Result> {
   const session = await scoped(companyId);
   if (!session) return { ok: false, error: "No access to this company" };
 
-  let lines: { itemId: string; condition: string; quantity: number; notes?: string }[] = [];
+  let lines: { itemId: string; condition: string; quantity: number; notes?: string; binId?: string }[] = [];
   try {
     lines = JSON.parse(String(formData.get("lines") ?? "[]"));
   } catch {
@@ -533,6 +533,7 @@ export async function saveReturn(formData: FormData): Promise<Result> {
       condition: String(l.condition ?? ""),
       quantity: Number(l.quantity) || 0,
       notes: String(l.notes ?? "").slice(0, 300) || null,
+      binId: String(l.binId ?? "") || null,
     })),
   });
   if (!res.ok) return res;

@@ -50,7 +50,10 @@ export default function PayslipDeduction({
         </div>
 
         <form
-          action={async (fd) => {
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form);
             setError("");
             setSaving(true);
             const res = await updatePayslip(fd);

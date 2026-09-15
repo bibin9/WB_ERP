@@ -15,7 +15,10 @@ export default function DocumentUpload({ employeeId }: { employeeId: string }) {
   return (
     <form
       ref={ref}
-      action={async (fd) => { setError(""); setBusy(true); const r = await uploadDocument(fd); setBusy(false); if (r?.ok) ref.current?.reset(); else setError(r?.error || "Upload failed"); }}
+      onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form); setError(""); setBusy(true); const r = await uploadDocument(fd); setBusy(false); if (r?.ok) ref.current?.reset(); else setError(r?.error || "Upload failed"); }}
       className="flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-line bg-brand-paper p-3"
     >
       <input type="hidden" name="employeeId" value={employeeId} />

@@ -20,7 +20,10 @@ export default function LeaveForm({ employees, leaveTypes }: { employees: Emp[];
           <h2 className="font-semibold text-heading">Request Leave</h2>
           <button onClick={() => setOpen(false)} className="text-muted hover:text-ink"><X className="h-5 w-5" /></button>
         </div>
-        <form action={async (fd) => { setError(""); const r = await createLeaveRequest(fd); if (r?.ok) setOpen(false); else setError(r?.error || "Failed"); }} className="space-y-4 p-5">
+        <form onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form); setError(""); const r = await createLeaveRequest(fd); if (r?.ok) setOpen(false); else setError(r?.error || "Failed"); }} className="space-y-4 p-5">
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">Employee</label>
             <select name="employeeId" className="input" required>

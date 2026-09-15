@@ -37,7 +37,10 @@ export default function EmployeeForm({ companies, employee, master = {} }: { com
           <button onClick={() => setOpen(false)} className="text-muted hover:text-ink"><X className="h-5 w-5" /></button>
         </div>
         <form
-          action={async (fd) => { editing ? await updateEmployee(fd) : await createEmployee(fd); setOpen(false); }}
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form); editing ? await updateEmployee(fd) : await createEmployee(fd); setOpen(false); }}
           className="grid grid-cols-2 gap-3 p-5"
         >
           {editing ? (

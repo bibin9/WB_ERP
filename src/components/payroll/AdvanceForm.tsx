@@ -17,7 +17,10 @@ export default function AdvanceForm({ companyId, employees }: { companyId: strin
           <h2 className="font-semibold text-heading">New Salary Advance</h2>
           <button onClick={() => setOpen(false)} className="text-muted hover:text-ink"><X className="h-5 w-5" /></button>
         </div>
-        <form action={async (fd) => { await createAdvance(fd); setOpen(false); }} className="space-y-4 p-5">
+        <form onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form); await createAdvance(fd); setOpen(false); }} className="space-y-4 p-5">
           <input type="hidden" name="companyId" value={companyId} />
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">Employee</label>

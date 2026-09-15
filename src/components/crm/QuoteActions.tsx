@@ -125,7 +125,10 @@ export default function QuoteActions({
 
       {dialog === "decline" && (
         <Dialog title="Why did they turn it down?" onClose={() => setDialog("")}>
-          <form action={async (fd) => { await run("decline", () => decline(fd)); }} className="space-y-3 p-5">
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form); await run("decline", () => decline(fd)); }} className="space-y-3 p-5">
             <input type="hidden" name="quotationId" value={quote.id} />
             <div>
               <label className="mb-1 block text-sm font-medium text-ink">The reason</label>
@@ -194,7 +197,10 @@ function IssueDialog({
 
   return (
     <Dialog title="Send it to the customer" onClose={close}>
-      <form action={async (fd) => { await run("issue", () => issue(fd)); }} className="space-y-3 p-5">
+      <form onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form); await run("issue", () => issue(fd)); }} className="space-y-3 p-5">
         <input type="hidden" name="quotationId" value={quote.id} />
         <input type="hidden" name="issuedTo" value={to.join(", ")} />
         <input type="hidden" name="cc" value={cc} />
@@ -300,7 +306,10 @@ function AcceptDialog({
 
   return (
     <Dialog title="What did they order?" onClose={close}>
-      <form action={async (fd) => { await run("accept", () => accept(fd)); }} className="space-y-3 p-5">
+      <form onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form); await run("accept", () => accept(fd)); }} className="space-y-3 p-5">
         <input type="hidden" name="quotationId" value={quote.id} />
 
         <div className="grid grid-cols-2 gap-3">

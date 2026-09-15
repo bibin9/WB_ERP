@@ -12,7 +12,10 @@ export default function AddStepRow({ routeId, roles }: { routeId: string; roles:
   return (
     <form
       ref={formRef}
-      action={async (fd) => {
+      onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form);
         await addStep(fd);
         formRef.current?.reset();
       }}

@@ -4,11 +4,12 @@ import { useState } from "react";
 import { Plus, X, Trash2 } from "lucide-react";
 import { saveReturn } from "@/app/(app)/inventory/actions";
 import { RETURN_CONDITIONS, CONDITION_HELP, checkReturn, returnVerdict } from "@/lib/returns";
+import { binLabel } from "@/lib/bins";
 
-type Line = { key: number; itemId: string; condition: string; quantity: string; notes: string };
+type Line = { key: number; itemId: string; condition: string; quantity: string; notes: string; binId: string };
 
 let nextKey = 1;
-const blank = (): Line => ({ key: nextKey++, itemId: "", condition: "Reusable", quantity: "", notes: "" });
+const blank = (): Line => ({ key: nextKey++, itemId: "", condition: "Reusable", quantity: "", notes: "", binId: "" });
 
 /**
  * Material coming back from site (INV-16).
@@ -26,6 +27,7 @@ export default function ReturnForm({
   items,
   jobs,
   stores,
+  bins = {},
   positions,
   averageCost,
 }: {
@@ -33,6 +35,8 @@ export default function ReturnForm({
   items: { id: string; code: string; name: string; unitCode: string }[];
   jobs: { id: string; code: string; name: string }[];
   stores: { id: string; code: string; name: string; isDefault: boolean }[];
+  /** The bins in each store, keyed by store id. Absent means the store has none. */
+  bins?: Record<string, { id: string; code: string; zone: string | null; materialType: string | null }[]>;
   /** What each job has had out, keyed `jobId:itemId`. */
   positions: Record<string, { issued: number; returned: number }>;
   /** What a shelf says an item is worth, keyed `itemId:storeId`. */
@@ -50,6 +54,9 @@ export default function ReturnForm({
 
   const itemOf = (id: string) => items.find((i) => i.id === id);
 
+  /** The bins in the store this note is going into. Empty means it has none. */
+  const storeBins = bins[storeId] ?? [];
+
   /** What this job still has out, less anything claimed higher up this note. */
   const outstandingFor = (line: Line) => {
     if (!jobId || !line.itemId) return null;
@@ -63,6 +70,11 @@ export default function ReturnForm({
 
   const complaintFor = (line: Line) => {
     if (!jobId || !line.itemId || !Number(line.quantity)) return "";
+    // Said here rather than left to the posting, so the storeman is told while
+    // he is still looking at the line rather than after he presses record.
+    if (storeBins.length > 0 && line.condition === "Reusable" && !line.binId) {
+      return "Say which bin it went into. This store is divided into bins, and the bin totals have to agree with the shelf.";
+    }
     const pos = positions[`${jobId}:${line.itemId}`] ?? { issued: 0, returned: 0 };
     const claimedAbove = lines
       .slice(0, lines.findIndex((l) => l.key === line.key))
@@ -107,7 +119,10 @@ export default function ReturnForm({
         </div>
 
         <form
-          action={async (fd) => {
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form);
             setError("");
             setSaving(true);
             fd.set("lines", JSON.stringify(filled));
@@ -176,7 +191,7 @@ export default function ReturnForm({
                 return (
                   <div key={l.key} className="space-y-1">
                     <div className="grid grid-cols-12 gap-2">
-                      <div className="col-span-4">
+                      <div className={storeBins.length > 0 ? "col-span-3" : "col-span-4"}>
                         <select
                           className="input h-9 py-1.5 text-sm"
                           value={l.itemId}
@@ -188,7 +203,7 @@ export default function ReturnForm({
                           ))}
                         </select>
                       </div>
-                      <div className="col-span-3">
+                      <div className={storeBins.length > 0 ? "col-span-2" : "col-span-3"}>
                         <select
                           className="input h-9 py-1.5 text-sm"
                           value={l.condition}
@@ -199,6 +214,31 @@ export default function ReturnForm({
                           ))}
                         </select>
                       </div>
+                      {/*
+                        Only where the store is divided into bins, and only on a
+                        reusable line — scrap never reaches a shelf. Without this
+                        the store that most wants bins was the one store nothing
+                        could be returned into: the movement was refused for a
+                        bin the screen gave no way to name.
+                      */}
+                      {storeBins.length > 0 && (
+                        <div className="col-span-2">
+                          {l.condition === "Reusable" ? (
+                            <select
+                              className="input h-9 py-1.5 text-sm"
+                              value={l.binId}
+                              onChange={(e) => set(l.key, { binId: e.target.value })}
+                            >
+                              <option value="">Which bin&hellip;</option>
+                              {storeBins.map((b) => (
+                                <option key={b.id} value={b.id}>{binLabel(b)}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div className="flex h-9 items-center text-xs text-muted">no shelf</div>
+                          )}
+                        </div>
+                      )}
                       <div className="col-span-2">
                         <input
                           type="number" step="0.001" min="0"

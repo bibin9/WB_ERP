@@ -18,7 +18,10 @@ export function AddCandidate({ requisitionId }: { requisitionId: string }) {
   const [open, setOpen] = useState(false);
   if (!open) return <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1 text-xs font-medium text-brand-blue-600 hover:underline"><UserPlus className="h-3.5 w-3.5" /> Add candidate</button>;
   return (
-    <form action={async (fd) => { await addCandidate(fd); setOpen(false); }} className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-line bg-brand-paper p-2">
+    <form onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form); await addCandidate(fd); setOpen(false); }} className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-line bg-brand-paper p-2">
       <input type="hidden" name="requisitionId" value={requisitionId} />
       <input name="name" className="input h-8 w-40 py-1 text-sm" placeholder="Candidate name" required />
       <input name="email" className="input h-8 w-44 py-1 text-sm" placeholder="Email" />

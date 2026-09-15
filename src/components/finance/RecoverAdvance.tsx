@@ -82,7 +82,10 @@ export default function RecoverAdvance({
 
         {mode === "recover" ? (
           <form
-            action={async (fd) => {
+            onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form);
               setError("");
               setBusy(true);
               const res = await recoverAdvance(fd);
@@ -196,7 +199,10 @@ export default function RecoverAdvance({
           </form>
         ) : (
           <form
-            action={async (fd) => {
+            onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form);
               setError("");
               setBusy(true);
               const res = await closeAdvance(fd);

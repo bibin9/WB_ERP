@@ -39,7 +39,10 @@ export default function JobForm({ companies, departments, people, job }: { compa
           <button onClick={() => setOpen(false)} className="text-muted hover:text-ink"><X className="h-5 w-5" /></button>
         </div>
         <form
-          action={async (fd) => { editing ? await updateJob(fd) : await createJob(fd); setOpen(false); }}
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form); editing ? await updateJob(fd) : await createJob(fd); setOpen(false); }}
           className="space-y-4 p-5"
         >
           {editing && <input type="hidden" name="id" value={job!.id} />}

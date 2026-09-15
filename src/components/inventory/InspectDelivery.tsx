@@ -48,7 +48,10 @@ export default function InspectDelivery({
         <p className="mt-0.5 text-xs text-muted">{quantity.toLocaleString()} {unitCode}</p>
 
         <form
-          action={async (fd) => {
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form);
             setError("");
             setBusy(true);
             const res = await recordInspection(fd);

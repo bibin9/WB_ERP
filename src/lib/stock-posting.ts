@@ -353,6 +353,14 @@ export type ReturnLineInput = {
   condition: string;
   quantity: number;
   notes?: string | null;
+  /**
+   * Which bin the reusable material goes back into (INV-14).
+   *
+   * Per line rather than per note, because a lorry coming off site carries
+   * cable, fittings and offcuts together and they do not go back on the same
+   * shelf. Ignored on a scrap line, which never reaches a bin.
+   */
+  binId?: string | null;
 };
 
 export type ReturnInput = {
@@ -471,6 +479,16 @@ export async function postReturn(input: ReturnInput): Promise<ReturnResult> {
     include: { lines: true },
   });
 
+  /**
+   * Which bin each line goes back into, by the sort order it was written with.
+   *
+   * The bin is not a column on the return line: it belongs to the movement,
+   * which the line already points at, and storing it twice would give two
+   * places for it to disagree. Matching on sortOrder rather than on array
+   * position, because the rows come back in whatever order the database likes.
+   */
+  const binBySort = new Map(lines.map((l, i) => [i + 1, l.binId ?? null]));
+
   for (const l of created.lines) {
     if (!goesBackToStock(l.condition)) continue;
 
@@ -488,6 +506,7 @@ export async function postReturn(input: ReturnInput): Promise<ReturnResult> {
       jobId: job.id,
       reference: created.number,
       notes: l.notes,
+      binId: binBySort.get(l.sortOrder) ?? null,
     });
     if (!moved.ok) {
       // Undo the note rather than leave half of it posted.

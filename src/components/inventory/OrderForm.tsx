@@ -96,7 +96,10 @@ export default function OrderForm({
         </div>
 
         <form
-          action={async (fd) => {
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form);
             setError("");
             setSaving(true);
             fd.set("lines", JSON.stringify(lines.filter((l) => l.description.trim() && Number(l.quantity) > 0)));

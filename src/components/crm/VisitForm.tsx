@@ -39,7 +39,10 @@ export default function VisitForm({ leadId }: { leadId: string }) {
           </button>
         </div>
         <form
-          action={async (fd) => {
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form);
             setError("");
             setBusy(true);
             const res = await addVisit(fd);

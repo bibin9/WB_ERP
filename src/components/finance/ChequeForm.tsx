@@ -65,7 +65,10 @@ export default function ChequeForm({
         </div>
 
         <form
-          action={async (fd) => {
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form);
             setError("");
             setSaving(true);
             const res = editing ? await updateCheque(fd) : await recordCheque(fd);

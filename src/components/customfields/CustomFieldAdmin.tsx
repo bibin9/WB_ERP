@@ -8,7 +8,10 @@ export default function CustomFieldAdmin() {
   const ref = useRef<HTMLFormElement>(null);
   const [type, setType] = useState("text");
   return (
-    <form ref={ref} action={async (fd) => { await createCustomField(fd); ref.current?.reset(); setType("text"); }}
+    <form ref={ref} onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form); await createCustomField(fd); ref.current?.reset(); setType("text"); }}
       className="flex flex-wrap items-end gap-2 rounded-lg border border-line bg-brand-paper p-3">
       <div>
         <label className="mb-1 block text-xs font-medium text-muted">Field label</label>

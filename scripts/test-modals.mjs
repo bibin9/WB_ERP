@@ -58,5 +58,28 @@ const actionCells = pages.filter((f) => /whitespace-nowrap[^"]*text-right/.test(
 ok("row action cells still keep their buttons on one line", actionCells.length > 0,
   `${actionCells.length} screen(s) — the reset is on the modal, not here`);
 
+/*
+ * A refused form keeps what the user typed.
+ *
+ * React resets a form with an `action` prop once the action resolves, whether
+ * it was accepted or refused. Every form in this app is controlled by useState,
+ * so the reset put the DOM back to its defaults while the state driving the
+ * helper text kept the old values. A storeman who tried to issue more pipe than
+ * was free to use got the right refusal above a form that had lost his item,
+ * store, bin and job, and still said "that bin holds 181" about an item no
+ * longer selected.
+ *
+ * `onSubmit` with preventDefault does not reset, so what the user typed is
+ * still there to correct. Forms that want a reset ask for one.
+ */
+const components = walk("src/components").concat(walk("src/app"));
+const autoReset = components.filter((f) => /action=\{async \(fd\)/.test(read(f)));
+ok(
+  "no form throws away what was typed when it is refused",
+  autoReset.length === 0,
+  autoReset.map((f) => f.replace("src/", "")).join(", ") ||
+    `${components.length} files checked`,
+);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

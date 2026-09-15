@@ -71,7 +71,7 @@ const libs = await importLibs([
   "estimate-posting", "estimating", "quote-posting", "quoting", "docnumber",
 ]);
 const { db } = libs["db"];
-const { recordMovement, transferStock, inspectReceipt } = libs["stock-posting"];
+const { recordMovement, transferStock, inspectReceipt, postReturn } = libs["stock-posting"];
 const { createLead, moveStage, logInteraction, recordVisit, submitReport } = libs["lead-posting"];
 const { createEstimate, saveLine, saveTakeoff, setBasis, markPriced } = libs["estimate-posting"];
 const { createQuotation, submitQuotation, syncQuoteApproval, issueQuotation, acceptQuotation, declineQuotation } =
@@ -294,7 +294,10 @@ async function build() {
   const stores = {};
   for (const [code, name, kind, location, isDefault] of storeSpec) {
     stores[code] = await db.store.create({
-      data: { companyId: cid, code: P + code, name, kind, location, isDefault: false },
+      // The main store is the default. Hardcoding false here meant every form
+      // opened on the lay-down area at Ruwais, which is the last place a
+      // storeman in Mussafah wants a receipt to land by accident.
+      data: { companyId: cid, code: P + code, name, kind, location, isDefault },
     });
   }
   tally("stores", storeSpec.length);
@@ -663,38 +666,48 @@ async function build() {
   tally("calibration certificates, some in date, some overdue", certs);
 
   /* --- material returns from site ----------------------------------------- */
+  //
+  // Through postReturn, like everything else. Writing these rows directly was
+  // the one place this script went behind the rules, and it showed the moment
+  // anybody opened the screen: the conditions are "Reusable" and "Scrap", the
+  // direct insert happily stored "Good" and "Damaged", and the register then
+  // read every one of them as scrapped — nothing back on the shelf and nothing
+  // credited to the job. postReturn would have refused them outright.
   let returns = 0;
   if (jobs.length) {
-    for (const [n, condition] of ["Good", "Damaged", "Good"].entries()) {
+    for (const [n, condition] of ["Reusable", "Scrap", "Reusable"].entries()) {
       const issued = await db.stockMovement.findFirst({
         where: { companyId: cid, kind: "Issue", notes: { contains: MARK } },
         skip: n * 3,
         orderBy: { date: "desc" },
       });
       if (!issued) continue;
-      const number = await nextNumber("materialReturn", company.code, "RET");
-      await db.materialReturn.create({
-        data: {
-          companyId: cid, number, status: n === 2 ? "Draft" : "Posted",
-          jobId: issued.jobId, storeId: stores.MAIN.id, date: on(Math.floor(between(2, 15, 0))),
-          returnedBy: "Site supervisor",
-          notes: note("Surplus off the fabrication sequence"),
-          lines: {
-            create: [
-              {
-                itemId: issued.itemId, condition,
-                quantity: Math.max(1, Math.floor(issued.quantity / 3)),
-                value: Number((Math.max(1, Math.floor(issued.quantity / 3)) * issued.unitCost).toFixed(2)),
-                movementId: issued.id, sortOrder: 0,
-              },
-            ],
+      const res = await postReturn({
+        companyId: cid,
+        postedBy: BY,
+        jobId: issued.jobId,
+        storeId: stores.MAIN.id,
+        date: ago(Math.floor(between(2, 15, 0))),
+        returnedBy: "Site supervisor",
+        notes: note("Surplus off the fabrication sequence"),
+        lines: [
+          {
+            itemId: issued.itemId,
+            condition,
+            // A third of what went out, so it never claims back more than the
+            // job actually has outstanding.
+            quantity: Math.max(1, Math.floor(issued.quantity / 3)),
+            // Back on the shelf it came off. Scrap never reaches a bin.
+            binId: condition === "Reusable" ? issued.binId : null,
+            notes: condition === "Scrap" ? "Cut offcuts, not worth keeping" : "Surplus, still in wrapping",
           },
-        },
+        ],
       });
-      returns++;
+      if (res.ok) returns++;
+      else console.log(`   note return refused: ${res.error}`);
     }
   }
-  tally("material returns from site", returns);
+  tally("material returns from site, posted through the rules", returns);
 
   /* --- enquiries, right across the pipeline -------------------------------- */
   const LEADS = [

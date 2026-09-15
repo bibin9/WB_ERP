@@ -36,7 +36,10 @@ export default function CompanyForm({ company }: { company?: EditingCompany }) {
           <button onClick={() => setOpen(false)} className="text-muted hover:text-ink"><X className="h-5 w-5" /></button>
         </div>
         <form
-          action={async (fd) => { editing ? await updateCompany(fd) : await createCompany(fd); setOpen(false); }}
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form); editing ? await updateCompany(fd) : await createCompany(fd); setOpen(false); }}
           className="space-y-4 p-5"
         >
           {editing && <input type="hidden" name="id" value={company!.id} />}

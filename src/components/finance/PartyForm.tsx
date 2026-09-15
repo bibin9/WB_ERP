@@ -45,7 +45,10 @@ export default function PartyForm({ companyId, party }: { companyId: string; par
         </div>
 
         <form
-          action={async (fd) => {
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form);
             setError("");
             setSaving(true);
             const res = editing ? await updateParty(fd) : await createParty(fd);

@@ -77,6 +77,24 @@ export default async function ReturnsPage({
     : [];
 
   /**
+   * The bins in each store (INV-14).
+   *
+   * Reusable material goes back on a shelf, and a store divided into bins will
+   * not take a movement that does not say which one. Without these the return
+   * screen could not put anything back into the main store at all.
+   */
+  const binsByStore: Record<string, { id: string; code: string; zone: string | null; materialType: string | null }[]> = {};
+  if (companyId) {
+    for (const b of await db.storageBin.findMany({
+      where: { store: { companyId }, isActive: true },
+      orderBy: [{ zone: "asc" }, { code: "asc" }],
+      select: { id: true, storeId: true, code: true, zone: true, materialType: true },
+    })) {
+      (binsByStore[b.storeId] ??= []).push({ id: b.id, code: b.code, zone: b.zone, materialType: b.materialType });
+    }
+  }
+
+  /**
    * What every job still has out, and what every shelf says its stock is worth.
    *
    * Handed to the form so a storeman finds out at the gate that the job only
@@ -129,6 +147,7 @@ export default async function ReturnsPage({
               items={items}
               jobs={jobs}
               stores={stores}
+              bins={binsByStore}
               positions={positions}
               averageCost={averageCost}
             />

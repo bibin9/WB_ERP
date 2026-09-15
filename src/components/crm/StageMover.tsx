@@ -41,7 +41,10 @@ export default function StageMover({ leadId, stage }: { leadId: string; stage: s
         </div>
 
         <form
-          action={async (fd) => {
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form);
             setError("");
             setBusy(true);
             const res = await changeStage(fd);

@@ -7,7 +7,10 @@ import { createRole } from "@/app/(app)/settings/roles/actions";
 export default function CreateRoleForm() {
   const ref = useRef<HTMLFormElement>(null);
   return (
-    <form ref={ref} action={async (fd) => { await createRole(fd); ref.current?.reset(); }} className="flex items-end gap-2">
+    <form ref={ref} onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form); await createRole(fd); ref.current?.reset(); }} className="flex items-end gap-2">
       <div>
         <label className="mb-1 block text-xs font-medium text-muted">Role name</label>
         <input name="name" className="input h-9 w-56 py-1.5" placeholder="e.g. Draughtsman" required />

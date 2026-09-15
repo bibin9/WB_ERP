@@ -28,7 +28,10 @@ export default function RunPayrollForm({ companyId }: { companyId: string }) {
           <button onClick={() => setOpen(false)} className="text-muted hover:text-ink"><X className="h-5 w-5" /></button>
         </div>
         <form
-          action={async (fd) => {
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const fd = new FormData(form);
             setError("");
             setNotReady([]);
             setSaving(true);
