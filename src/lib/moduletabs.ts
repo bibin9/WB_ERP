@@ -3,7 +3,7 @@ import {
   HardHat, Building2, Scale, Banknote, Lock, Landmark, Percent, Settings2, PenLine,
   FolderOpen, UserPlus, Wallet, CalendarDays, CalendarCheck, BadgeCheck, UserMinus,
   ShieldAlert, ClipboardList, TrendingUp, Timer, UsersRound, FileText, Send, HandCoins,
-  Boxes, Package, PackagePlus, Warehouse, Wrench, Undo2, Gauge, Calculator, type LucideIcon,
+  Boxes, Package, PackagePlus, Warehouse, Wrench, Undo2, Gauge, Calculator, FileSignature, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -220,5 +220,9 @@ export const CRM_GROUPS: TabGroup[] = [
   {
     key: "estimates", label: "Estimates", icon: Calculator,
     screens: [{ href: "/crm/estimates", label: "Estimates", icon: Calculator, screen: "crm.estimates" }],
+  },
+  {
+    key: "quotations", label: "Quotations", icon: FileSignature,
+    screens: [{ href: "/crm/quotations", label: "Quotations", icon: FileSignature, screen: "crm.quotations" }],
   },
 ];

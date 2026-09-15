@@ -433,6 +433,21 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "Equipment away at the lab, under repair or withdrawn is blocked too, whatever its certificate says. Where it is beats what the paperwork says.",
   },
   {
+    id: "crm-quotation", category: "CRM & Estimation", screens: ["/crm/quotations"],
+    title: "Quoting, approval, and the customer's order",
+    summary: "Priced from the estimate, signed before it goes out, and the job created at what they actually ordered.",
+    body: "A quotation is a commitment, so three things are true of it here. Its price comes from the estimate and there is no box to type one — that is the point of having built the estimate up, and a typed total makes the build-up behind it decoration. Nothing reaches a customer before management has signed it, because sending one unapproved is how a company finds out what it agreed to when the order arrives. And once it is out it is revised rather than edited: the customer is holding a piece of paper, and two people reading different documents is worse than no system at all. The revision supersedes the old one, which is kept because the conversation will still refer to it. The last step is the one that matters most for the rest of the system. When the customer's order comes in, it is recorded with its number, its date and its value — and the job is created at THEIR figure, not the quoted one. Customers round, trim scope and agree discounts on the phone, and taking the quoted number because it is the one already in the system makes every margin report on that contract wrong from the first day. If the two differ, the difference is shown while it is being typed and has to be confirmed.",
+    steps: [
+      "Open CRM -> Quotations and click Raise a quotation. Pick the estimate; the price follows from it.",
+      "Click Send for approval. It goes through the Sales Quotation route — operations manager, then director, and the managing director on the large ones.",
+      "Once signed, click Issue to the customer and record where it went. Print the quotation and attach it to your own message: there is no mail server configured, so the system records that it went rather than sending it.",
+      "If the price changes, click Raise a revision rather than editing. The old one is kept and marked superseded.",
+      "When their purchase order arrives, click They ordered it. Enter their number, date and value.",
+      "If their value differs from the quote, the difference is shown and you confirm it. The job is then created at their figure, with a budget in money and hours taken from the estimate.",
+    ],
+    tip: "The hit rate on the quotations list is by value, not by count — winning three small quotations and losing the large one is not a good quarter, and a rate by count would report it as one.",
+  },
+  {
     id: "crm-estimate", category: "CRM & Estimation", screens: ["/crm/estimates"],
     title: "Pricing the work, and the margin trap",
     summary: "Build the rate up from what it costs. Never type it.",

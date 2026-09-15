@@ -62,15 +62,33 @@ Taken from the approved BRD rather than summarised. Eleven of eighteen are Must.
 | CRM-10 | Attach ITP, NDT, hydrotest and mill certificates | Should | Not started |
 | CRM-11 | Enquiry logged as a lead with defined data fields | Must | **Done** |
 | CRM-12 | Site visit recorded, report attached, status shown | Must | **Done** — status derived from the report existing |
-| CRM-13 | Estimation engineer prepares a quotation from the report | Must | Not started — slice 3 |
-| CRM-14 | Quotation routed to management for approval | Must | Not started — slice 3 |
-| CRM-15 | On approval, issue the quotation as a PDF by email | Must | Not started — slice 3 |
-| CRM-16 | Revisions with full version history | Should | Not started |
-| CRM-17 | Capture the customer PO, hand over to Projects and Finance | Must | Not started — slice 3 |
+| CRM-13 | Estimation engineer prepares a quotation from the report | Must | **Done** — priced from the estimate, no box to type one |
+| CRM-14 | Quotation routed to management for approval | Must | **Done** — through the existing approval engine |
+| CRM-15 | On approval, issue the quotation as a PDF by email | Must | **Partly** — approval-gated issue, printable document and a recorded send; **no mail transport exists**, see below |
+| CRM-16 | Revisions with full version history | Should | **Done** — a revision supersedes, never edits |
+| CRM-17 | Capture the customer PO, hand over to Projects and Finance | Must | **Done** — the job takes THEIR figure, budgeted from the estimate |
 | CRM-18 | Markup rules, margin analysis, multi-currency, discount matrices | Should | Not started — multi-currency is the phase-1 item below |
 
-Built in three slices: the lead and the pipeline (done), the estimate
-(done), then the quotation (CRM-13/14/15/17).
+Built in three slices: the lead and the pipeline (done), the estimate (done),
+the quotation (done).
+
+**Email is the one honest gap.** CRM-15 asks for the quotation to be issued as
+a PDF by email. There is no mail transport in this application — `notify` is
+in-app only and nothing else sends anything. So issuing is gated on approval,
+the document prints, the send is recorded with when, by whom and to which
+address, and the screen offers to open a draft in the user's own mail program.
+What it does not do is pretend to send, because somebody would then believe a
+quotation had gone out when it had not. Making this fully automatic needs an
+SMTP transport configured, which is a decision about the client's mail server
+rather than a piece of code missing.
+
+**The quotation rules, so they are not lost:** the price comes from the
+estimate and there is no box to type one; nothing reaches a customer before
+management has signed it; an issued quotation is revised rather than edited,
+because the customer is holding a piece of paper; and the job is created at
+what the customer ORDERED, not what was quoted — customers round, trim scope
+and agree discounts on the phone, and taking the quoted figure makes every
+margin report on that contract wrong from the first day.
 
 **The estimating rules, so they are not lost:** margin is not markup and both
 are shown wherever either appears; overheads go on the direct cost *before* the

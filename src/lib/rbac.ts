@@ -85,6 +85,7 @@ export const SCREENS: ScreenDef[] = [
 
   { key: "crm.leads", module: "crm", label: "Pipeline", href: "/crm" },
   { key: "crm.estimates", module: "crm", label: "Estimates", href: "/crm/estimates" },
+  { key: "crm.quotations", module: "crm", label: "Quotations", href: "/crm/quotations" },
 
   { key: "projects.list", module: "projects", label: "Projects", href: "/projects" },
 

@@ -264,6 +264,26 @@ ok("an empty estimate says so", /Nothing priced yet/.test(estimateVerdict(summar
   ok("an estimate below cost says the job loses money", /the job loses money/.test(v), v);
 }
 
+/* ============================== hours, for the job budget that follows == */
+
+{
+  const t = summariseEstimate([
+    { unit: "Metre", quantity: 100, build: { labourHours: 0.5, labourRate: 20, plantHours: 0.1, plantRate: 100 } },
+    { unit: "Piece", quantity: 20, build: { labourHours: 2, labourRate: 20 } },
+  ]);
+  ok("labour hours are carried across the estimate", t.labourHours === 90, String(t.labourHours));
+  ok("  and plant hours separately", t.plantHours === 10, String(t.plantHours));
+  ok("  because a job budget needs hours as well as money",
+    t.labourHours > 0 && t.labour > 0 && t.labourHours !== t.labour);
+}
+
+{
+  const t = summariseEstimate([{ unit: "Lump sum", quantity: 999, build: { labourHours: 40, labourRate: 20 } }]);
+  ok("a lump sum contributes its hours once", t.labourHours === 40, String(t.labourHours));
+}
+
+ok("an empty estimate has no hours", summariseEstimate([]).labourHours === 0);
+
 /* ============================== boundaries, found by mutation testing == */
 
 /**

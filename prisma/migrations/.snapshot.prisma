@@ -134,6 +134,7 @@ model Company {
   rfqs                Rfq[]
   leads               Lead[]
   estimates           Estimate[]
+  quotations          Quotation[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -1097,6 +1098,7 @@ model Party {
   purchaseOrders PurchaseOrder[]
   rfqQuotes      RfqQuote[]
   leads          Lead[]
+  quotations     Quotation[]
   rfqsAwarded    Rfq[]
 
   @@unique([companyId, code])
@@ -1779,6 +1781,7 @@ model Job {
   purchaseOrders     PurchaseOrder[]
   rfqs               Rfq[]
   leads              Lead[]
+  quotations         Quotation[]
   purchaseOrderLines PurchaseOrderLine[]
   Equipment          Equipment[]
   MaterialReturn     MaterialReturn[]
@@ -2227,6 +2230,7 @@ model Lead {
 
   visits       SiteVisit[]
   estimates    Estimate[]
+  quotations   Quotation[]
   interactions LeadInteraction[]
 
   createdAt DateTime @default(now())
@@ -2321,7 +2325,8 @@ model Estimate {
   preparedBy String
   notes      String?
 
-  lines EstimateLine[]
+  lines      EstimateLine[]
+  quotations Quotation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2389,4 +2394,91 @@ model TakeoffLine {
   sortOrder Int @default(0)
 
   @@index([lineId])
+}
+
+/// The quotation that goes to the customer (CRM-13 to CRM-17).
+///
+/// Priced from an estimate, never typed. Approved before anybody sees it,
+/// because a quotation is a commitment and sending one unapproved is how a
+/// company finds out what it agreed to when the order arrives. Revised rather
+/// than edited once it is out, because the customer is holding a piece of
+/// paper and two people reading different documents is worse than no system.
+///
+/// Posts nothing. The accounting link is CRM-17: an accepted quotation creates
+/// a Job carrying its contract value and budget, which is master data.
+model Quotation {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  number String
+  /// Draft | Awaiting approval | Approved | Issued | Accepted | Declined |
+  /// Superseded.
+  status String @default("Draft")
+  /// 1, then 2 for the first revision, and so on.
+  revision Int @default(1)
+  /// The quotation this one replaces, when it is a revision.
+  supersedesId String?    @unique
+  supersedes   Quotation? @relation("QuoteRevision", fields: [supersedesId], references: [id])
+  supersededBy Quotation? @relation("QuoteRevision")
+
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id])
+  /// The estimate it is priced from. The total below is a snapshot of that
+  /// estimate at the moment the quotation was raised — the estimate can carry
+  /// on being edited for the next revision without changing what the customer
+  /// was sent.
+  estimateId String?
+  estimate   Estimate? @relation(fields: [estimateId], references: [id])
+
+  partyId      String?
+  party        Party?  @relation(fields: [partyId], references: [id])
+  customerName String
+
+  title      String
+  /// What was quoted. Snapshotted from the estimate, never entered.
+  total      Float     @default(0)
+  /// What it was costed at, so the margin on the accepted job can be checked.
+  costAtQuote Float    @default(0)
+  budgetHours Float    @default(0)
+  validUntil DateTime?
+  terms      String?
+  notes      String?
+
+  approvalRequestId String?
+  approvedBy        String?
+  approvedAt        DateTime?
+
+  issuedAt DateTime?
+  issuedBy String?
+  /// Where it was sent. Recorded even though the system does not send it.
+  issuedTo String?
+
+  /// CRM-17: the customer's own order.
+  poNumber      String?
+  poDate        DateTime?
+  /// What they actually committed to, which is not always what was quoted.
+  poValue       Float?
+  poRef         String?
+  /// Somebody looked at the difference and said it was right.
+  poAcknowledged Boolean @default(false)
+
+  declinedReason String?
+  closedAt       DateTime?
+  closedBy       String?
+
+  /// The job it became.
+  jobId String?
+  job   Job?    @relation(fields: [jobId], references: [id])
+
+  preparedBy String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@index([status])
+  @@index([leadId])
+  @@index([estimateId])
 }

@@ -52,7 +52,7 @@ const MODULE_SCREENS = {
     "inventory.requests", "inventory.orders", "inventory.equipment", "inventory.returns",
     "inventory.rfq", "inventory.vendors",
   ],
-  crm: ["crm.leads", "crm.estimates"],
+  crm: ["crm.leads", "crm.estimates", "crm.quotations"],
   projects: ["projects.list"],
   hse: ["hse.register"],
   audit: ["audit.log"],
@@ -282,6 +282,14 @@ async function main() {
       { role: "Operations Manager", level: 70, minAmount: null },
       { role: "Director", level: 80, minAmount: null },
       { role: "Managing Director", level: 90, minAmount: 50000 },
+    ],
+    // CRM-14. A quotation is a commitment to a price, so it is signed like one.
+    // The estimator prepares it but cannot approve their own work; the
+    // managing director is only pulled in on the big ones.
+    "Sales Quotation": [
+      { role: "Operations Manager", level: 70, minAmount: null },
+      { role: "Director", level: 80, minAmount: null },
+      { role: "Managing Director", level: 90, minAmount: 500000 },
     ],
     Expense: [
       { role: "Operations Manager", level: 70, minAmount: null },

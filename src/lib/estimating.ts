@@ -260,6 +260,15 @@ export type EstimateTotals = {
   labour: number;
   plant: number;
   subcontract: number;
+  /**
+   * Labour hours across every line.
+   *
+   * Carried because a job created from a won estimate needs a budget in hours
+   * as well as in money — without it, every manhours report on that contract
+   * compares actuals against nothing.
+   */
+  labourHours: number;
+  plantHours: number;
   /** Overheads and fixed costs. */
   indirect: number;
   /** Everything it costs to do the work. */
@@ -287,6 +296,7 @@ export function summariseEstimate(
   basis: Basis = { kind: "markup", value: 0 },
 ): EstimateTotals {
   let material = 0, labour = 0, plant = 0, subcontract = 0, direct = 0;
+  let labourHours = 0, plantHours = 0;
 
   for (const l of lines) {
     const priced = bidLine(l);
@@ -295,6 +305,8 @@ export function summariseEstimate(
     plant = round2(plant + priced.quantity * priced.build.plant);
     subcontract = round2(subcontract + priced.quantity * priced.build.subcontract);
     direct = round2(direct + priced.cost);
+    labourHours = round3(labourHours + priced.quantity * (Number(l.build.labourHours) || 0));
+    plantHours = round3(plantHours + priced.quantity * (Number(l.build.plantHours) || 0));
   }
 
   const overhead = round2(direct * Math.max(0, Number(indirects.overheadPct) || 0));
@@ -311,6 +323,7 @@ export function summariseEstimate(
   return {
     lines: lines.length,
     direct, material, labour, plant, subcontract,
+    labourHours, plantHours,
     indirect,
     cost,
     sell,
