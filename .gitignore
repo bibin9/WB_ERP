@@ -21,3 +21,6 @@ backups/
 # Generated while authoring a migration
 /prisma/.pg.prisma
 /prisma/.empty.prisma
+
+# Scratch patch scripts, never part of the project.
+scripts/.*.py
