@@ -272,6 +272,32 @@ named as scratch.
 
 **Run it before every deploy that touches the schema.**
 
+### Rehearsing a merge
+
+`db:rehearse` answers one question: does the newest migration apply cleanly on top
+of everything before it. That is the right question when one migration ships. It is
+the wrong question when a branch has been running ahead for weeks, because
+production has never seen any of that branch's migrations and they are about to
+arrive together, on a database full of the client's data.
+
+```bash
+npm run db:rehearse-merge
+```
+
+That builds a database from `main`'s migrations only, seeds it the way production is
+seeded, counts every table, applies the migrations the branch is ahead by, and counts
+again. Anything that went down rather than up fails the run. It then boots the seed
+twice more, because Railway restarts containers for its own reasons and a seed that
+is not idempotent duplicates the chart of accounts every time.
+
+It reads the two lists of tables out of the two schemas rather than from a list
+written here, so it cannot quietly stop checking a model somebody added. Set
+`MERGE_BASE_REF` to rehearse against a branch other than `main`.
+
+Same database and same guards as `db:rehearse` — it wipes what it is given.
+
+**Run it before merging a long-running branch.**
+
 #### Getting a PostgreSQL to rehearse against
 
 Either works. The second is closer to production.
