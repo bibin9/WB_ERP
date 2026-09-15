@@ -34,7 +34,7 @@ inferred.
 | INV-11 | QA/QC inspection; accepted stored, rejected flagged for return | Must | **Done** |
 | INV-12 | Calibration: identify, send, track, record results | Must | **Done** |
 | INV-13 | Lock serialised equipment once calibration expires | Must | **Done** — derived, never a stored flag |
-| INV-14 | Plant/site, storage locations, zones, bins by material type | Must | Partly — stores exist, no zones or bins |
+| INV-14 | Plant/site, storage locations, zones, bins by material type | Must | **Done** — store kinds, zones, bins, adopted a store at a time |
 | INV-15 | Internal movements and transfers without changing ownership | Must | **Done** — a transfer posts nothing |
 | INV-16 | Material Return Note; reusable or scrap | Must | **Done** — numbered note, per-line condition |
 | INV-17 | Minimum stock and calibration alerts | Must | **Done** |

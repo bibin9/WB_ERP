@@ -432,6 +432,21 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "Equipment away at the lab, under repair or withdrawn is blocked too, whatever its certificate says. Where it is beats what the paperwork says.",
   },
   {
+    id: "stores-bins", category: "Stores", screens: ["/inventory/stores", "/inventory/movements"],
+    title: "Zones and bins: where in the store it actually is",
+    summary: "A store says the company owns 400 metres of cable. A bin says which rack to walk to.",
+    body: "On a yard with six containers, knowing the company owns four hundred metres of cable is not the question anybody is asking. So a store can be divided into zones, and a zone into bins. A bin is not an accounting thing: stock is still valued per item per store, the accounts still post per store, and none of that changes. A bin answers where it is, never what it is worth. Bins are adopted a store at a time. A store with none carries on exactly as it did before. The moment you create the first bin in a store, every movement in that store has to say which bin — because half-binned stock is worse than none: the bin totals stop agreeing with the shelf and nobody can tell whether the difference is a missing bin or missing stock. Turning bins off again is retiring the last one; there is no switch to leave set wrong. A bin can also say what it is meant to hold, matched against the item's category. Putting something else in it is flagged and recorded anyway, never refused — a storeman putting a drum in the wrong bin at six on a Friday because the right one is full is solving a problem, not creating one, and refusing them just means they stop recording bins at all.",
+    steps: [
+      "Open Stores -> Stores. Each store shows its bins, green where something is in them.",
+      "Click Add bin. Give it a zone (optional — a single container needs none) and a bin code, like zone B bin 12.",
+      "Set 'meant for' to the kind of material it holds, if it is a dedicated rack. It is matched against the item's category.",
+      "From then on, receiving or issuing in that store asks which bin, and shows how much each bin holds of the item you picked.",
+      "Transferring between two binned stores asks for both — the bin it leaves and the bin it goes into, which are different places.",
+      "A bin that has held anything cannot be deleted. Untick 'still in use' instead, so the history stays readable.",
+    ],
+    tip: "Set the store's kind as well — main store, site store, plant yard or lay-down area. A lay-down area full of structural steel should not be read as a shelved store.",
+  },
+  {
     id: "stores-rfq", category: "Stores", screens: ["/inventory/rfq"],
     title: "Getting three quotes, and choosing between them",
     summary: "Ask several suppliers, compare them side by side, and record why one of them won.",

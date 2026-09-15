@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { saveMovement } from "@/app/(app)/inventory/actions";
-import { MOVEMENT_HELP } from "@/lib/stock";
+import { MOVEMENT_HELP, isInward } from "@/lib/stock";
+import { binLabel, binMismatch } from "@/lib/bins";
 import { money } from "@/lib/money";
 
 /**
@@ -38,14 +39,20 @@ export default function MovementForm({
   jobs,
   parties,
   balances,
+  bins = {},
+  binHoldings = {},
 }: {
   companyId: string;
-  items: { id: string; code: string; name: string; unitCode: string }[];
+  items: { id: string; code: string; name: string; unitCode: string; category?: string | null }[];
   stores: { id: string; code: string; name: string; isDefault: boolean }[];
   jobs: { id: string; code: string; name: string }[];
   parties: { id: string; code: string; name: string }[];
   /** What is on hand, keyed "itemId:storeId", so the form can price and warn. */
   balances: Record<string, { quantity: number; value: number; averageCost: number }>;
+  /** The bins in each store, keyed by store id. Absent means the store has none. */
+  bins?: Record<string, { id: string; code: string; zone: string | null; materialType: string | null }[]>;
+  /** What each bin holds of each item, keyed "itemId:binId". */
+  binHoldings?: Record<string, number>;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
@@ -53,7 +60,17 @@ export default function MovementForm({
   const [kind, setKind] = useState("Receipt");
   const [itemId, setItemId] = useState("");
   const [storeId, setStoreId] = useState(stores.find((s) => s.isDefault)?.id ?? stores[0]?.id ?? "");
+  const [binId, setBinId] = useState("");
+  const [toStoreId, setToStoreId] = useState("");
+  const [toBinId, setToBinId] = useState("");
   const [quantity, setQuantity] = useState("");
+
+  // INV-14: a store either uses bins or does not, and the form asks the store
+  // rather than a setting — the same question the server asks.
+  const fromBins = bins[storeId] ?? [];
+  const toBins = bins[toStoreId] ?? [];
+  const chosenBin = fromBins.find((b) => b.id === binId);
+  const inBin = binHoldings[`${itemId}:${binId}`] ?? 0;
 
   const item = items.find((i) => i.id === itemId);
   const onHand = balances[`${itemId}:${storeId}`] ?? { quantity: 0, value: 0, averageCost: 0 };
@@ -120,13 +137,47 @@ export default function MovementForm({
               <label className="mb-1 block text-sm font-medium text-ink">
                 {kind === "Transfer" ? "From store" : "Store"}
               </label>
-              <select name="storeId" value={storeId} onChange={(e) => setStoreId(e.target.value)} className="input" required>
+              <select
+                name="storeId" value={storeId}
+                onChange={(e) => { setStoreId(e.target.value); setBinId(""); }}
+                className="input" required
+              >
                 {stores.map((s) => (
                   <option key={s.id} value={s.id}>{s.code} — {s.name}</option>
                 ))}
               </select>
             </div>
           </div>
+
+          {fromBins.length > 0 && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-ink">
+                {kind === "Transfer" ? "From bin" : "Bin"}
+              </label>
+              <select
+                name="binId" value={binId}
+                onChange={(e) => setBinId(e.target.value)} className="input" required
+              >
+                <option value="">Choose a bin&hellip;</option>
+                {fromBins.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {binLabel(b)}
+                    {b.materialType ? ` — ${b.materialType}` : ""}
+                    {itemId ? ` (holds ${(binHoldings[`${itemId}:${b.id}`] ?? 0).toLocaleString()})` : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted">
+                This store is divided into bins, so every movement in it has to say which one.
+                {binId && itemId && !isInward(kind) && kind !== "Transfer" && (
+                  <> That bin holds <span className="font-medium text-ink">{inBin.toLocaleString()}</span>.</>
+                )}
+              </p>
+              {chosenBin && item && binMismatch(chosenBin, item.category) && (
+                <p className="mt-1 text-xs text-brand-gold">{binMismatch(chosenBin, item.category)}</p>
+              )}
+            </div>
+          )}
 
           {itemId && (
             <p className="rounded bg-brand-paper p-2 text-xs text-muted">
@@ -139,12 +190,36 @@ export default function MovementForm({
           {kind === "Transfer" && (
             <div>
               <label className="mb-1 block text-sm font-medium text-ink">To store</label>
-              <select name="toStoreId" className="input" required>
+              <select
+                name="toStoreId" value={toStoreId}
+                onChange={(e) => { setToStoreId(e.target.value); setToBinId(""); }}
+                className="input" required
+              >
                 <option value="">Choose&hellip;</option>
                 {stores.filter((s) => s.id !== storeId).map((s) => (
                   <option key={s.id} value={s.id}>{s.code} — {s.name}</option>
                 ))}
               </select>
+
+              {toBins.length > 0 && (
+                <div className="mt-3">
+                  <label className="mb-1 block text-sm font-medium text-ink">Into bin</label>
+                  <select
+                    name="toBinId" value={toBinId}
+                    onChange={(e) => setToBinId(e.target.value)} className="input" required
+                  >
+                    <option value="">Choose a bin&hellip;</option>
+                    {toBins.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {binLabel(b)}{b.materialType ? ` — ${b.materialType}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-muted">
+                    Where it is going, which is a different place from where it came out of.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

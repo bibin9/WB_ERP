@@ -10,6 +10,7 @@ import { recordMovement, transferStock, inspectReceipt, postReturn } from "@/lib
 import { EQUIPMENT_STATUSES, CALIBRATION_RESULTS, expiryFrom } from "@/lib/calibration";
 import { createRequest, createOrder, submitOrder, cancelOrder, receiveAgainstOrder } from "@/lib/purchase-posting";
 import { createRfq, inviteVendors, recordQuotation, awardRfq, cancelRfq } from "@/lib/rfq-posting";
+import { STORE_KINDS } from "@/lib/bins";
 
 /**
  * The stores screens.
@@ -137,6 +138,7 @@ export async function saveStore(formData: FormData): Promise<Result> {
     code,
     name,
     location: orNull(formData, "location", 200),
+    kind: STORE_KINDS.includes(str(formData, "kind") as never) ? str(formData, "kind") : "Main store",
     isDefault,
     isActive: str(formData, "isActive") !== "off",
   };
@@ -197,7 +199,9 @@ export async function saveMovement(formData: FormData): Promise<Result> {
       postedBy: session.user.name,
       itemId: str(formData, "itemId"),
       storeId: str(formData, "storeId"),
+      binId: orNull(formData, "binId"),
       toStoreId: str(formData, "toStoreId"),
+      toBinId: orNull(formData, "toBinId"),
       date: str(formData, "date", 10),
       quantity: num(formData, "quantity"),
       reference: str(formData, "reference", 120),
@@ -221,6 +225,7 @@ export async function saveMovement(formData: FormData): Promise<Result> {
     kind,
     itemId: str(formData, "itemId"),
     storeId: str(formData, "storeId"),
+    binId: orNull(formData, "binId"),
     date: str(formData, "date", 10),
     quantity: num(formData, "quantity"),
     unitCost: num(formData, "unitCost"),
@@ -286,6 +291,80 @@ export async function saveRequest(formData: FormData): Promise<Result> {
   });
   revalidatePath("/inventory/requests");
   revalidatePath("/approvals");
+  return { ok: true };
+}
+
+/* ============================================ zones and bins (INV-14) === */
+
+/**
+ * A place inside a store.
+ *
+ * Creating the first bin is what turns bins on for that store, and retiring the
+ * last is what turns them off — there is no switch to leave in the wrong
+ * position, which is why the form says what the change will do.
+ */
+export async function saveBin(formData: FormData): Promise<Result> {
+  if (!(await allow("inventory.stores", "edit"))) return { ok: false, error: "Not authorised" };
+  const id = str(formData, "id");
+  const editing = !!id;
+
+  const storeId = editing
+    ? (await db.storageBin.findUnique({ where: { id } }))?.storeId ?? ""
+    : str(formData, "storeId");
+  const store = storeId ? await db.store.findUnique({ where: { id: storeId } }) : null;
+  if (!store) return { ok: false, error: "That store no longer exists." };
+  if (!(await scoped(store.companyId))) return { ok: false, error: "No access to this company" };
+
+  const code = str(formData, "code", 40);
+  if (!code) return { ok: false, error: "Give the bin a code — the rack, row or container number." };
+
+  const clash = await db.storageBin.findFirst({
+    where: { storeId, code, ...(editing ? { NOT: { id } } : {}) },
+  });
+  if (clash) return { ok: false, error: `${store.code} already has a bin ${code}.` };
+
+  const data = {
+    code,
+    zone: orNull(formData, "zone", 40),
+    name: orNull(formData, "name", 120),
+    materialType: orNull(formData, "materialType", 60),
+    notes: orNull(formData, "notes", 300),
+    isActive: str(formData, "isActive") !== "off",
+  };
+
+  if (editing) {
+    await db.storageBin.update({ where: { id }, data });
+    await audit({ action: "Updated", entity: "StorageBin", entityId: id, summary: `Updated bin ${code} in ${store.code}` });
+  } else {
+    const created = await db.storageBin.create({ data: { storeId, ...data } });
+    await audit({ action: "Created", entity: "StorageBin", entityId: created.id, summary: `Added bin ${code} to ${store.code}` });
+  }
+  revalidatePath("/inventory/stores");
+  revalidatePath("/inventory/movements");
+  return { ok: true };
+}
+
+export async function deleteBin(id: string): Promise<Result> {
+  if (!(await allow("inventory.stores", "delete"))) return { ok: false, error: "Not authorised" };
+  const bin = await db.storageBin.findUnique({ where: { id }, include: { store: true } });
+  if (!bin) return { ok: false, error: "Not found" };
+  if (!(await scoped(bin.store.companyId))) return { ok: false, error: "No access to this company" };
+
+  // A bin that has held anything is history, not a mistake. Retiring it keeps
+  // the movements pointing at something that can still be named.
+  const used = await db.stockMovement.count({ where: { binId: id } });
+  if (used > 0) {
+    return {
+      ok: false,
+      error:
+        `Bin ${bin.code} has ${used} movement${used === 1 ? "" : "s"} against it, so deleting it would leave ` +
+        `them pointing at nothing. Untick "still in use" instead — it stops being offered and the history stays readable.`,
+    };
+  }
+
+  await db.storageBin.delete({ where: { id } });
+  await audit({ action: "Deleted", entity: "StorageBin", entityId: id, summary: `Removed bin ${bin.code} from ${bin.store.code}` });
+  revalidatePath("/inventory/stores");
   return { ok: true };
 }
 

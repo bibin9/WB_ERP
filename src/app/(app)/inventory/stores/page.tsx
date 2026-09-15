@@ -4,12 +4,14 @@ import CompanyPicker from "@/components/CompanyPicker";
 import InventoryTabs from "@/components/InventoryTabs";
 import GuardedDelete from "@/components/GuardedDelete";
 import StoreForm from "@/components/inventory/StoreForm";
-import { deleteStore } from "../actions";
+import BinForm from "@/components/inventory/BinForm";
+import { deleteStore, deleteBin } from "../actions";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { money } from "@/lib/money";
 import { balanceOf } from "@/lib/stock";
+import { binLabel, binQuantities, binVerdict } from "@/lib/bins";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +30,8 @@ export default async function StoresPage({
     ? await db.store.findMany({
         where: { companyId },
         include: {
-          movements: { select: { kind: true, quantity: true, value: true } },
+          movements: { select: { kind: true, quantity: true, value: true, binId: true } },
+          bins: { orderBy: [{ zone: "asc" }, { code: "asc" }] },
           _count: { select: { movements: true } },
         },
         orderBy: { code: "asc" },
@@ -55,7 +58,9 @@ export default async function StoresPage({
             <tr>
               <th className="px-4 py-2.5 font-medium">Code</th>
               <th className="px-4 py-2.5 font-medium">Store</th>
+              <th className="px-4 py-2.5 font-medium">Kind</th>
               <th className="px-4 py-2.5 font-medium">Where</th>
+              <th className="px-4 py-2.5 font-medium">Zones &amp; bins</th>
               <th className="px-4 py-2.5 text-right font-medium">Value held</th>
               <th className="px-4 py-2.5 text-right font-medium">Movements</th>
               <th className="px-4 py-2.5 print:hidden"></th>
@@ -64,13 +69,14 @@ export default async function StoresPage({
           <tbody className="divide-y divide-line">
             {stores.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-muted">
+                <td colSpan={8} className="px-4 py-10 text-center text-muted">
                   No stores yet. Add at least one before anything can be received.
                 </td>
               </tr>
             )}
             {stores.map((s) => {
               const held = balanceOf(s.movements);
+              const perBin = binQuantities(s.movements);
               return (
                 <tr key={s.id} className={s.isActive ? "" : "opacity-60"}>
                   <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-heading">{s.code}</td>
@@ -82,7 +88,53 @@ export default async function StoresPage({
                       </span>
                     )}
                   </td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted">{s.kind}</td>
                   <td className="px-4 py-2.5 text-xs text-muted">{s.location ?? "—"}</td>
+                  <td className="px-4 py-2.5 text-xs">
+                    {s.bins.length === 0 ? (
+                      <span className="text-muted">Not divided into bins</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {s.bins.map((b) => (
+                          <span
+                            key={b.id}
+                            title={
+                              [b.name, b.materialType ? `meant for ${b.materialType}` : null]
+                                .filter(Boolean).join(" · ") || undefined
+                            }
+                            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 ${
+                              !b.isActive
+                                ? "bg-line text-muted/60 line-through"
+                                : (perBin[b.id] ?? 0) > 0
+                                  ? "bg-brand-green/10 text-brand-green-700"
+                                  : "bg-line text-muted"
+                            }`}
+                          >
+                            <span className="font-mono">{binLabel(b)}</span>
+                            <span className="flex items-center print:hidden">
+                              <BinForm
+                                storeId={s.id}
+                                storeCode={s.code}
+                                row={{
+                                  id: b.id, code: b.code, zone: b.zone, name: b.name,
+                                  materialType: b.materialType, notes: b.notes, isActive: b.isActive,
+                                }}
+                              />
+                              <GuardedDelete
+                                screen="inventory.stores"
+                                action={deleteBin.bind(null, b.id)}
+                                label={`Remove bin ${binLabel(b)} from ${s.code}?`}
+                              />
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-1 print:hidden">
+                      <BinForm storeId={s.id} storeCode={s.code} isFirst={s.bins.length === 0} />
+                    </div>
+                    <div className="mt-1 text-muted">{binVerdict(s.bins, perBin)}</div>
+                  </td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-ink">{money(held.value)}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-muted">{s._count.movements || "—"}</td>
                   <td className="whitespace-nowrap px-4 py-2.5 text-right print:hidden">
@@ -91,7 +143,7 @@ export default async function StoresPage({
                         companyId={companyId}
                         row={{
                           id: s.id, code: s.code, name: s.name,
-                          location: s.location, isDefault: s.isDefault, isActive: s.isActive,
+                          location: s.location, kind: s.kind, isDefault: s.isDefault, isActive: s.isActive,
                         }}
                       />
                       <GuardedDelete screen="inventory.stores" action={deleteStore.bind(null, s.id)} label={`Remove ${s.code} — ${s.name}?`} />
@@ -110,6 +162,10 @@ export default async function StoresPage({
           A store is separate from a job on purpose. Material can sit in a site container for weeks before it is
           issued to the work, and until it is issued it is still the company&rsquo;s stock rather than that
           contract&rsquo;s cost. Moving stock between two of your own stores posts nothing to the accounts.
+          Bins are optional and adopted a store at a time: a store with none carries on exactly as before, and a
+          store that has them requires one on every movement, because half-binned stock stops the bin totals
+          agreeing with the shelf. A bin answers which rack to walk to, never what the stock is worth — valuation
+          stays per store whatever the layout.
         </p>
       </div>
     </div>

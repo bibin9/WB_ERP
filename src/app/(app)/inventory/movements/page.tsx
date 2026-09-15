@@ -16,6 +16,7 @@ import { money } from "@/lib/money";
 import { readPaging, pageInfo } from "@/lib/paging";
 import { readSearch, matchAny } from "@/lib/search";
 import { balanceOf, isInward, MOVEMENT_HELP, INSPECTION_HELP } from "@/lib/stock";
+import { binLabel } from "@/lib/bins";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,7 @@ export default async function MovementsPage({
         include: {
           item: { select: { code: true, name: true, unitCode: true } },
           store: { select: { code: true, name: true } },
+          bin: { select: { code: true, zone: true } },
           job: { select: { code: true } },
           party: { select: { name: true } },
           entry: { select: { reference: true } },
@@ -60,7 +62,7 @@ export default async function MovementsPage({
     ? await db.item.findMany({
         where: { companyId, isActive: true, isStocked: true },
         orderBy: { code: "asc" },
-        select: { id: true, code: true, name: true, unitCode: true },
+        select: { id: true, code: true, name: true, unitCode: true, category: true },
       })
     : [];
   const stores = companyId
@@ -91,7 +93,25 @@ export default async function MovementsPage({
    * only so nobody types a quantity that was never going to be accepted.
    */
   const balances: Record<string, { quantity: number; value: number; averageCost: number }> = {};
+  /** The bins in each store, and what each holds of each item (INV-14). */
+  const binsByStore: Record<string, { id: string; code: string; zone: string | null; materialType: string | null }[]> = {};
+  const binHoldings: Record<string, number> = {};
   if (companyId) {
+    for (const b of await db.storageBin.findMany({
+      where: { store: { companyId }, isActive: true },
+      orderBy: [{ zone: "asc" }, { code: "asc" }],
+      select: { id: true, storeId: true, code: true, zone: true, materialType: true },
+    })) {
+      (binsByStore[b.storeId] ??= []).push({ id: b.id, code: b.code, zone: b.zone, materialType: b.materialType });
+    }
+    for (const m of await db.stockMovement.findMany({
+      where: { companyId, binId: { not: null } },
+      select: { itemId: true, binId: true, kind: true, quantity: true },
+    })) {
+      const key = `${m.itemId}:${m.binId}`;
+      binHoldings[key] = (binHoldings[key] ?? 0) + (isInward(m.kind) ? 1 : -1) * m.quantity;
+    }
+
     const all = await db.stockMovement.findMany({
       where: { companyId },
       select: { itemId: true, storeId: true, kind: true, quantity: true, value: true, inspection: true },
@@ -124,6 +144,8 @@ export default async function MovementsPage({
               jobs={jobs}
               parties={parties}
               balances={balances}
+              bins={binsByStore}
+              binHoldings={binHoldings}
             />
           )}
         </div>
@@ -194,7 +216,10 @@ export default async function MovementsPage({
                     <span className="font-mono text-xs text-heading">{m.item.code}</span>
                     <div className="text-xs text-muted">{m.item.name}</div>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted">{m.store.code}</td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted">
+                    {m.store.code}
+                    {m.bin && <div className="font-mono text-heading">{binLabel(m.bin)}</div>}
+                  </td>
                   <td className={`px-4 py-2.5 text-right tabular-nums ${up ? "text-brand-green-700" : "text-ink"}`}>
                     {up ? "+" : "−"}{m.quantity.toLocaleString()} <span className="text-xs text-muted">{m.item.unitCode}</span>
                   </td>

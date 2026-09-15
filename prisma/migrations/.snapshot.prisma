@@ -1305,7 +1305,12 @@ model Store {
   /// The one a form defaults to, so the usual case needs no thought.
   isDefault Boolean @default(false)
 
+  /// Main store | Site store | Plant yard | Lay-down area. What kind of place
+  /// this is, so a yard is not read as a shelved store (INV-14).
+  kind      String  @default("Main store")
+
   isActive         Boolean           @default(true)
+  bins             StorageBin[]
   movements        StockMovement[]
   createdAt        DateTime          @default(now())
   materialRequests MaterialRequest[]
@@ -1336,6 +1341,10 @@ model StockMovement {
   item    Item   @relation(fields: [itemId], references: [id])
   storeId String
   store   Store  @relation(fields: [storeId], references: [id])
+  /// Which bin inside the store (INV-14). Null in a store that is not divided
+  /// into bins — valuation is per store either way.
+  binId   String?
+  bin     StorageBin? @relation(fields: [binId], references: [id])
 
   /// Receipt | Issue | Return to store | Return to supplier | Adjustment in |
   /// Adjustment out | Transfer in | Transfer out
@@ -2112,4 +2121,36 @@ model RfqQuoteLine {
 
   @@unique([quoteId, rfqLineId])
   @@index([quoteId])
+}
+
+/// A place inside a store (INV-14).
+///
+/// Answers "which rack do I walk to", not "what is it worth" — stock is valued
+/// per item per store and that does not change here. A store with no bins
+/// carries on as before; a store that has them requires one on every movement,
+/// because half-binned stock stops the bin totals agreeing with the shelf.
+model StorageBin {
+  id      String @id @default(cuid())
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  /// The rack, row or container. Named with the zone when one is set: "B / 12".
+  code String
+  /// A grouping inside the store. Optional: a single container needs none.
+  zone String?
+  name String?
+
+  /// What it is meant to hold, matched against the item's category. A mismatch
+  /// is warned about and recorded anyway — refuse a storeman and they stop
+  /// recording bins at all, and no location data is worse than imperfect data.
+  materialType String?
+  notes        String?
+
+  isActive  Boolean         @default(true)
+  movements StockMovement[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@unique([storeId, code])
+  @@index([storeId])
 }

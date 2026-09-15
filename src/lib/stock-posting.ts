@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "./db";
 import { documentStem, nextInSeries } from "./docnumber";
+import { checkBin, binQuantities } from "./bins";
 import { postVoucher } from "./posting";
 import { accountsForPosting } from "./accounts";
 import {
@@ -66,6 +67,8 @@ export type MovementInput = {
   partyId?: string | null;
   reference: string;
   notes?: string | null;
+  /** Which bin inside the store (INV-14). Required once the store has any. */
+  binId?: string | null;
 };
 
 /** Kinds whose value comes from what is already on the shelf. */
@@ -112,6 +115,20 @@ export async function recordMovement(input: MovementInput): Promise<StockResult>
     return { ok: false, error: "Choose the job this material is going to. An issue with no job puts the cost on nothing." };
   }
 
+  // INV-14: a store either uses bins or does not, and that is decided by
+  // whether any exist rather than by a setting somebody can leave set wrong.
+  const bins = await db.storageBin.findMany({ where: { storeId: store.id } });
+  const held = binQuantities(
+    await db.stockMovement.findMany({
+      where: { companyId: input.companyId, itemId: input.itemId, storeId: input.storeId, binId: { not: null } },
+      select: { binId: true, kind: true, quantity: true },
+    }),
+  );
+  const binOk = checkBin(
+    bins, input.binId, kind, input.quantity, held[input.binId ?? ""] ?? 0, item.name,
+  );
+  if (!binOk.ok) return { ok: false, error: binOk.error };
+
   const balance = await balanceFor(input.companyId, input.itemId, input.storeId);
 
   let priced;
@@ -135,6 +152,7 @@ export async function recordMovement(input: MovementInput): Promise<StockResult>
       companyId: input.companyId,
       itemId: item.id,
       storeId: store.id,
+      binId: input.binId || null,
       kind,
       inspection,
       date: new Date(input.date + "T00:00:00.000Z"),
@@ -215,7 +233,7 @@ export async function recordMovement(input: MovementInput): Promise<StockResult>
  * always be found together, and the second is priced at what the first took.
  */
 export async function transferStock(
-  input: Omit<MovementInput, "kind"> & { toStoreId: string },
+  input: Omit<MovementInput, "kind"> & { toStoreId: string; toBinId?: string | null },
 ): Promise<{ ok: true; out: string; in: string } | { ok: false; error: string }> {
   if (input.toStoreId === input.storeId) {
     return { ok: false, error: "Choose a different store to move it to." };
@@ -230,6 +248,10 @@ export async function transferStock(
     ...input,
     kind: "Transfer in",
     storeId: to.id,
+    // The bin it is going INTO, which is a different place from the one it came
+    // out of. Carrying the source bin across would file it in a bin belonging
+    // to the other store, and the two stores' totals would both be wrong.
+    binId: input.toBinId ?? null,
     // At what it left the other shelf for, so value does not appear from nowhere.
     unitCost: out.unitCost,
   });

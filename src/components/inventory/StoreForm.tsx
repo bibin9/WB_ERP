@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { Plus, X, Pencil } from "lucide-react";
 import { saveStore } from "@/app/(app)/inventory/actions";
+import { STORE_KINDS, STORE_KIND_HELP } from "@/lib/bins";
 
 export type EditingStore = {
   id: string;
   code: string;
   name: string;
   location: string | null;
+  kind: string;
   isDefault: boolean;
   isActive: boolean;
 };
@@ -18,6 +20,7 @@ export default function StoreForm({ companyId, row }: { companyId: string; row?:
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [kind, setKind] = useState(row?.kind ?? "Main store");
   const editing = !!row;
 
   if (!open) {
@@ -68,6 +71,16 @@ export default function StoreForm({ companyId, row }: { companyId: string; row?:
               <label className="mb-1 block text-sm font-medium text-ink">Name</label>
               <input name="name" className="input" defaultValue={row?.name ?? ""} placeholder="Main store, Sharjah" required />
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-ink">What kind of place</label>
+            <select name="kind" value={kind} onChange={(e) => setKind(e.target.value)} className="input">
+              {STORE_KINDS.map((k) => (
+                <option key={k} value={k}>{k}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-muted">{STORE_KIND_HELP[kind]}</p>
           </div>
 
           <div>
