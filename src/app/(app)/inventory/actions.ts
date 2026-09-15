@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth";
 import { allow } from "@/lib/guard";
 import { audit } from "@/lib/audit";
 import { money } from "@/lib/money";
-import { recordMovement, transferStock, inspectReceipt } from "@/lib/stock-posting";
+import { recordMovement, transferStock, inspectReceipt, postReturn } from "@/lib/stock-posting";
 import { EQUIPMENT_STATUSES, CALIBRATION_RESULTS, expiryFrom } from "@/lib/calibration";
 import { createRequest, createOrder, submitOrder, cancelOrder, receiveAgainstOrder } from "@/lib/purchase-posting";
 
@@ -285,6 +285,57 @@ export async function saveRequest(formData: FormData): Promise<Result> {
   });
   revalidatePath("/inventory/requests");
   revalidatePath("/approvals");
+  return { ok: true };
+}
+
+/* ========================================== returns from site (INV-16) == */
+
+/**
+ * A material return note.
+ *
+ * The condition on each line is the whole document: reusable goes back on the
+ * shelf and credits the job, scrap does neither. The library decides both — the
+ * action only reads the form and says who is asking.
+ */
+export async function saveReturn(formData: FormData): Promise<Result> {
+  if (!(await allow("inventory.returns", "create"))) return { ok: false, error: "Not authorised" };
+  const companyId = str(formData, "companyId");
+  const session = await scoped(companyId);
+  if (!session) return { ok: false, error: "No access to this company" };
+
+  let lines: { itemId: string; condition: string; quantity: number; notes?: string }[] = [];
+  try {
+    lines = JSON.parse(String(formData.get("lines") ?? "[]"));
+  } catch {
+    return { ok: false, error: "Could not read the lines. Try again." };
+  }
+
+  const res = await postReturn({
+    companyId,
+    postedBy: session.user.name,
+    jobId: str(formData, "jobId"),
+    storeId: str(formData, "storeId"),
+    date: str(formData, "date", 10),
+    returnedBy: str(formData, "returnedBy"),
+    notes: orNull(formData, "notes", 500),
+    lines: lines.map((l) => ({
+      itemId: String(l.itemId ?? ""),
+      condition: String(l.condition ?? ""),
+      quantity: Number(l.quantity) || 0,
+      notes: String(l.notes ?? "").slice(0, 300) || null,
+    })),
+  });
+  if (!res.ok) return res;
+
+  await audit({
+    action: "Created",
+    entity: "MaterialReturn",
+    entityId: res.returnId,
+    summary: `Recorded material return ${res.number} from site`,
+  });
+  revalidatePath("/inventory/returns");
+  revalidatePath("/inventory/movements");
+  revalidatePath("/inventory/stock");
   return { ok: true };
 }
 

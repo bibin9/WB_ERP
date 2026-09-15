@@ -130,6 +130,7 @@ model Company {
   materialRequests    MaterialRequest[]
   purchaseOrders      PurchaseOrder[]
   Equipment           Equipment[]
+  MaterialReturn      MaterialReturn[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -1270,13 +1271,14 @@ model Item {
   /// stock — valuation comes from what was actually paid.
   standardCost       Float   @default(0)
 
-  isActive     Boolean               @default(true)
-  movements    StockMovement[]
-  createdAt    DateTime              @default(now())
-  updatedAt    DateTime              @updatedAt
-  requestLines MaterialRequestLine[]
-  orderLines   PurchaseOrderLine[]
-  Equipment    Equipment[]
+  isActive           Boolean               @default(true)
+  movements          StockMovement[]
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  requestLines       MaterialRequestLine[]
+  orderLines         PurchaseOrderLine[]
+  Equipment          Equipment[]
+  MaterialReturnLine MaterialReturnLine[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1305,6 +1307,7 @@ model Store {
   materialRequests MaterialRequest[]
   purchaseOrders   PurchaseOrder[]
   Equipment        Equipment[]
+  MaterialReturn   MaterialReturn[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1366,14 +1369,15 @@ model StockMovement {
 
   /// The voucher this movement posted.
   entryId             String?
-  entry               JournalEntry?      @relation("StockPosting", fields: [entryId], references: [id])
+  entry               JournalEntry?        @relation("StockPosting", fields: [entryId], references: [id])
   createdBy           String?
-  createdAt           DateTime           @default(now())
+  createdAt           DateTime             @default(now())
   /// The order line this receipt is against, where there is one. Material can
   /// still arrive with no order behind it, but then nobody committed to it and
   /// the three-way check has nothing to compare against.
   purchaseOrderLineId String?
-  purchaseOrderLine   PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id])
+  purchaseOrderLine   PurchaseOrderLine?   @relation(fields: [purchaseOrderLineId], references: [id])
+  MaterialReturnLine  MaterialReturnLine[]
 
   @@index([companyId])
   @@index([itemId, storeId])
@@ -1609,6 +1613,70 @@ model CalibrationRecord {
   @@index([validTo])
 }
 
+/// Material coming back from site (INV-16).
+///
+/// The note exists because two different things arrive on the same lorry.
+/// Reusable material goes back on the shelf and the job is credited; scrap does
+/// neither, because the job consumed it and scrap is not stock. Recording them
+/// on one document keeps the storekeeper honest about which is which.
+model MaterialReturn {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  number String
+  /// Draft | Posted | Cancelled
+  status String @default("Draft")
+
+  /// The job sending it back. Required: material returning from nowhere cannot
+  /// credit anything, and material returning from somewhere else is an
+  /// adjustment rather than a return.
+  jobId   String
+  job     Job    @relation(fields: [jobId], references: [id])
+  /// Where the reusable half is going.
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id])
+
+  date       DateTime
+  returnedBy String
+  notes      String?
+
+  lines     MaterialReturnLine[]
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@index([status])
+  @@index([jobId])
+}
+
+model MaterialReturnLine {
+  id       String         @id @default(cuid())
+  returnId String
+  return   MaterialReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+
+  itemId String
+  item   Item   @relation(fields: [itemId], references: [id])
+
+  /// Reusable | Scrap
+  condition String
+  quantity  Float
+  /// What the job is credited. Nil on a scrap line, by definition.
+  value     Float  @default(0)
+
+  /// The stock movement a reusable line produced. Scrap lines have none,
+  /// because nothing moved on any shelf.
+  movementId String?
+  movement   StockMovement? @relation(fields: [movementId], references: [id])
+
+  notes     String?
+  sortOrder Int     @default(0)
+
+  @@index([returnId])
+  @@index([itemId])
+}
+
 model Cheque {
   id          String        @id @default(cuid())
   companyId   String
@@ -1693,6 +1761,7 @@ model Job {
   purchaseOrders     PurchaseOrder[]
   purchaseOrderLines PurchaseOrderLine[]
   Equipment          Equipment[]
+  MaterialReturn     MaterialReturn[]
 
   @@unique([companyId, code])
   @@index([companyId])

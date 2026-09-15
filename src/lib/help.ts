@@ -432,6 +432,20 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "Equipment away at the lab, under repair or withdrawn is blocked too, whatever its certificate says. Where it is beats what the paperwork says.",
   },
   {
+    id: "stores-returns", category: "Stores", screens: ["/inventory/returns"],
+    title: "Material coming back from site",
+    summary: "Reusable material goes back on the shelf and credits the job. Scrap does neither.",
+    body: "A job draws more than it needs, because running short on a Friday costs more than a spare coil of cable does. What comes back is either still fit to use or it is not, and those are two different events however similar they look on the back of a lorry. Reusable material goes back on the shelf at what it cost, and the job is credited the same, because nothing was consumed. Scrap is the half people expect to work the same way and it does not: offcuts, damaged lengths, a spool crushed by a forklift. The job keeps that cost, because the cost is real and that contract caused it, and nothing goes back into stock because scrap is not stock. Putting it back at full value would inflate the shelf with material nobody can use; putting it back at nil value would dilute the average of everything beside it. Getting this backwards is how a job that wasted six drums of cable reports the same margin as one that wasted none.",
+    steps: [
+      "Open Stores -> Returns from Site and click Record a return.",
+      "Choose the job it is coming back from and the store it is going into, and say who handed it over.",
+      "Add a line for each item, and set each one to Reusable or Scrap. The line tells you what that choice will do.",
+      "Watch the quantity. The form shows what that job still has out, and refuses more than that — returning material a job never had would quietly improve its margin for no reason anybody could later find.",
+      "Read the sentence at the bottom before saving. It says how much goes back on the shelf, what the job is credited, and that the scrap half credits nothing.",
+    ],
+    tip: "Mixed lines are the normal case: sixty metres reusable and forty of offcuts on the same note. Split them rather than rounding to whichever is bigger, because the two halves do opposite things to the job's cost.",
+  },
+  {
     id: "stores-inspection", category: "Stores", screens: ["/inventory/movements"],
     title: "Inspecting a delivery before it can be used",
     summary: "Material that has to pass QA/QC arrives on the shelf but is not free to issue until somebody has looked at it.",

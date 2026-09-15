@@ -3,7 +3,7 @@ import {
   HardHat, Building2, Scale, Banknote, Lock, Landmark, Percent, Settings2, PenLine,
   FolderOpen, UserPlus, Wallet, CalendarDays, CalendarCheck, BadgeCheck, UserMinus,
   ShieldAlert, ClipboardList, TrendingUp, Timer, UsersRound, FileText, Send, HandCoins,
-  Boxes, Package, PackagePlus, Warehouse, Wrench, type LucideIcon,
+  Boxes, Package, PackagePlus, Warehouse, Wrench, Undo2, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -160,6 +160,10 @@ export const INVENTORY_GROUPS: TabGroup[] = [
       { href: "/inventory/requests", label: "Material Requests", icon: ClipboardList, screen: "inventory.requests" },
       { href: "/inventory/orders", label: "Purchase Orders", icon: FileText, screen: "inventory.orders" },
     ],
+  },
+  {
+    key: "returns", label: "Returns", icon: Undo2,
+    screens: [{ href: "/inventory/returns", label: "Returns from Site", icon: Undo2, screen: "inventory.returns" }],
   },
   {
     key: "items", label: "Items", icon: Package,

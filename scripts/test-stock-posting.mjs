@@ -14,10 +14,12 @@ import { importLibs } from "./lib-shim.mjs";
 import fs from "node:fs";
 
 const libs = await importLibs([
-  "stock-posting", "stock", "posting", "accounts", "financepolicy", "money", "db", "period", "vat",
+  "stock-posting", "stock", "returns", "posting", "accounts", "financepolicy", "money", "db", "period", "vat",
 ]);
 const { db } = libs["db"];
-const { recordMovement, transferStock, balanceFor, inspectReceipt, awaitingInspection } = libs["stock-posting"];
+const {
+  recordMovement, transferStock, balanceFor, inspectReceipt, awaitingInspection, postReturn,
+} = libs["stock-posting"];
 const { balanceOf } = libs["stock"];
 
 let pass = 0, fail = 0;
@@ -223,6 +225,117 @@ try {
     ok("  inventory goes back up", lines.find((l) => l.code === "1200")?.debit === 150);
   }
 
+  /* ============== a return note: reusable back, scrap not (INV-16) ====== */
+
+  {
+    const retItem = await db.item.create({
+      data: { companyId: co.id, code: `${tag}-COND`, name: "20mm conduit", unitCode: "MTR" },
+    });
+    const got = await move({ kind: "Receipt", itemId: retItem.id, storeId: main.id, quantity: 300, unitCost: 10 });
+    ok("300 of conduit arrives", got.ok, got.ok ? "" : got.error);
+    const out = await move({ kind: "Issue", itemId: retItem.id, storeId: main.id, quantity: 200, jobId: job.id });
+    ok("  and 200 of it goes to the job", out.ok, out.ok ? "" : out.error);
+
+    const before = await balanceFor(co.id, retItem.id, main.id);
+    ok("the job has 200 out and the shelf holds 100", before.quantity === 100);
+
+    const note = await postReturn({
+      companyId: co.id, postedBy: "storeman", jobId: job.id, storeId: main.id,
+      date: today(), returnedBy: "site",
+      lines: [
+        { itemId: retItem.id, condition: "Reusable", quantity: 60 },
+        { itemId: retItem.id, condition: "Scrap", quantity: 40 },
+      ],
+    });
+    ok("a return note posts", note.ok, note.ok ? "" : note.error);
+    ok("  numbered in its own series", /^WBE\/MRN\/\d{2}\/\d{4}$/.test(note.number || ""), note.number);
+
+    const after = await balanceFor(co.id, retItem.id, main.id);
+    ok("only the reusable half goes back on the shelf", after.quantity === 160,
+      "100 left plus 60 returned; the 40 of scrap is not stock");
+
+    const rows = await db.materialReturnLine.findMany({
+      where: { returnId: note.returnId }, orderBy: { sortOrder: "asc" },
+    });
+    ok("  the reusable line has a stock movement behind it", !!rows[0].movementId);
+    ok("  and credits the job what it cost", rows[0].value === 600, String(rows[0].value));
+
+    /**
+     * The half people expect to behave like the other one.
+     */
+    ok("  the scrap line has no movement at all", rows[1].movementId === null,
+      "nothing went on any shelf");
+    ok("  and credits the job nothing", rows[1].value === 0,
+      "the job consumed it, so it keeps the cost");
+
+    const credit = await db.journalLine.findFirst({
+      where: { entry: { companyId: co.id, sourceType: "stock-movement", sourceId: rows[0].movementId } , credit: { gt: 0 } },
+      include: { account: { select: { code: true } } },
+    });
+    ok("  the job is credited in the ledger too", credit?.account.code === "5200" && credit?.credit === 600);
+
+    /* what cannot be returned */
+    const tooMuch = await postReturn({
+      companyId: co.id, postedBy: "storeman", jobId: job.id, storeId: main.id,
+      date: today(), returnedBy: "site",
+      lines: [{ itemId: retItem.id, condition: "Reusable", quantity: 500 }],
+    });
+    ok("returning more than the job ever had is refused", tooMuch.ok === false);
+    ok("  naming what is still out", /Only 100 of 20mm conduit is still out/.test(tooMuch.error || ""), tooMuch.error);
+    ok("  counting scrap as already returned", true,
+      "200 issued, 60 reusable and 40 scrap back, so 100 remains");
+
+    /**
+     * A note is all or nothing. Half of one leaves a job credited for material
+     * the storekeeper is still holding.
+     */
+    const shelfBefore = (await balanceFor(co.id, retItem.id, main.id)).quantity;
+    const mixed = await postReturn({
+      companyId: co.id, postedBy: "storeman", jobId: job.id, storeId: main.id,
+      date: today(), returnedBy: "site",
+      lines: [
+        { itemId: retItem.id, condition: "Reusable", quantity: 10 },
+        { itemId: retItem.id, condition: "Reusable", quantity: 9999 },
+      ],
+    });
+    ok("a note with one impossible line posts none of it", mixed.ok === false);
+    ok("  leaving the shelf exactly as it was",
+      (await balanceFor(co.id, retItem.id, main.id)).quantity === shelfBefore,
+      "half a return note is worse than none");
+    ok("  and no note behind it",
+      (await db.materialReturn.count({ where: { companyId: co.id, jobId: job.id } })) === 1);
+
+    /**
+     * The note has to add up as a whole, not line by line.
+     *
+     * 100 is still out. Two lines of 60 each pass on their own and return 120
+     * between them, crediting the job with material it never had — the exact
+     * thing the single-line check exists to prevent, walked round by splitting
+     * the quantity over two rows.
+     */
+    const split = await postReturn({
+      companyId: co.id, postedBy: "storeman", jobId: job.id, storeId: main.id,
+      date: today(), returnedBy: "site",
+      lines: [
+        { itemId: retItem.id, condition: "Reusable", quantity: 60 },
+        { itemId: retItem.id, condition: "Reusable", quantity: 60 },
+      ],
+    });
+    ok("two lines that are fine alone but too much together are refused", split.ok === false,
+      split.ok ? "120 came back against 100 outstanding" : split.error);
+    ok("  counting the earlier line against the later one",
+      /Only 40 of 20mm conduit is still out/.test(split.error || ""), split.error);
+
+    const nameless = await postReturn({
+      companyId: co.id, postedBy: "storeman", jobId: job.id, storeId: main.id,
+      date: today(), returnedBy: "  ",
+      lines: [{ itemId: retItem.id, condition: "Reusable", quantity: 5 }],
+    });
+    ok("a return with nobody's name on it is refused", nameless.ok === false,
+      "material reappearing on a shelf anonymously is what a stock count can never explain");
+    ok("  and asks for the name", /who brought it back/i.test(nameless.error || ""), nameless.error);
+  }
+
   /* ====================================== a transfer moves no money ===== */
   {
     const res = await transferStock({
@@ -281,8 +394,24 @@ try {
 
   /* ==================================== the ledger agrees with the shelf = */
   {
+    /**
+     * Scoped by the items this suite created, not by the reference on the
+     * movement.
+     *
+     * A reference tag worked only while every movement carried one. A return
+     * note cites its own number instead, which is correct — the movement
+     * should name the document behind it — so the ledger side stopped seeing
+     * movements the shelf side still counted, and the check failed for a
+     * reason that had nothing to do with the code.
+     */
+    const mine = await db.item.findMany({
+      where: { companyId: co.id, code: { startsWith: tag } },
+      select: { id: true },
+    });
+    const itemIds = mine.map((m) => m.id);
+
     const posted = await db.stockMovement.findMany({
-      where: { companyId: co.id, reference: { startsWith: tag }, entryId: { not: null } },
+      where: { companyId: co.id, itemId: { in: itemIds }, entryId: { not: null } },
       select: { entryId: true },
     });
     let inventoryNet = 0;
@@ -291,16 +420,9 @@ try {
         if (l.code === "1200") inventoryNet += l.debit - l.credit;
       }
     }
-    /**
-     * Every item this suite touched, not one of them.
-     *
-     * Scoping it to the cable passed only while the cable was the only thing
-     * being moved. The moment a second item appeared the ledger covered it and
-     * the shelf side did not, and the check failed for a reason that had
-     * nothing to do with the code.
-     */
+
     const touched = await db.stockMovement.findMany({
-      where: { companyId: co.id, reference: { startsWith: tag } },
+      where: { companyId: co.id, itemId: { in: itemIds } },
       select: { itemId: true, storeId: true },
       distinct: ["itemId", "storeId"],
     });
@@ -312,18 +434,39 @@ try {
       `ledger ${Math.round(inventoryNet * 100) / 100} against shelves ${Math.round(shelves * 100) / 100}`);
   }
 } finally {
+  /**
+   * Scoped by the items this suite owns, not by the reference tag.
+   *
+   * A return movement cites its MRN number rather than the tag, so a
+   * tag-scoped sweep walked straight past it and left the note, its lines and
+   * the journal behind. The items then could not be deleted — a line still
+   * pointed at them — and the next run started against a shelf it had not
+   * stocked, failing somewhere unrelated and blaming the wrong rule.
+   *
+   * Every run's leftovers are cleared, not just this one's, so a suite that
+   * crashed once does not stay poisoned until somebody notices by hand.
+   */
+  const mine = await db.item.findMany({
+    where: { companyId: co.id, code: { startsWith: "STK-" } },
+    select: { id: true },
+  });
+  const itemIds = mine.map((i) => i.id);
+  const owned = [{ reference: { startsWith: "STK-" } }, { itemId: { in: itemIds } }];
+
+  await db.materialReturn.deleteMany({ where: { companyId: co.id, lines: { some: { itemId: { in: itemIds } } } } });
+
   const rows = await db.stockMovement.findMany({
-    where: { companyId: co.id, reference: { startsWith: tag } },
+    where: { companyId: co.id, OR: owned },
     select: { id: true, entryId: true },
   });
-  await db.stockMovement.deleteMany({ where: { companyId: co.id, reference: { startsWith: tag } } });
+  await db.stockMovement.deleteMany({ where: { companyId: co.id, OR: owned } });
   for (const r of rows) {
     if (!r.entryId) continue;
     await db.journalLine.deleteMany({ where: { entryId: r.entryId } });
     await db.journalEntry.delete({ where: { id: r.entryId } }).catch(() => {});
   }
-  await db.item.deleteMany({ where: { companyId: co.id, code: { startsWith: tag } } });
-  await db.store.deleteMany({ where: { companyId: co.id, code: { startsWith: tag } } });
+  await db.item.deleteMany({ where: { companyId: co.id, code: { startsWith: "STK-" } } });
+  await db.store.deleteMany({ where: { companyId: co.id, code: { startsWith: "STK-" } } });
 }
 
 /* ==================================================== how it is wired == */

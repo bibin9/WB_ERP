@@ -85,11 +85,32 @@ function parseDate(value: string | Date | null | undefined): Date | null {
 /**
  * How many times to try for a free voucher number before giving up.
  *
- * Each attempt re-reads the count, so the guess improves as other writers land;
- * twenty simultaneous posts settle well inside this. The limit exists so a
- * pathological case ends in a sentence rather than a spin.
+ * Each attempt re-reads the series and never re-offers a number it has already
+ * been refused, so twenty simultaneous posts settle well inside this. The limit
+ * exists so a pathological case ends in a sentence rather than a spin.
  */
 const MAX_REFERENCE_ATTEMPTS = 25;
+
+/**
+ * The highest voucher number already issued in one series, or 0 for a new one.
+ *
+ * Numbers are zero-padded to four digits, so for everything up to 9999 the
+ * database can sort them as text and the first row back is the highest. Past
+ * that the padding stops helping — "9999" sorts after "10000" — so the count of
+ * the series is taken as a second opinion and the larger of the two wins. A
+ * dense series of ten thousand reports 10000 by count; a gappy one reports its
+ * true maximum by sort. Neither can be low, and low is the only answer that
+ * would hand out a number somebody already has.
+ */
+async function highestIssued(companyId: string, prefix: string): Promise<number> {
+  const where = { companyId, reference: { startsWith: prefix } };
+  const [last, howMany] = await Promise.all([
+    db.journalEntry.findFirst({ where, orderBy: { reference: "desc" }, select: { reference: true } }),
+    db.journalEntry.count({ where }),
+  ]);
+  const top = last ? Number(last.reference.slice(prefix.length)) : 0;
+  return Math.max(Number.isFinite(top) ? top : 0, howMany);
+}
 
 /**
  * Which unique index refused an insert, if one did.
@@ -217,21 +238,33 @@ export async function postVoucher(input: PostingInput): Promise<PostingResult> {
   // could read.
   //
   // So the collision is expected rather than exceptional. Take the next number,
-  // try it, and if somebody else got there first take the one after. The count
-  // is re-read each time, so the guess improves as other writers land and the
-  // loop converges in a handful of attempts even with twenty in flight.
+  // try it, and if somebody else got there first take the one after.
+  //
+  // The next number comes from the highest one ALREADY ISSUED IN THIS SERIES,
+  // not from a count of vouchers. Counting assumes two things that are not true:
+  // that the series is dense, and that every row counted belongs to this
+  // prefix. A single deleted voucher breaks the first — count + 1 then lands on
+  // a number that is already taken. A voucherType missing from VOUCHER_PREFIX
+  // breaks the second, because it falls back to the "JV" prefix while still
+  // being counted as its own type, so two series share one prefix.
+  //
+  // Either way the old loop re-read the same count, rebuilt the same reference
+  // and collided again, twenty-five times, then told a lone user at a quiet
+  // desk that too many people were posting at once. It was not a slow path: it
+  // could never succeed again for the rest of that financial year.
+  //
+  // `floor` is what makes the retry a retry. It rises on every collision, so
+  // the loop always moves forward even when nothing else in the database
+  // changes. The re-read each attempt is still what keeps concurrent writers
+  // from skipping numbers: whoever loses the race sees the winner's row and
+  // takes the very next number rather than jumping past it.
   //
   // A database sequence would be tidier on PostgreSQL and unavailable on the
   // SQLite used for local development, and a number that behaves differently in
   // the two places is worse than one that retries in both.
+  let floor = 0;
   for (let attempt = 0; attempt < MAX_REFERENCE_ATTEMPTS; attempt++) {
-    const n = await db.journalEntry.count({
-      where: { companyId: input.companyId, voucherType: input.voucherType, date: { gte: fy.from, lte: fy.to } },
-    });
-    // The count, re-read, IS the next number — no attempt offset. Adding the
-    // attempt would skip: three writers colliding on 0101 would take 0101,
-    // 0103, 0105 and leave holes. A voucher sequence with gaps is the first
-    // thing an auditor asks about, and "the software did it" is not an answer.
+    const n = Math.max(await highestIssued(input.companyId, prefix), floor);
     const reference = `${prefix}${String(n + 1).padStart(4, "0")}`;
 
     try {
@@ -273,6 +306,9 @@ export async function postVoucher(input: PostingInput): Promise<PostingResult> {
         return { ok: false, error: "That document has already been posted." };
       }
       if (clash !== "reference") throw err;
+      // This number is spent for the rest of this call, whoever took it and
+      // whenever they took it. Without this the loop can re-offer it forever.
+      floor = n + 1;
       // A little jitter so simultaneous writers stop marching in lockstep.
       await new Promise((r) => setTimeout(r, Math.floor(Math.random() * 15)));
     }

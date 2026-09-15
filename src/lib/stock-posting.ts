@@ -6,6 +6,7 @@ import {
   balanceOf, priceReceipt, priceIssue, checkIssue, isInward,
   MOVEMENT_KINDS, type StockBalance,
 } from "./stock";
+import { goesBackToStock, checkReturn, RETURN_CONDITIONS } from "./returns";
 
 /**
  * Turning a stock movement into accounting.
@@ -319,4 +320,176 @@ export async function awaitingInspection(companyId: string) {
     },
     orderBy: { date: "asc" },
   });
+}
+
+
+/* ============================== material coming back from site (INV-16) == */
+
+export type ReturnLineInput = {
+  itemId: string;
+  condition: string;
+  quantity: number;
+  notes?: string | null;
+};
+
+export type ReturnInput = {
+  companyId: string;
+  postedBy: string;
+  jobId: string;
+  storeId: string;
+  date: string;
+  returnedBy: string;
+  notes?: string | null;
+  lines: ReturnLineInput[];
+};
+
+/** How much of an item a job was issued, and how much it has sent back. */
+export async function jobPosition(companyId: string, jobId: string, itemId: string) {
+  const rows = await db.stockMovement.findMany({
+    where: { companyId, jobId, itemId, kind: { in: ["Issue", "Return to store"] } },
+    select: { kind: true, quantity: true },
+  });
+  let issued = 0;
+  let returned = 0;
+  for (const r of rows) {
+    if (r.kind === "Issue") issued += r.quantity;
+    else returned += r.quantity;
+  }
+  // Scrap never moved stock, so it has to be counted from the notes instead.
+  const scrapped = await db.materialReturnLine.aggregate({
+    where: { itemId, condition: "Scrap", return: { companyId, jobId, status: "Posted" } },
+    _sum: { quantity: true },
+  });
+  return {
+    issued: Math.round(issued * 1000) / 1000,
+    returned: Math.round((returned + (scrapped._sum.quantity ?? 0)) * 1000) / 1000,
+  };
+}
+
+/**
+ * Post a material return note.
+ *
+ * Reusable lines go through recordMovement like any other return, so they are
+ * priced, posted and credited to the job by the seam that already exists.
+ * Scrap lines produce no movement at all: the job keeps the cost because it
+ * caused it, and nothing enters the stock ledger because scrap is not stock.
+ *
+ * The whole note is checked before anything is written. Half a return note —
+ * two lines back on the shelf and a third refused — leaves a job credited for
+ * material the storekeeper is still holding.
+ */
+export type ReturnResult =
+  | { ok: true; returnId: string; number: string }
+  | { ok: false; error: string };
+
+export async function postReturn(input: ReturnInput): Promise<ReturnResult> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date ?? "")) return { ok: false, error: "Enter the date it came back." };
+
+  const job = await db.job.findFirst({ where: { id: input.jobId, companyId: input.companyId } });
+  if (!job) return { ok: false, error: "Choose the job the material is coming back from." };
+  const store = await db.store.findFirst({ where: { id: input.storeId, companyId: input.companyId } });
+  if (!store) return { ok: false, error: "Choose the store the reusable material is going into." };
+  // Who handed it over. Material reappearing on a shelf with nobody's name on
+  // it is the one thing a stock count can never afterwards explain.
+  if (!String(input.returnedBy ?? "").trim()) {
+    return { ok: false, error: "Say who brought it back." };
+  }
+
+  const lines = input.lines.filter((l) => l.itemId && Number(l.quantity) > 0);
+  if (!lines.length) return { ok: false, error: "Add at least one line saying what is coming back." };
+
+  for (const l of lines) {
+    if (!(RETURN_CONDITIONS as readonly string[]).includes(l.condition)) {
+      return { ok: false, error: "Say whether each line is reusable or scrap." };
+    }
+  }
+
+  // Everything is checked before anything is written.
+  //
+  // `claimed` is what makes the note add up as a whole rather than line by
+  // line. The same item can appear twice — sixty reusable and forty scrap is
+  // the ordinary case — and checking each line only against the job would let
+  // two lines of sixty both pass against a hundred outstanding, then post a
+  // hundred and twenty. Each line is therefore weighed against what the job
+  // still has out AFTER the lines above it on this same note.
+  const claimed = new Map<string, number>();
+  for (const l of lines) {
+    const item = await db.item.findFirst({ where: { id: l.itemId, companyId: input.companyId } });
+    if (!item) return { ok: false, error: "One of those items is not in this company." };
+
+    const pos = await jobPosition(input.companyId, input.jobId, l.itemId);
+    const already = claimed.get(l.itemId) ?? 0;
+    const permitted = checkReturn(l.quantity, pos.issued, pos.returned + already, item.name);
+    if (!permitted.ok) return permitted;
+    claimed.set(l.itemId, already + Number(l.quantity));
+  }
+
+  const created = await db.materialReturn.create({
+    data: {
+      companyId: input.companyId,
+      number: await nextReturnNumber(input.companyId),
+      status: "Draft",
+      jobId: job.id,
+      storeId: store.id,
+      date: new Date(input.date + "T00:00:00.000Z"),
+      returnedBy: input.returnedBy,
+      notes: input.notes ?? null,
+      lines: {
+        create: lines.map((l, i) => ({
+          itemId: l.itemId,
+          condition: l.condition,
+          quantity: Number(l.quantity),
+          value: 0,
+          notes: l.notes ?? null,
+          sortOrder: i + 1,
+        })),
+      },
+    },
+    include: { lines: true },
+  });
+
+  for (const l of created.lines) {
+    if (!goesBackToStock(l.condition)) continue;
+
+    const moved = await recordMovement({
+      companyId: input.companyId,
+      postedBy: input.postedBy,
+      kind: "Return to store",
+      itemId: l.itemId,
+      storeId: store.id,
+      date: input.date,
+      quantity: l.quantity,
+      // Priced at what the shelf says it is worth, so the job is credited the
+      // same way it was charged.
+      unitCost: (await balanceFor(input.companyId, l.itemId, store.id)).averageCost || 0,
+      jobId: job.id,
+      reference: created.number,
+      notes: l.notes,
+    });
+    if (!moved.ok) {
+      // Undo the note rather than leave half of it posted.
+      await db.materialReturn.delete({ where: { id: created.id } });
+      return moved;
+    }
+    await db.materialReturnLine.update({
+      where: { id: l.id },
+      data: { movementId: moved.movementId, value: moved.value },
+    });
+  }
+
+  await db.materialReturn.update({ where: { id: created.id }, data: { status: "Posted" } });
+  return { ok: true, returnId: created.id, number: created.number };
+}
+
+async function nextReturnNumber(companyId: string): Promise<string> {
+  const company = await db.company.findUnique({ where: { id: companyId }, select: { code: true } });
+  const year = String(new Date().getUTCFullYear()).slice(2);
+  const stem = `${company?.code ?? "CO"}/MRN/${year}/`;
+  const last = await db.materialReturn.findFirst({
+    where: { companyId, number: { startsWith: stem } },
+    orderBy: { number: "desc" },
+    select: { number: true },
+  });
+  const n = last ? Number(last.number.slice(stem.length)) + 1 : 1;
+  return stem + String(n).padStart(4, "0");
 }

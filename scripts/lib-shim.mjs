@@ -13,11 +13,38 @@
 import fs from "node:fs";
 
 /**
- * @param names lib module names, without extension. Order does not matter;
- *              dependencies between them are rewritten to point at each other.
+ * Every lib module `name` reaches, including itself.
+ *
+ * A suite used to have to list the whole dependency chain by hand, and the
+ * listing went stale the moment a module gained an import: the suite that
+ * added it passed, and an unrelated suite that loaded the same module died
+ * with "Cannot find module '.returns.shim.ts'" — a message that names neither
+ * the suite at fault nor the import that caused it.
+ *
+ * The chain is read from the source instead. Only names that exist as
+ * `src/lib/<dep>.ts` are followed, so a relative import of anything else is
+ * left alone, and `seen` makes a cycle terminate rather than recurse.
+ */
+function reachedBy(name, seen) {
+  if (seen.has(name)) return seen;
+  seen.add(name);
+  const src = fs.readFileSync(`src/lib/${name}.ts`, "utf8");
+  for (const [, dep] of src.matchAll(/from "\.\/([a-zA-Z0-9-]+)"/g)) {
+    if (fs.existsSync(`src/lib/${dep}.ts`)) reachedBy(dep, seen);
+  }
+  return seen;
+}
+
+/**
+ * @param names lib module names, without extension. Order does not matter, and
+ *              anything they import is pulled in automatically.
  * @returns the imported modules, keyed by name.
  */
-export async function importLibs(names) {
+export async function importLibs(requested) {
+  const seen = new Set();
+  for (const name of requested) reachedBy(name, seen);
+  const names = [...seen];
+
   const written = [];
   try {
     for (const name of names) {

@@ -36,7 +36,7 @@ inferred.
 | INV-13 | Lock serialised equipment once calibration expires | Must | **Done** — derived, never a stored flag |
 | INV-14 | Plant/site, storage locations, zones, bins by material type | Must | Partly — stores exist, no zones or bins |
 | INV-15 | Internal movements and transfers without changing ownership | Must | **Done** — a transfer posts nothing |
-| INV-16 | Material Return Note; reusable or scrap | Must | Partly — returns exist, no note or flag |
+| INV-16 | Material Return Note; reusable or scrap | Must | **Done** — numbered note, per-line condition |
 | INV-17 | Minimum stock and calibration alerts | Must | **Done** |
 | INV-18 | Cycle counts and physical stock audits | Should | Partly — adjustments exist |
 | INV-19 | Maintenance work orders for power tools | Should | Not started |
@@ -125,6 +125,34 @@ MIN-5, MIN-6 and MIN-9. MIN-7, authentication logging, was built in phase 1.
 **Their content is not recorded anywhere in this repository.** It needs to be
 re-shared before any of them can be worked on, and this note exists so the gap
 is visible rather than quietly forgotten.
+
+---
+
+## Found in phase 2, belongs in phase 1
+
+### Voucher numbering stops for the year once a voucher is deleted
+
+`postVoucher` guessed the next voucher number from a **count** of vouchers in
+the financial year. That assumes the series is dense and that every row counted
+carries the same prefix. Neither holds:
+
+- delete one voucher — a mistake put right, a reversal removed — and `count + 1`
+  lands on a number somebody already has;
+- a `voucherType` missing from `VOUCHER_PREFIX` falls back to the `JV` prefix
+  while still being counted as its own type, so two series share one prefix.
+
+The retry loop then re-read the same count, rebuilt the same reference and
+collided again, twenty-five times, before telling one person at a quiet desk
+that too many people were posting at once. It was not a slow path: **that
+company could not post again for the rest of the financial year.**
+
+Fixed here by taking the highest number already issued in the series rather
+than a count, and by never re-offering a number the loop has already been
+refused. Covered by `test-posting.mjs`, which fails in three places with the
+old code restored.
+
+**This is live phase-1 code and the fix has to reach `main`.** It touches no
+schema, so it is a plain code change with no migration.
 
 ---
 
