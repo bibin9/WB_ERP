@@ -62,8 +62,12 @@ ok("every page with a table has a scroll wrapper", unwrapped.length === 0, unwra
 const NOUNS = [
   "enquiries", "quotations", "estimates", "items", "movements", "orders", "requests",
   "leads", "visits", "suppliers", "jobs", "vouchers", "contacts", "certificates",
-  "bins", "stores", "employees", "invoices", "payslips",
+  "bins", "stores", "employees", "invoices", "payslips", "accounts", "payments",
+  "receipts", "returns", "quotes", "companies", "users", "timesheets",
 ];
+// Not "attempts": the one place it appears is already inside a `> 1 &&`, so the
+// singular can never render and adding it here would be a permanent false
+// failure. A guard that cries wolf gets deleted.
 // On one line and in text position. `items={items}` on one line followed by
 // `jobs={jobs}` on the next is a list of props, not a sentence, and matching
 // across the newline found dozens of those and nothing real.

@@ -98,7 +98,9 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
           <div className="card xl:col-span-2">
             <div className="flex items-center justify-between border-b border-line px-5 py-3">
               <h2 className="font-semibold text-heading">Trial Balance — {company?.code}</h2>
-              <span className="text-xs text-muted">{accounts.length} accounts</span>
+              <span className="text-xs text-muted">
+                {accounts.length} {accounts.length === 1 ? "account" : "accounts"}
+              </span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
