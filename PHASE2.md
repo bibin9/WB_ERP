@@ -26,7 +26,7 @@ inferred.
 | INV-03 | MR approval: Site In-Charge → Project Manager → Procurement | Must | **Done** |
 | INV-04 | Approved MR triggers purchase or internal allocation | Must | **Done** — its lines carry across |
 | INV-05 | Convert MR to PO; RFQ to vendors | Must | **Done** — PO and RFQ both |
-| INV-06 | Vendor selection on price, lead time, past performance, min three | Must | **Done** — three enforced, reason required off-lowest; past performance is INV-21 |
+| INV-06 | Vendor selection on price, lead time, past performance, min three | Must | **Done** — three enforced, reason required off-lowest, past performance shown on the comparison |
 | INV-07 | Repeat purchases without re-bidding | Should | Not started |
 | INV-08 | PO approval PM → OM → Director → MD | Must | **Done**, using the seeded route |
 | INV-09 | Bid comparison sheets, PO from the chosen quotation | Should | **Done** — the PO is built from the winning quote |
@@ -41,7 +41,7 @@ inferred.
 | INV-18 | Cycle counts and physical stock audits | Should | Partly — adjustments exist |
 | INV-19 | Maintenance work orders for power tools | Should | Not started |
 | INV-20 | Vendor self-service registration with compliance checks | Should | Not started |
-| INV-21 | Vendor rating: OTIF, defect rate, price, responsiveness | Should | Not started |
+| INV-21 | Vendor rating: OTIF, defect rate, price, responsiveness | Should | **Done** — derived from what happened, never typed in |
 | INV-22 | Vendor portal for RFQ response and order tracking | Could | Not started |
 
 ### CRM, Sales and Estimation (§6.4)

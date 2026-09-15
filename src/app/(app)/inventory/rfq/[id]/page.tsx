@@ -12,6 +12,8 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { money } from "@/lib/money";
 import { MIN_VENDORS, RFQ_STATUS_HELP, rankQuotes, summariseRfq, rfqVerdict } from "@/lib/rfq";
+import { ratingsFor } from "@/lib/vendorrating-data";
+import { vendorVerdict } from "@/lib/vendorrating";
 
 export const dynamic = "force-dynamic";
 
@@ -86,6 +88,15 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
     orderBy: { name: "asc" },
     select: { id: true, code: true, name: true },
   });
+  /**
+   * How each bidder has actually performed (INV-06's past-performance leg).
+   *
+   * Read fresh rather than stored, and shown beside the price rather than
+   * folded into it — see the note at the foot of this page on why there is no
+   * combined score.
+   */
+  const ratings = await ratingsFor(rfq.companyId, rfq.quotes.map((q) => q.partyId));
+
   const stores = await db.store.findMany({
     where: { companyId: rfq.companyId, isActive: true },
     orderBy: { code: "asc" },
@@ -277,6 +288,46 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
                   )}
                 </td>
               ))}
+            </tr>
+
+            <tr className="align-top">
+              <td className="px-4 py-2.5 text-xs uppercase tracking-wide text-muted">Past performance</td>
+              <td />
+              {ranked.map((q) => {
+                const r = ratings[q.partyId];
+                return (
+                  <td
+                    key={q.partyId}
+                    className="px-4 py-2.5 text-right text-xs"
+                    title={r ? vendorVerdict(r) : undefined}
+                  >
+                    {!r || !r.anyHistory ? (
+                      <span className="text-muted/60">no history yet</span>
+                    ) : (
+                      <div className="space-y-0.5">
+                        {r.delivery.enough && (
+                          <div className={r.delivery.otifRate < 0.8 ? "text-brand-gold" : "text-muted"}>
+                            {Math.round(r.delivery.otifRate * 100)}% on time in full
+                            <span className="text-muted/60"> ({r.delivery.considered})</span>
+                          </div>
+                        )}
+                        {r.quality.enough && (
+                          <div className={r.quality.defectRate > 0 ? "text-brand-gold" : "text-muted"}>
+                            {Math.round(r.quality.defectRate * 100)}% rejected
+                            <span className="text-muted/60"> ({r.quality.inspected})</span>
+                          </div>
+                        )}
+                        {r.response.enough && (
+                          <div className="text-muted">
+                            replied {r.response.replied}/{r.response.asked}
+                            {r.response.medianDays != null && <> in {r.response.medianDays}d</>}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                );
+              })}
             </tr>
 
             <tr>

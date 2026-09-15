@@ -432,6 +432,21 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "Equipment away at the lab, under repair or withdrawn is blocked too, whatever its certificate says. Where it is beats what the paperwork says.",
   },
   {
+    id: "stores-vendor-rating", category: "Stores", screens: ["/inventory/vendors", "/inventory/rfq"],
+    title: "How suppliers have actually performed",
+    summary: "On time in full, rejections, replies and price — read back out of what happened, never typed in.",
+    body: "A rating somebody enters by hand is a rating of the last conversation they had, and it is always five stars for whoever they like. So nothing on this page is entered. On time in full comes from purchase orders against the dates the supplier promised. Rejections come from QA/QC inspections on their deliveries. Replies come from enquiries they were asked to price, and how many days they took. Price comes from how often they were the cheapest when there was somebody to be cheaper than. The most important thing on the page is the small number under each figure: the count it is out of. A supplier with one order that came a day late is not \"0% on time\" in any sense worth acting on, but a table that prints 0% next to a supplier with forty orders at 0% invites somebody to treat them the same. So below three, nothing is shown at all — just how many there have been so far. Dropping a supplier over a sample of one is a real thing that happens and it is usually irreversible, because nobody re-approves a vendor somebody else blacklisted. There is deliberately no overall score. Combining on-time delivery with defect rate needs weights nobody agreed, and a number that looks objective while being invented is worse than none, because people stop arguing with it.",
+    steps: [
+      "Open Stores -> Supplier Performance to see every supplier side by side.",
+      "Read the small grey number under each figure — it is how many orders, inspections or enquiries the figure is out of.",
+      "Hover any row's sentence for the whole picture in plain English.",
+      "The same figures appear on each enquiry's comparison sheet, beside the prices, so past performance is in front of you at the moment you choose.",
+      "To make the delivery figures work, put an expected date on purchase orders. An order with no promised date is left out rather than counted as on time.",
+      "To make the quality figures work, tick 'needs QA/QC inspection' on the items that need it, and record the inspection when material arrives.",
+    ],
+    tip: "An order still running is not counted as late until its promised date has passed — a supplier who still has time to deliver has done nothing wrong.",
+  },
+  {
     id: "stores-bins", category: "Stores", screens: ["/inventory/stores", "/inventory/movements"],
     title: "Zones and bins: where in the store it actually is",
     summary: "A store says the company owns 400 metres of cable. A bin says which rack to walk to.",
