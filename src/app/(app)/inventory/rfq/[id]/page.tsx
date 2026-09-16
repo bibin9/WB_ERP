@@ -4,6 +4,7 @@ import { ArrowLeft, Scale, AlertTriangle } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import PrintHeader from "@/components/finance/PrintHeader";
 import PrintReport from "@/components/finance/PrintReport";
+import DocumentButtons from "@/components/DocumentButtons";
 import AskVendors from "@/components/inventory/AskVendors";
 import QuotationForm from "@/components/inventory/QuotationForm";
 import AwardForm from "@/components/inventory/AwardForm";
@@ -57,6 +58,8 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
   const company = await db.company.findUnique({ where: { id: rfq.companyId } });
 
   const quantityOf = new Map(rfq.lines.map((l) => [l.id, l.quantity]));
+  /** Each supplier's place on the enquiry, for printing the enquiry addressed to them. */
+  const quoteIdOf = new Map(rfq.quotes.map((q) => [q.partyId, q.id]));
   const quotes = rfq.quotes.map((q) => ({
     partyId: q.partyId,
     partyName: q.partyName,
@@ -116,6 +119,7 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
       <PageHeader title={rfq.number} subtitle={verdict}>
         <div className="flex flex-wrap items-center gap-2">
           <PrintReport />
+          <DocumentButtons kind="rfq" id={rfq.id} label="blank enquiry" />
           {open && <AskVendors rfqId={rfq.id} candidates={notAsked} />}
           {open && totals.quoted > 0 && (
             <AwardForm
@@ -192,6 +196,11 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
               {ranked.map((q) => (
                 <th key={q.partyId} className="px-4 py-2.5 text-right font-medium">
                   <div className={q.received ? "text-heading" : "text-muted/60"}>{q.partyName}</div>
+                  {quoteIdOf.get(q.partyId) && (
+                    <div className="font-normal normal-case tracking-normal">
+                      <DocumentButtons compact kind="rfq" id={quoteIdOf.get(q.partyId)!} label="Enquiry" title="Enquiry addressed to this supplier" />
+                    </div>
+                  )}
                   <div className="font-normal normal-case tracking-normal">
                     {q.received ? (
                       <span className={q.isLowest ? "text-brand-green-700" : "text-muted"}>

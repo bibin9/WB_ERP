@@ -239,12 +239,21 @@ export function TitleBlock({
 /* ============================================================ parties == */
 
 /** A labelled box of address lines — To, Supplier, Deliver to. Blank lines are dropped. */
-export function PartyBox({ label, lines }: { label: string; lines: (string | null | undefined)[] }) {
+export function PartyBox({
+  label,
+  lines,
+  writeIn,
+}: {
+  label: string;
+  lines: (string | null | undefined)[];
+  /** A box left empty to be filled in by hand, this tall. No dash is printed in it. */
+  writeIn?: number;
+}) {
   const shown = lines.map((l) => String(l ?? "").trim()).filter(Boolean);
   return (
-    <View style={{ flex: 1, borderWidth: 0.5, borderColor: RULE, padding: 8, marginRight: 8 }}>
+    <View style={{ flex: 1, borderWidth: 0.5, borderColor: RULE, padding: 8, marginRight: 8, ...(writeIn ? { minHeight: writeIn } : {}) }}>
       <Text style={[styles.label, { marginBottom: 3 }]}>{label}</Text>
-      {shown.length ? (
+      {writeIn && !shown.length ? null : shown.length ? (
         shown.map((l, i) => (
           <Text key={i} style={i === 0 ? styles.bold : undefined}>
             {l}
@@ -271,7 +280,18 @@ export type Column<R> = {
   value: (row: R, index: number) => string;
 };
 
-export function ItemsTable<R>({ lh, columns, rows }: { lh: Letterhead; columns: Column<R>[]; rows: R[] }) {
+export function ItemsTable<R>({
+  lh,
+  columns,
+  rows,
+  minRowHeight,
+}: {
+  lh: Letterhead;
+  columns: Column<R>[];
+  rows: R[];
+  /** Room to write in by hand — a supplier's prices on an enquiry, a count on a note. */
+  minRowHeight?: number;
+}) {
   return (
     <View style={{ marginBottom: 10 }}>
       {/* Not `fixed`: in this renderer that repeats an element on every page of
@@ -292,7 +312,7 @@ export function ItemsTable<R>({ lh, columns, rows }: { lh: Letterhead; columns: 
         <View
           key={i}
           wrap={false}
-          style={{ flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: RULE }}
+          style={{ flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: RULE, ...(minRowHeight ? { minHeight: minRowHeight } : {}) }}
         >
           {columns.map((c) => (
             <Text key={c.label} style={{ flex: c.flex, padding: 5, textAlign: c.align ?? "left" }}>
@@ -353,6 +373,11 @@ export function TextSection({ heading, text }: { heading: string; text?: string 
       <Text>{body}</Text>
     </View>
   );
+}
+
+/** A heading over a group of lines — reusable and scrap, say — with nothing under it but the table. */
+export function SectionHeading({ children }: { children: React.ReactNode }) {
+  return <Text style={[styles.label, { marginBottom: 3, marginTop: 2 }]}>{children}</Text>;
 }
 
 /* ========================================================= signatures == */

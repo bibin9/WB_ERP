@@ -41,13 +41,14 @@ export type PurchaseOrderDoc = {
   approvedAt: Date | null;
 };
 
-/** Everything that is not a live, approved order says so. */
-export const PO_WATERMARK: Record<string, string> = {
-  Draft: "DRAFT",
-  "Awaiting approval": "NOT APPROVED",
-  Rejected: "REJECTED",
-  Cancelled: "CANCELLED",
-};
+/**
+ * Everything that is not a live, approved order says so. Worked from the
+ * approved states, so a status added later is marked rather than printed clean.
+ */
+export function orderWatermark(status: string): string | null {
+  if (["Approved", "Partly received", "Received"].includes(status)) return null;
+  return ({ Draft: "DRAFT", Rejected: "REJECTED", Cancelled: "CANCELLED" } as Record<string, string>)[status] ?? "NOT APPROVED";
+}
 
 export async function loadPurchaseOrder(id: string, companyIds: string[]): Promise<PurchaseOrderDoc | null> {
   const o = await db.purchaseOrder.findFirst({
@@ -116,7 +117,7 @@ export function PurchaseOrderPdf(d: PurchaseOrderDoc) {
   ];
 
   return (
-    <DocumentFile lh={d.lh} title={`Purchase order ${d.number}`} watermark={PO_WATERMARK[d.status] ?? null}>
+    <DocumentFile lh={d.lh} title={`Purchase order ${d.number}`} watermark={orderWatermark(d.status)}>
       <TitleBlock
         lh={d.lh}
         title="PURCHASE ORDER"

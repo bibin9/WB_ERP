@@ -9,6 +9,8 @@ import SearchBox from "@/components/SearchBox";
 import Pager from "@/components/Pager";
 import MovementForm from "@/components/inventory/MovementForm";
 import InspectDelivery from "@/components/inventory/InspectDelivery";
+import DocumentButtons from "@/components/DocumentButtons";
+import { hasStoreNote, NOTE_TITLES } from "@/lib/store-notes";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
@@ -258,6 +260,11 @@ export default async function MovementsPage({
                   </td>
                   <td className="px-4 py-2.5 text-xs">
                     <span className="font-mono text-heading">{m.reference}</span>
+                    {hasStoreNote(m.kind) && (
+                      <div>
+                        <DocumentButtons compact kind="store-note" id={m.id} label="Note" title={NOTE_TITLES[m.kind]} />
+                      </div>
+                    )}
                     <div className="text-muted">
                       {m.entry ? (
                         <Link href="/finance/daybook" className="hover:underline">{m.entry.reference}</Link>

@@ -6,6 +6,7 @@ import InventoryTabs from "@/components/InventoryTabs";
 import SearchBox from "@/components/SearchBox";
 import Pager from "@/components/Pager";
 import RequestForm from "@/components/inventory/RequestForm";
+import DocumentButtons from "@/components/DocumentButtons";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
@@ -197,11 +198,14 @@ export default async function RequestsPage({
                     {r.store && <> · for {r.store.code}</>}
                   </div>
                 </div>
-                {r.status === "Approved" && (
-                  <Link href={`/inventory/orders?c=${companyId}&from=${r.id}`} className="btn-primary">
-                    Raise an order
-                  </Link>
-                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <DocumentButtons kind="material-request" id={r.id} />
+                  {r.status === "Approved" && (
+                    <Link href={`/inventory/orders?c=${companyId}&from=${r.id}`} className="btn-primary">
+                      Raise an order
+                    </Link>
+                  )}
+                </div>
               </div>
 
               {verdict && (

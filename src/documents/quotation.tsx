@@ -46,11 +46,15 @@ export type QuotationDoc = {
   replacedBy: string | null;
 };
 
-const WATERMARK: Record<string, string> = {
-  Draft: "DRAFT",
-  "Awaiting approval": "DRAFT",
-  Superseded: "SUPERSEDED",
-};
+/**
+ * DRAFT on anything not yet signed off, SUPERSEDED on a replaced revision.
+ * Worked from the states that may print clean, so a status added later is
+ * marked rather than passing for the real thing.
+ */
+export function quotationWatermark(status: string): string | null {
+  if (["Approved", "Issued", "Accepted", "Declined"].includes(status)) return null;
+  return status === "Superseded" ? "SUPERSEDED" : "DRAFT";
+}
 
 export async function loadQuotation(
   id: string,
@@ -146,7 +150,7 @@ export function QuotationPdf(d: QuotationDoc) {
   totals.push(["Total, excluding VAT (AED)", money(d.total), true]);
 
   return (
-    <DocumentFile lh={d.lh} title={`Quotation ${d.number}`} watermark={WATERMARK[d.status] ?? null}>
+    <DocumentFile lh={d.lh} title={`Quotation ${d.number}`} watermark={quotationWatermark(d.status)}>
       <TitleBlock
         lh={d.lh}
         title={d.revision > 1 ? `QUOTATION — REVISION ${d.revision}` : "QUOTATION"}

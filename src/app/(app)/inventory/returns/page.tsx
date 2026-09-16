@@ -8,6 +8,7 @@ import PrintReport from "@/components/finance/PrintReport";
 import SearchBox from "@/components/SearchBox";
 import Pager from "@/components/Pager";
 import ReturnForm from "@/components/inventory/ReturnForm";
+import DocumentButtons from "@/components/DocumentButtons";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
@@ -207,6 +208,7 @@ export default async function ReturnsPage({
                   <td className="whitespace-nowrap px-4 py-2.5">
                     <span className="font-mono text-xs text-heading">{n.number}</span>
                     <div className="text-xs text-muted">{n.returnedBy}</div>
+                    <DocumentButtons compact kind="material-return" id={n.id} label="Note" title="Material return note" />
                   </td>
                   <td className="whitespace-nowrap px-4 py-2.5 text-muted">{fmt(n.date)}</td>
                   <td className="px-4 py-2.5">
