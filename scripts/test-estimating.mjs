@@ -355,5 +355,27 @@ ok("and why a rate cannot be typed over the build-up",
 ok("and why wastage belongs in the takeoff",
   /short before work starts/.test(src));
 
+/*
+ * An estimate says what has been quoted from it.
+ *
+ * The link ran one way: a quotation named its estimate, and the estimate said
+ * nothing back. An estimator could open a priced estimate, change the rates,
+ * and never learn that a quotation went out weeks ago, the customer accepted
+ * it, and a job is running to a budget taken from these figures. The
+ * customer's copy is safe — a quotation snapshots its own price — but the
+ * estimator was editing blind, and afterwards the estimate no longer explains
+ * the budget on the job.
+ */
+{
+  const page = fs.readFileSync("src/app/(app)/crm/estimates/[id]/page.tsx", "utf8");
+  ok("an estimate loads the quotations raised from it",
+    /db\.quotation\.findMany\(\{\s*where: \{ estimateId: estimate\.id \}/.test(page));
+  ok("  and links to each one", /\/crm\/quotations\/\$\{q\.id\}/.test(page));
+  ok("  showing the job it was won as", /won as job/.test(page));
+  ok("  and warns once one has been issued or accepted",
+    /\["Issued", "Accepted"\]\.includes\(q\.status\)/.test(page) &&
+      /will not change what the customer is holding/.test(page));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

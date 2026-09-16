@@ -127,6 +127,18 @@ async function clean() {
   const marked = { notes: { contains: MARK } };
   const masters = { code: { startsWith: P } };
 
+  /*
+   * Anything hanging off a test master counts as test data, marker or not.
+   *
+   * Using the app creates documents this script never wrote: awarding a test
+   * enquiry raises a purchase order whose notes say "Awarded from enquiry ...",
+   * and receiving against it writes movements. None of them carry the marker,
+   * all of them point at a `T-` supplier, and leaving them behind made the
+   * party delete fail on a foreign key with every other table already emptied
+   * — a half-cleaned database that needs a human to unpick.
+   */
+  const orMaster = (...clauses) => ({ OR: [marked, ...clauses] });
+
   // Movements first, and their vouchers with them.
   const movements = await db.stockMovement.findMany({
     where: { OR: [marked, { item: masters }, { store: masters }] },
@@ -146,9 +158,10 @@ async function clean() {
 
   // Quotations before estimates, estimates before leads: each points at the one
   // before it, and a quotation also points at the job it won.
-  const quotes = await db.quotation.findMany({ where: marked, select: { id: true, jobId: true, approvalRequestId: true } });
-  await db.quotation.updateMany({ where: marked, data: { supersedesId: null } });
-  await db.quotation.deleteMany({ where: marked });
+  const quoteWhere = orMaster({ party: masters }, { lead: { party: masters } });
+  const quotes = await db.quotation.findMany({ where: quoteWhere, select: { id: true, jobId: true, approvalRequestId: true } });
+  await db.quotation.updateMany({ where: quoteWhere, data: { supersedesId: null } });
+  await db.quotation.deleteMany({ where: { id: { in: quotes.map((q) => q.id) } } });
   const jobIds = quotes.map((q) => q.jobId).filter(Boolean);
   if (jobIds.length) await db.job.deleteMany({ where: { id: { in: jobIds }, code: { startsWith: P } } });
   const approvals = quotes.map((q) => q.approvalRequestId).filter(Boolean);
@@ -158,23 +171,27 @@ async function clean() {
   }
   tally("quotations", quotes.length);
 
-  const estimates = await db.estimate.findMany({ where: marked, select: { id: true } });
+  const estimateWhere = orMaster({ lead: { party: masters } });
+  const estimates = await db.estimate.findMany({ where: estimateWhere, select: { id: true } });
   const lineIds = (
     await db.estimateLine.findMany({ where: { estimateId: { in: estimates.map((e) => e.id) } }, select: { id: true } })
   ).map((l) => l.id);
   await db.takeoffLine.deleteMany({ where: { lineId: { in: lineIds } } });
   await db.estimateLine.deleteMany({ where: { id: { in: lineIds } } });
-  await db.estimate.deleteMany({ where: marked });
+  await db.estimate.deleteMany({ where: { id: { in: estimates.map((e) => e.id) } } });
   tally("estimates", estimates.length);
 
-  const leads = await db.lead.findMany({ where: marked, select: { id: true } });
+  const leads = await db.lead.findMany({ where: orMaster({ party: masters }), select: { id: true } });
   const leadIds = leads.map((l) => l.id);
   await db.leadInteraction.deleteMany({ where: { leadId: { in: leadIds } } });
   await db.siteVisit.deleteMany({ where: { leadId: { in: leadIds } } });
   await db.lead.deleteMany({ where: { id: { in: leadIds } } });
   tally("enquiries", leadIds.length);
 
-  const rfqs = await db.rfq.findMany({ where: marked, select: { id: true } });
+  const rfqs = await db.rfq.findMany({
+    where: orMaster({ awardedParty: masters }, { quotes: { some: { party: masters } } }),
+    select: { id: true },
+  });
   const rfqIds = rfqs.map((r) => r.id);
   const quoteIds = (await db.rfqQuote.findMany({ where: { rfqId: { in: rfqIds } }, select: { id: true } })).map((q) => q.id);
   await db.rfqQuoteLine.deleteMany({ where: { quoteId: { in: quoteIds } } });
@@ -183,19 +200,38 @@ async function clean() {
   await db.rfq.deleteMany({ where: { id: { in: rfqIds } } });
   tally("requests for quotation", rfqIds.length);
 
-  const orders = await db.purchaseOrder.findMany({ where: marked, select: { id: true } });
-  await db.purchaseOrderLine.deleteMany({ where: { orderId: { in: orders.map((o) => o.id) } } });
-  await db.purchaseOrder.deleteMany({ where: marked });
+  const orders = await db.purchaseOrder.findMany({
+    where: orMaster({ party: masters }, { store: masters }),
+    select: { id: true },
+  });
+  const orderIds = orders.map((o) => o.id);
+  // Movements pointing at these lines were cleared above, but a receipt made
+  // by hand against a surviving line would still hold them.
+  const orderLineIds = (
+    await db.purchaseOrderLine.findMany({ where: { orderId: { in: orderIds } }, select: { id: true } })
+  ).map((l) => l.id);
+  await db.stockMovement.updateMany({
+    where: { purchaseOrderLineId: { in: orderLineIds } },
+    data: { purchaseOrderLineId: null },
+  });
+  await db.purchaseOrderLine.deleteMany({ where: { orderId: { in: orderIds } } });
+  await db.purchaseOrder.deleteMany({ where: { id: { in: orderIds } } });
   tally("purchase orders", orders.length);
 
-  const requests = await db.materialRequest.findMany({ where: marked, select: { id: true } });
+  const requests = await db.materialRequest.findMany({
+    where: orMaster({ store: masters }),
+    select: { id: true },
+  });
   await db.materialRequestLine.deleteMany({ where: { requestId: { in: requests.map((r) => r.id) } } });
-  await db.materialRequest.deleteMany({ where: marked });
+  await db.materialRequest.deleteMany({ where: { id: { in: requests.map((r) => r.id) } } });
   tally("material requests", requests.length);
 
-  const kit = await db.equipment.findMany({ where: marked, select: { id: true } });
+  const kit = await db.equipment.findMany({
+    where: { OR: [marked, { serialNo: { startsWith: P } }, { store: masters }] },
+    select: { id: true },
+  });
   await db.calibrationRecord.deleteMany({ where: { equipmentId: { in: kit.map((e) => e.id) } } });
-  await db.equipment.deleteMany({ where: marked });
+  await db.equipment.deleteMany({ where: { id: { in: kit.map((e) => e.id) } } });
   tally("equipment", kit.length);
 
   const binsGone = await db.storageBin.deleteMany({ where: { store: masters } });
@@ -204,7 +240,31 @@ async function clean() {
   tally("bins, stores and items", binsGone.count + storesGone.count + itemsGone.count);
 
   const contactsGone = await db.partyContact.deleteMany({ where: { party: masters } });
-  const partiesGone = await db.party.deleteMany({ where: masters });
+  let partiesGone = { count: 0 };
+  try {
+    partiesGone = await db.party.deleteMany({ where: masters });
+  } catch {
+    // A bare "foreign key constraint violated" leaves somebody guessing which
+    // of thirty tables is holding on. Name it.
+    const ids = (await db.party.findMany({ where: masters, select: { id: true } })).map((p) => p.id);
+    const holders = [];
+    for (const [label, n] of [
+      ["purchase orders", await db.purchaseOrder.count({ where: { partyId: { in: ids } } })],
+      ["stock movements", await db.stockMovement.count({ where: { partyId: { in: ids } } })],
+      ["enquiry quotes", await db.rfqQuote.count({ where: { partyId: { in: ids } } })],
+      ["enquiries awarded", await db.rfq.count({ where: { awardedPartyId: { in: ids } } })],
+      ["leads", await db.lead.count({ where: { partyId: { in: ids } } })],
+      ["quotations", await db.quotation.count({ where: { partyId: { in: ids } } })],
+      ["invoices", await db.invoice.count({ where: { partyId: { in: ids } } })],
+    ]) {
+      if (n > 0) holders.push(`${n} ${label}`);
+    }
+    throw new Error(
+      "Could not remove the test suppliers and customers because rows still point at them: " +
+        (holders.join(", ") || "something not listed here") +
+        ". Those were almost certainly created by using the app rather than by this script.",
+    );
+  }
   tally("suppliers, customers and their contacts", contactsGone.count + partiesGone.count);
 }
 

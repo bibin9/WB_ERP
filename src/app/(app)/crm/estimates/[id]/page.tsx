@@ -48,6 +48,24 @@ export default async function EstimatePage({ params }: { params: Promise<{ id: s
   if (!accessible.some((c) => c.id === estimate.companyId)) notFound();
   const company = await db.company.findUnique({ where: { id: estimate.companyId } });
 
+  /**
+   * What has already been quoted from this estimate.
+   *
+   * The quotation links back here and this page said nothing in return, so an
+   * estimator could open a priced estimate, change the rates, and have no way
+   * of knowing a quotation went out three weeks ago, the customer accepted it,
+   * and a job is running to a budget taken from these very figures. The
+   * customer's document is safe either way — a quotation snapshots its cost —
+   * but the estimator was editing blind, and once edited the estimate no
+   * longer explains the budget sitting on the job.
+   */
+  const quotations = await db.quotation.findMany({
+    where: { estimateId: estimate.id },
+    orderBy: [{ revision: "desc" }],
+    select: { id: true, number: true, revision: true, status: true, total: true, jobId: true, job: { select: { code: true } } },
+  });
+  const committed = quotations.filter((q) => ["Issued", "Accepted"].includes(q.status));
+
   const editable = estimate.status === "Draft" || estimate.status === "Priced";
   const fit = checkQuotable(totals, estimate.acceptLoss);
 
@@ -145,6 +163,44 @@ export default async function EstimatePage({ params }: { params: Promise<{ id: s
           Pricing enquiry{" "}
           <Link href={`/crm/${estimate.lead.id}`} className="underline">{estimate.lead.number}</Link>{" "}
           for {estimate.lead.customerName}.
+        </div>
+      )}
+
+      {quotations.length > 0 && (
+        <div
+          className={`mb-5 rounded-lg border px-4 py-3 text-sm ${
+            committed.length > 0
+              ? "border-brand-gold/50 bg-brand-gold/10 text-ink"
+              : "border-line bg-brand-paper text-ink"
+          }`}
+        >
+          <div className="font-semibold">
+            {quotations.length === 1 ? "A quotation has" : `${quotations.length} quotations have`} been raised from
+            this estimate.
+          </div>
+          <ul className="mt-1.5 space-y-1 text-xs">
+            {quotations.map((q) => (
+              <li key={q.id} className="flex flex-wrap items-baseline gap-2">
+                <Link href={`/crm/quotations/${q.id}`} className="font-mono underline">{q.number}</Link>
+                {q.revision > 1 && <span className="text-muted">revision {q.revision}</span>}
+                <span className="font-medium">{q.status}</span>
+                <span className="tabular-nums text-muted">{money(q.total)}</span>
+                {q.job && (
+                  <span className="text-muted">
+                    &mdash; won as job <span className="font-mono text-ink">{q.job.code}</span>
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+          {committed.length > 0 && (
+            <p className="mt-2 border-t border-line pt-2 text-xs">
+              Editing this estimate will not change what the customer is holding: a quotation keeps its own copy of
+              the price from the moment it was raised. It also will not change the budget on any job won from it.
+              What it changes is this page, so if the two stop agreeing, this is the one that moved. Raise a revision
+              on the quotation if the customer needs a different number.
+            </p>
+          )}
         </div>
       )}
 
