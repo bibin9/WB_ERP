@@ -57,6 +57,25 @@ if (!/^postgres(ql)?:\/\//i.test(url)) {
   );
   process.exit(1);
 }
+// Railway shows a variable two ways: the template in the Edit box, and the
+// address it turns into when revealed or copied. The template got pasted once,
+// and the loader answered with an empty host and an empty command to run.
+if (url.includes("${{")) {
+  console.error(
+    "\nUAT_DATABASE_URL holds Railway's template — the text with ${{ … }} in it —\n" +
+      "not the address itself. That is what the Edit box shows.\n\n" +
+      "Copy the real address instead: Pre-Prod -> Postgres -> Database -> Connect ->\n" +
+      "Public Network -> copy the connection URL. Replace the line in .env with it.\n",
+  );
+  process.exit(1);
+}
+if (!hostPort(url)) {
+  console.error(
+    "\nUAT_DATABASE_URL is not a connection string this can read.\n" +
+      "Copy it again from Pre-Prod -> Postgres -> Database -> Connect -> Public Network.\n",
+  );
+  process.exit(1);
+}
 if (prodUrl && hostPort(url) === hostPort(prodUrl)) {
   console.error("\nUAT_DATABASE_URL points at production. Refusing.\n");
   process.exit(1);
