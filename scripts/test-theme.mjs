@@ -64,8 +64,10 @@ const white = tsx.filter((f) => /bg-white["' ]/.test(read(f)));
 const hardcoded = white.filter((f) => !read(f).includes("theme-light"));
 ok("nothing paints itself white without scoping the light palette",
   hardcoded.length === 0, hardcoded.join(", ") || `${tsx.length} components checked`);
+// Printed documents are PDFs now (src/documents), so there may be none left;
+// any that remain must still be pages meant for paper.
 ok("and the white ones are the documents meant for paper",
-  white.length > 0 && white.every((f) => /src\/app\/(statement|invoice)\//.test(f)),
+  white.every((f) => /src\/app\/(statement|invoice)\//.test(f)),
   white.map((f) => f.split("/").slice(2, 4).join("/")).join(", "));
 ok("the light palette itself exists", css.includes(".theme-light {"));
 

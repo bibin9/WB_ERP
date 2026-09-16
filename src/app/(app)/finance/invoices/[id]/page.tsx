@@ -1,8 +1,9 @@
 import Link from "next/link";
 import clsx from "clsx";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Printer, ScrollText } from "lucide-react";
+import { ArrowLeft, ScrollText } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
+import DocumentButtons from "@/components/DocumentButtons";
 import FinanceTabs from "@/components/FinanceTabs";
 import InvoiceForm from "@/components/finance/InvoiceForm";
 import IssueInvoice from "@/components/finance/IssueInvoice";
@@ -78,11 +79,9 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         title={`${inv.docType} ${inv.number}`}
         subtitle={`${inv.partyName} · ${fmt(inv.issueDate)} · ${inv.status}`}
       >
-        {inv.status === "Issued" && side === "Sales" && (
-          <Link href={`/invoice/${inv.id}`} className="flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm text-ink hover:bg-brand-paper">
-            <Printer className="h-4 w-4" /> Print
-          </Link>
-        )}
+        {/* Drafts print too, marked DRAFT across the page, so a note can be
+            checked on paper before it is issued. A supplier's bill is theirs. */}
+        {side === "Sales" && <DocumentButtons kind="tax-invoice" id={inv.id} />}
       </PageHeader>
 
       <FinanceTabs companyId={inv.companyId} />

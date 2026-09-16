@@ -228,6 +228,81 @@ const retDraft = readLayout(Buffer.from(await renderToBuffer(h(MaterialReturnPdf
 const retDraftText = retDraft.pages.flat().map((r) => r.text).join(" ");
 ok("a draft return credits nothing on paper either", !retDraftText.includes("3,420.00") && retDraftText.includes("Not yet posted"));
 
+/* ======================================================== tax invoice == */
+const { TaxInvoicePdf, invoiceTitle, invoiceWatermark } = docs.require("@/documents/tax-invoice");
+const invoice = (extra = {}) => {
+  const lines = Array.from({ length: 5 }, (_, i) => ({
+    description: `Progress claim ${i + 1} — electrical works, level ${i + 3}`, quantity: 1, unit: "Lump sum",
+    unitPrice: 48000, discount: i === 2 ? 1500 : 0, net: 48000 - (i === 2 ? 1500 : 0), treatment: i === 4 ? "Reverse charge" : "Standard", rate: 5, vat: i === 4 ? 0 : (48000 - (i === 2 ? 1500 : 0)) * 0.05,
+  }));
+  const net = lines.reduce((s, l) => s + l.net, 0), vat = lines.reduce((s, l) => s + l.vat, 0);
+  return {
+    filename: "inv.pdf", lh: { ...lh, trn: "TRN 100123456700003" }, docType: "Invoice", status: "Issued", number: "WBE/INV/26/0101",
+    issueDate: new Date("2026-09-16T00:00:00Z"), dueDate: new Date("2026-10-16T00:00:00Z"),
+    sellerTrn: "100123456700003", sellerAddress: "Office 1204, Churchill Tower, Business Bay, Dubai",
+    customer: ["Deep Port Logistics FZC", "Plot 4, Khalifa Port, Abu Dhabi"], customerTrn: "100987654300003",
+    job: "J-2604 — Jetty crane", against: null, currency: "AED", lines,
+    breakdown: [{ treatment: "Standard", ratePercent: 5, taxable: net - 48000, tax: vat }, { treatment: "Reverse charge", ratePercent: 0, taxable: 48000, tax: 0 }],
+    netTotal: net, vatTotal: vat, grossTotal: net + vat, notes: "Bank: Emirates NBD, account ending 4401.", issuedBy: "Finance Manager", ...extra,
+  };
+};
+const invLayout = await checkDocument("tax invoice", h(TaxInvoicePdf, invoice()), { heading: "Description" });
+const invText = invLayout.pages.flat().map((r) => r.text).join(" ");
+ok("  titled TAX INVOICE, as the FTA expects", invText.includes("TAX INVOICE"));
+ok("  carries both TRNs", invText.includes("100123456700003") && invText.includes("TRN 100987654300003"));
+ok("  VAT shown by rate", /VAT Standard at 5% on/.test(invText));
+ok("  a discount column appears when a line is discounted", invText.includes("DISCOUNT") || invText.includes("Discount"));
+ok("  reverse charge is explained", invText.includes("Reverse charge applies"));
+const cn = readLayout(Buffer.from(await renderToBuffer(h(TaxInvoicePdf, invoice({ docType: "Credit Note", against: { number: "WBE/INV/26/0088", issueDate: new Date("2026-08-01T00:00:00Z") } })))));
+const cnText = cn.pages.flat().map((r) => r.text).join(" ");
+ok("a credit note is titled CREDIT NOTE and names the invoice it adjusts", cnText.includes("CREDIT NOTE") && cnText.includes("WBE/INV/26/0088") && invoiceTitle("Debit Note") === "DEBIT NOTE");
+const invDraft = readLayout(Buffer.from(await renderToBuffer(h(TaxInvoicePdf, invoice({ status: "Draft" })))));
+ok("a draft invoice is marked DRAFT and says it is not valid",
+  invDraft.pages[0].some((r) => r.rotated && r.text.includes("DRAFT")) && invDraft.pages.flat().some((r) => /not a valid tax invoice/.test(r.text)));
+ok("only an issued invoice prints clean", invoiceWatermark("Issued") === null && invoiceWatermark("Draft") === "DRAFT" && invoiceWatermark("Cancelled") === "CANCELLED" && invoiceWatermark("Anything") === "DRAFT");
+
+/* ============================================================ payslips == */
+const { PayslipsPdf, maskedBank, periodLabel, payslipWatermark } = docs.require("@/documents/payslip");
+const slip = (i, extra = {}) => ({
+  empNo: `E${1000 + i}`, name: `Employee Number ${i}`, designation: "Electrician", department: "MEP",
+  bank: maskedBank("Emirates NBD", "AE07 0331 2345 6789 0123 456"), daysPaid: 30, daysInPeriod: 30, partMonthReason: null,
+  basic: 3000, allowances: 1500, contractBasic: 3000, contractAllowances: 1500, otHours: 12, otPremiumHours: 4, overtime: 420,
+  unpaidDays: 1, absence: 150, otherDeductions: 200, deductionNote: "Damaged tool", advanceRecovery: 500, netPay: 4070, ...extra,
+});
+const run = await checkDocument("payroll run, a page each", h(PayslipsPdf, {
+  filename: "p.pdf", lh, period: "2026-08", status: "Approved", slips: [slip(1), slip(2), slip(3, { daysPaid: 12, partMonthReason: "Joined 19 Aug" })],
+}), { expectPages: 3 });
+ok("  exactly one page per employee", run.pages.length === 3, `${run.pages.length} pages`);
+ok("  each page is that employee's", run.pages.every((p, i) => p.some((r) => r.text.includes(`Employee Number ${i + 1}`)) && !p.some((r) => r.text.includes(`Employee Number ${((i + 1) % 3) + 1}`))));
+const slipText = run.pages[0].map((r) => r.text).join(" ");
+ok("  the IBAN is never printed in full", !slipText.includes("0331 2345") && !slipText.includes("AE07") && slipText.includes("account ending 3456"), maskedBank("Emirates NBD", "AE07 0331 2345 6789 0123 456"));
+ok("  net pay in words", slipText.includes("Four Thousand Seventy"));
+ok("  the period is written out", periodLabel("2026-08") === "August 2026" && slipText.includes("August 2026"));
+ok("  a part month shows the days behind the figure", run.pages[2].map((r) => r.text).join("").includes("12 of 30 days on 3,000.00"));
+ok("a run not yet approved prints DRAFT", payslipWatermark("Draft") === "DRAFT" && payslipWatermark("Approved") === null && payslipWatermark("Paid") === null);
+ok("no bank on file prints nothing rather than 'undefined'", maskedBank(null, null) === null && maskedBank("ADCB", "") === "ADCB");
+
+/* ========================================================== settlement == */
+const { SettlementPdf, settlementWatermark } = docs.require("@/documents/settlement");
+const settlement = (extra = {}) => ({
+  filename: "s.pdf", lh, status: "Approved", type: "Resignation",
+  employee: { name: "Ahmed Khan", empNo: "E1042", designation: "Foreman", department: "Civil", joinDate: new Date("2019-03-01T00:00:00Z") },
+  lastWorkingDay: new Date("2026-09-10T00:00:00Z"), serviceText: "7y 6m 9d", basicSalary: 4200,
+  additions: [
+    { label: "End-of-service gratuity", detail: "165 days of basic pay", amount: 23100 },
+    { label: "Unused leave encashment", detail: "12 days", amount: 1656 },
+    { label: "Repatriation air ticket", detail: "", amount: 1400 },
+  ],
+  deductions: 350, adjustment: -100, adjustmentNote: "Uniform not returned", net: 25706, preparedBy: "HR Officer", ...extra,
+});
+const setLayout = await checkDocument("final settlement", h(SettlementPdf, settlement()), { heading: "Entitlement" });
+const setText = setLayout.pages.flat().map((r) => r.text).join(" ");
+ok("  the employee's declaration is on it", setText.includes("full and final settlement of all my dues"));
+ok("  deductions and adjustments shown as deductions", setText.includes("(350.00)") && setText.includes("(100.00)"));
+ok("  signatures print even with signature boxes switched off",
+  readLayout(Buffer.from(await renderToBuffer(h(SettlementPdf, settlement({ lh: { ...lh, showSignatures: false } }))))).pages.flat().some((r) => /EMPLOYEE$|^Employee$/i.test(r.text.trim())));
+ok("an unapproved settlement prints DRAFT", settlementWatermark("Draft") === "DRAFT" && settlementWatermark("Approved") === null && settlementWatermark("Settled") === null);
+
 /* ============================================ every real status is covered == */
 // Each document decides its mark from its record's status. These walk the
 // status lists the screens actually use, so a state added to one of them

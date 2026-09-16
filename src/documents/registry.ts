@@ -14,6 +14,9 @@ import { loadRfq, RfqPdf } from "./rfq";
 import { loadMaterialRequest, MaterialRequestPdf } from "./material-request";
 import { loadStoreNote, StoreNotePdf } from "./store-note";
 import { loadMaterialReturn, MaterialReturnPdf } from "./material-return";
+import { loadTaxInvoice, TaxInvoicePdf } from "./tax-invoice";
+import { loadPayslip, loadPayrollRun, PayslipsPdf } from "./payslip";
+import { loadSettlement, SettlementPdf } from "./settlement";
 
 export type DocumentKind = {
   /** RBAC screen key; see lib/rbac. */
@@ -41,6 +44,12 @@ export const DOCUMENTS: Record<string, DocumentKind> = {
   // The id is any one movement; the note is every movement recorded with it.
   "store-note": kind("inventory.movements", loadStoreNote, StoreNotePdf),
   "material-return": kind("inventory.returns", loadMaterialReturn, MaterialReturnPdf),
+  // Sales invoices, credit notes and debit notes. A supplier's bill is not ours to print.
+  "tax-invoice": kind("finance.invoices", loadTaxInvoice, TaxInvoicePdf),
+  payslip: kind("hr.payroll", loadPayslip, PayslipsPdf),
+  // Every payslip in a run, a page each.
+  "payroll-run": kind("hr.payroll", loadPayrollRun, PayslipsPdf),
+  settlement: kind("hr.separation", loadSettlement, SettlementPdf),
   // The id is a company id: that company's letterhead on an invented document.
   "letterhead-sample": kind("settings.documents", loadSample, SamplePdf),
 };

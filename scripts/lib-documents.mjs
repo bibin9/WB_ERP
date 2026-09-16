@@ -8,9 +8,9 @@
  * questions of position, so this reads positions.
  *
  * src/documents is TSX, which node cannot load, so the documents and the lib
- * modules they reach are transpiled with sucrase into a temporary folder. The
- * database is replaced by an empty stub: only the drawing functions are called,
- * never the loaders.
+ * modules they reach are transpiled with sucrase into a temporary folder. For
+ * drawing tests the database is an empty stub; test-document-loaders.mjs asks
+ * for the real client to test the loaders.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -21,8 +21,13 @@ import { transform } from "sucrase";
 
 const ROOT = process.cwd();
 
-/** Transpile src/documents and src/lib into a temp folder and return a require for it. */
-export function loadDocuments() {
+/**
+ * Transpile src/documents and src/lib into a temp folder and return a require for it.
+ *
+ * `realDb` keeps the real Prisma client, for testing the loaders against the
+ * local database; without it the database is an empty stub.
+ */
+export function loadDocuments({ realDb = false } = {}) {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), "wb-docs-"));
   for (const dir of ["documents", "lib"]) {
     for (const f of fs.readdirSync(path.join(ROOT, "src", dir))) {
@@ -33,8 +38,8 @@ export function loadDocuments() {
       fs.writeFileSync(path.join(out, dir, f.replace(/\.tsx?$/, ".js")), code);
     }
   }
-  // The loaders are not under test; drawing is.
-  fs.writeFileSync(path.join(out, "lib", "db.js"), "exports.db = {};");
+  // Drawing tests never touch the database.
+  if (!realDb) fs.writeFileSync(path.join(out, "lib", "db.js"), "exports.db = {};");
 
   const original = Module._resolveFilename;
   Module._resolveFilename = function (request, parent, ...rest) {

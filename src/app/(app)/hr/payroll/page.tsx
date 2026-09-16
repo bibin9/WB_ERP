@@ -1,5 +1,6 @@
 import Link from "next/link";
 import PayslipDeduction from "@/components/payroll/PayslipDeduction";
+import DocumentButtons from "@/components/DocumentButtons";
 import { Wallet, HandCoins } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import HrTabs from "@/components/HrTabs";
@@ -78,7 +79,12 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
         <div className="card">
           <div className="flex items-center justify-between border-b border-line px-5 py-3">
             <h2 className="font-semibold text-heading">{selected ? `Payslips — ${fmtPeriod(selected.period)}` : "Payslips"}</h2>
-            {selected && <WpsDownload runId={selected.id} />}
+            {selected && (
+              <div className="flex flex-wrap items-center gap-2">
+                <DocumentButtons kind="payroll-run" id={selected.id} label="all payslips" />
+                <WpsDownload runId={selected.id} />
+              </div>
+            )}
           </div>
           {!selected ? (
             <div className="grid place-items-center gap-2 px-5 py-12 text-center text-sm text-muted"><Wallet className="h-6 w-6 text-line" /> Select a run to view its payslips.</div>
@@ -143,6 +149,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
                       </td>
                       <td className="px-3 py-2 text-right font-medium tabular-nums text-ink">{money(p.netPay)}</td>
                       <td className="px-3 py-2 text-right print:hidden">
+                        <DocumentButtons compact kind="payslip" id={p.id} label="Payslip" title="Payslip" />
                         {selected.status === "Draft" && (
                           <PayslipDeduction
                             id={p.id}

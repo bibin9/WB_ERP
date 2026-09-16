@@ -463,6 +463,23 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "Check the sample in print preview, not only on screen. Artwork that looks fine at 100% is often too tall once it repeats across the top of every page, and it takes space from the lines below it.",
   },
   {
+    id: "printed-documents", category: "Administration & Security",
+    screens: [
+      "/crm/quotations", "/inventory/orders", "/inventory/rfq", "/inventory/requests", "/inventory/movements",
+      "/inventory/returns", "/finance/invoices", "/hr/payroll", "/hr/separation",
+    ],
+    title: "Printing and downloading documents",
+    summary: "Quotations, orders, notes, invoices and payslips as PDFs on your letterhead — and what DRAFT across the page means.",
+    body: "Every document that leaves the building, or gets signed, is drawn by the system as a PDF on the company's letterhead. Print opens it in a new tab, where your browser's own print button prints it exactly as drawn; Download saves the same file. The copy you print, the copy you save and the copy that is emailed are one file, so they cannot disagree. Where to find them: a quotation has Print and Download at the top of its page; a purchase order has them at the bottom of its card; a material request at the top right of its card; on an enquiry the blank copy is at the top and each supplier's addressed copy is under their name on the comparison sheet; on Receive & Issue the Note link beside a reference prints the goods received note, issue note, transfer note or return-to-supplier note — every item recorded with that reference on that day is on the one note; a return from site has a Note link beside its number; a sales invoice, credit note or debit note has them at the top; payroll prints one employee's payslip from their row, or every payslip in the run with each employee on a page of their own; a settlement prints from its Statement button. A document that is not final says so across every page. DRAFT or NOT APPROVED means nobody has signed it off yet — do not send it or sign against it. CANCELLED, REJECTED, SUPERSEDED and CLOSED mean it has been replaced or called off. The mark disappears by itself once the record is approved or issued. Figures on a document are the ones fixed when it was raised, so a reprint next year still says what was sent. Payslips show only the last four characters of the bank account. The letterhead, footer and standard terms come from Settings -> Printed Documents, and when your designer supplies your own letterhead artwork it goes there and every document changes at once.",
+    steps: [
+      "Open the record — the quotation, order, request, delivery, invoice or payroll run.",
+      "Click Print to open the PDF, then use the printer button in that tab. Or click Download to save it.",
+      "Check the top of the page for DRAFT or NOT APPROVED before it goes to anyone outside.",
+      "To change the logo, footer or standard terms, ask an administrator to open Settings -> Printed Documents.",
+    ],
+    tip: "Printing the screen with Ctrl+P is not the same thing. A screen shows internal figures — cost, margin, other suppliers' prices — that the PDF deliberately leaves out.",
+  },
+  {
     id: "party-contacts", category: "Finance & Accounting", screens: ["/finance/parties", "/finance"],
     title: "The people at a customer",
     summary: "Who to send a quotation to, on file rather than in somebody's memory.",
