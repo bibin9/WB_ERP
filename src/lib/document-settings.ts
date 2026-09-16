@@ -110,7 +110,12 @@ export type SettingsInput = {
 };
 
 export type CheckedSettings =
-  | { ok: true; data: { [K in keyof SettingsInput]: SettingsInput[K] extends boolean ? boolean : string | null } }
+  | {
+      ok: true;
+      data: { [K in Exclude<keyof SettingsInput, "accentColor">]: SettingsInput[K] extends boolean ? boolean : string | null } & {
+        accentColor: string;
+      };
+    }
   | { ok: false; error: string };
 
 /** Check what the settings screen sends, in words a person can act on. */

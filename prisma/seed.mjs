@@ -56,7 +56,7 @@ const MODULE_SCREENS = {
   projects: ["projects.list"],
   hse: ["hse.register"],
   audit: ["audit.log"],
-  settings: ["settings.general", "settings.master", "settings.approvals", "settings.custom", "settings.email"],
+  settings: ["settings.general", "settings.master", "settings.approvals", "settings.custom", "settings.email", "settings.documents"],
 };
 const expandPerms = (modulePerms) => {
   const out = {};

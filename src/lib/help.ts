@@ -448,6 +448,21 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "The result column says Accepted rather than Delivered, because that is the strongest honest claim. Whether the customer received it, read it, or found it in junk is beyond anything a sending system can know.",
   },
   {
+    id: "settings-documents", category: "Administration & Security", screens: ["/settings/documents"],
+    title: "Your letterhead on printed documents",
+    summary: "Logo, header and footer artwork, contact details and standard terms for every PDF the company sends.",
+    body: "Quotations, purchase orders, supplier enquiries and store notes are all printed as PDFs drawn by the system, and they all read their letterhead from this one screen. Change it here and every document printed afterwards changes with it; documents already sent are not touched, because they were files by then. There are two ways a document can be branded. Out of the box the system draws a letterhead for you from the company record: the logo, the company name, address and TRN, and a coloured rule in your accent colour. When your designer produces a proper letterhead, upload the top band as header artwork and it replaces the generated one on every page of every document — nothing else needs to change, and nobody has to wait for a new release. A footer band works the same way at the bottom of the page. Artwork must be PNG or JPEG, because PDFs cannot draw SVG or WebP images; a band about 2000 pixels wide is plenty. The standard terms are printed at the end of each document of that kind. A quotation that has terms of its own uses those instead. Each company in the group has its own settings, so a WBTS quotation never goes out on WBE paper. Print or Download on any document opens the same PDF, and the copy that is emailed is that same file.",
+    steps: [
+      "Open Settings -> Printed Documents and pick the company at the top.",
+      "If your designer has supplied a letterhead, choose it as Header artwork. Otherwise leave it empty and the logo from Companies is used.",
+      "Set the accent colour, phone, email and website, and a footer line such as the trade licence number.",
+      "Paste your standard quotation, purchase order and enquiry terms.",
+      "Save, then click Print next to 'See it on paper' to check the result on an invented document before a customer sees a real one.",
+      "Any yellow warning at the top — no TRN, no address, a logo PDFs cannot draw — is fixed on the Companies screen.",
+    ],
+    tip: "Check the sample in print preview, not only on screen. Artwork that looks fine at 100% is often too tall once it repeats across the top of every page, and it takes space from the lines below it.",
+  },
+  {
     id: "party-contacts", category: "Finance & Accounting", screens: ["/finance/parties", "/finance"],
     title: "The people at a customer",
     summary: "Who to send a quotation to, on file rather than in somebody's memory.",

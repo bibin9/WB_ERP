@@ -9,6 +9,7 @@ import SearchBox from "@/components/SearchBox";
 import Pager from "@/components/Pager";
 import OrderForm from "@/components/inventory/OrderForm";
 import OrderActions from "@/components/inventory/OrderActions";
+import DocumentButtons from "@/components/DocumentButtons";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
@@ -340,6 +341,7 @@ export default async function OrdersPage({
               {o.notes && <p className="mt-3 text-xs text-muted">{o.notes}</p>}
 
               <div className="mt-3 flex flex-wrap justify-end gap-2 print:hidden">
+                <DocumentButtons kind="purchase-order" id={o.id} />
                 {o.status === "Draft" && <OrderActions mode="submit" orderId={o.id} label={o.number} />}
                 {!["Received", "Cancelled", "Rejected"].includes(o.status) && (
                   <OrderActions mode="cancel" orderId={o.id} label={o.number} />

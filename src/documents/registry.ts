@@ -8,6 +8,8 @@
 import React from "react";
 import type { DocumentProps } from "@react-pdf/renderer";
 import { loadQuotation, QuotationPdf } from "./quotation";
+import { loadSample, SamplePdf } from "./sample";
+import { loadPurchaseOrder, PurchaseOrderPdf } from "./purchase-order";
 
 export type DocumentKind = {
   /** RBAC screen key; see lib/rbac. */
@@ -28,4 +30,7 @@ const kind = <T extends { filename: string }>(
 
 export const DOCUMENTS: Record<string, DocumentKind> = {
   quotation: kind("crm.quotations", loadQuotation, QuotationPdf),
+  "purchase-order": kind("inventory.orders", loadPurchaseOrder, PurchaseOrderPdf),
+  // The id is a company id: that company's letterhead on an invented document.
+  "letterhead-sample": kind("settings.documents", loadSample, SamplePdf),
 };

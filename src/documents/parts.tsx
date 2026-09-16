@@ -137,7 +137,11 @@ function LetterheadBand({ lh }: { lh: Letterhead }) {
         <Image src={lh.logo} style={{ height: 42, maxWidth: 150, objectFit: "contain", marginRight: 14 }} />
       ) : null}
       <View style={{ flexGrow: 1 }}>
-        <Text style={[styles.bold, { fontSize: 13 }]}>{lh.companyName}</Text>
+        {/* The name in a box of its own, as with the title: a larger line
+            sharing a box with smaller ones was drawn over the address. */}
+        <View style={{ marginBottom: 2 }}>
+          <Text style={[styles.bold, { fontSize: 13, lineHeight: 1.2 }]}>{lh.companyName}</Text>
+        </View>
         {lh.addressLine ? <Text style={styles.muted}>{lh.addressLine}</Text> : null}
         {lh.contact ? <Text style={styles.muted}>{lh.contact}</Text> : null}
       </View>
@@ -146,24 +150,43 @@ function LetterheadBand({ lh }: { lh: Letterhead }) {
   );
 }
 
+/** A4 in points, and the band the footer occupies at the foot of every page. */
+const A4_HEIGHT = 841.89;
+const FOOTER_HEIGHT = 58;
+const FOOTER_GAP = 14;
+
 function FooterBand({ lh }: { lh: Letterhead }) {
+  // Positioned from the top, and the page number kept out of the footer box.
+  // A `bottom`-anchored box holding the page number, on a page with a line
+  // height set, was drawn thousands of points off the sheet: the text was in
+  // the file, so extracting it "found" the footer, and nothing showed on paper.
+  // Inside a fixed-height box the page number was measured before its text
+  // existed and left out altogether. scripts/test-documents.mjs checks where
+  // both land.
+  const top = A4_HEIGHT - FOOTER_GAP - FOOTER_HEIGHT;
   return (
-    <View fixed style={{ position: "absolute", bottom: 22, left: 40, right: 40 }}>
-      {lh.footerImage ? (
-        <Image src={lh.footerImage} style={{ width: "100%", maxHeight: 44, objectFit: "contain", marginBottom: 4 }} />
-      ) : (
-        <View style={{ borderTopWidth: 0.5, borderTopColor: RULE, paddingTop: 5 }}>
-          {lh.footerNote ? <Text style={[styles.muted, { fontSize: 7 }]}>{lh.footerNote}</Text> : null}
-          <Text style={[styles.muted, { fontSize: 7 }]}>
-            {[lh.companyName, lh.addressLine, lh.trn].filter(Boolean).join("  ·  ")}
-          </Text>
-        </View>
-      )}
+    <>
+      <View
+        fixed
+        style={{ position: "absolute", top, height: FOOTER_HEIGHT - 11, left: 40, right: 40, justifyContent: "flex-end" }}
+      >
+        {lh.footerImage ? (
+          <Image src={lh.footerImage} style={{ width: "100%", maxHeight: 44, objectFit: "contain" }} />
+        ) : (
+          <View style={{ borderTopWidth: 0.5, borderTopColor: RULE, paddingTop: 5 }}>
+            {lh.footerNote ? <Text style={[styles.muted, { fontSize: 7 }]}>{lh.footerNote}</Text> : null}
+            <Text style={[styles.muted, { fontSize: 7 }]}>
+              {[lh.companyName, lh.addressLine, lh.trn].filter(Boolean).join("  ·  ")}
+            </Text>
+          </View>
+        )}
+      </View>
       <Text
-        style={[styles.muted, { fontSize: 7, textAlign: "right", marginTop: 2 }]}
+        fixed
+        style={[styles.muted, { position: "absolute", top: A4_HEIGHT - FOOTER_GAP - 9, left: 40, right: 40, fontSize: 7, textAlign: "right" }]}
         render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
       />
-    </View>
+    </>
   );
 }
 
@@ -197,13 +220,15 @@ export function TitleBlock({
           </View>
         ) : null}
       </View>
-      <View style={{ minWidth: 190 }}>
+      {/* A fixed share of the width, and values that wrap inside it: a long
+          job name must not run off the right edge of the sheet. */}
+      <View style={{ width: "44%" }}>
         {meta
           .filter(([, v]) => v)
           .map(([label, value]) => (
-            <View key={label} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 2 }}>
-              <Text style={styles.label}>{label}</Text>
-              <Text style={[styles.bold, { marginLeft: 10 }]}>{value}</Text>
+            <View key={label} style={{ flexDirection: "row", marginBottom: 2 }}>
+              <Text style={[styles.label, { width: 72, paddingTop: 1.5 }]}>{label}</Text>
+              <Text style={[styles.bold, { flex: 1, textAlign: "right" }]}>{value}</Text>
             </View>
           ))}
       </View>

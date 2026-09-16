@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Palette, Building2, Users, SlidersHorizontal, GitBranch, ChevronRight, Mail } from "lucide-react";
+import { Palette, Building2, Users, SlidersHorizontal, GitBranch, ChevronRight, Mail, FileText } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { requireAccess } from "@/lib/guard";
 import { activeTenant } from "@/config/tenant";
@@ -94,6 +94,18 @@ export default async function SettingsPage() {
               <div className="font-medium text-ink">Email</div>
               <div className="text-xs text-muted">
                 Your mail server, so quotations can be sent from the system
+              </div>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted" />
+          </Link>
+          <Link href="/settings/documents" className="card flex items-center gap-3 p-5 hover:border-brand-blue">
+            <span className="grid h-10 w-10 place-items-center rounded-lg bg-brand-blue/10 text-brand-blue-600">
+              <FileText className="h-5 w-5" />
+            </span>
+            <div className="flex-1">
+              <div className="font-medium text-ink">Printed Documents</div>
+              <div className="text-xs text-muted">
+                Letterhead, footer and standard terms on quotations, orders and notes
               </div>
             </div>
             <ChevronRight className="h-4 w-4 text-muted" />
