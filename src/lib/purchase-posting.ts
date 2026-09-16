@@ -363,6 +363,15 @@ export type ReceiveInput = {
   quantity: number;
   reference: string;
   notes?: string | null;
+  /**
+   * Which bin it was put away into (INV-14).
+   *
+   * A store divided into bins refuses a movement that does not name one, and
+   * the main store is both the store most likely to be binned and the store
+   * orders are received into — so without this, receiving a purchase order
+   * into the main store was refused outright.
+   */
+  binId?: string | null;
 };
 
 /**
@@ -406,6 +415,7 @@ export async function receiveAgainstOrder(input: ReceiveInput): Promise<Result<{
     partyId: line.order.partyId,
     reference: input.reference,
     notes: input.notes ?? null,
+    binId: input.binId ?? null,
   });
   if (!moved.ok) return moved;
 

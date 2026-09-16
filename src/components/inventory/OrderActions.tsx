@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { sendOrderForApproval, callOffOrder, receiveOrderLine } from "@/app/(app)/inventory/actions";
+import { binLabel } from "@/lib/bins";
 
 /**
  * The three things that happen to an order after it is written.
@@ -18,12 +19,20 @@ export default function OrderActions(props: {
   outstanding?: number;
   unitCode?: string;
   stores?: { id: string; code: string; name: string; isDefault: boolean }[];
+  /** The bins in each store, keyed by store id. Absent means the store has none. */
+  bins?: Record<string, { id: string; code: string; zone: string | null; materialType: string | null }[]>;
   defaultStoreId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [quantity, setQuantity] = useState("");
+  const [storeId, setStoreId] = useState(props.defaultStoreId ?? props.stores?.[0]?.id ?? "");
+
+  // A store divided into bins refuses a movement that does not name one, and
+  // the main store is both the one most likely to be binned and the one orders
+  // are received into. Without this the delivery was refused at the counter.
+  const storeBins = (props.bins ?? {})[storeId] ?? [];
 
   const { mode, label, outstanding = 0, unitCode = "" } = props;
   const over = Number(quantity) > outstanding;
@@ -115,12 +124,30 @@ export default function OrderActions(props: {
 
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">Into which store</label>
-            <select name="storeId" className="input" defaultValue={props.defaultStoreId} required>
+            <select
+              name="storeId" className="input" required
+              value={storeId} onChange={(e) => setStoreId(e.target.value)}
+            >
               {(props.stores ?? []).map((s) => (
                 <option key={s.id} value={s.id}>{s.code} — {s.name}</option>
               ))}
             </select>
           </div>
+
+          {storeBins.length > 0 && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-ink">Which bin</label>
+              <select name="binId" className="input" required defaultValue="">
+                <option value="">Choose a bin&hellip;</option>
+                {storeBins.map((b) => (
+                  <option key={b.id} value={b.id}>{binLabel(b)}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted">
+                This store is divided into bins, so the delivery has to say where it was put away.
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">Delivery note</label>

@@ -253,6 +253,56 @@ try {
       /already on the shelf/.test(res.error || ""), res.error);
   }
 
+  /*
+   * A delivery is received into a store that uses bins.
+   *
+   * Every store this suite builds has no bins, so the bin requirement never
+   * fired and this went unnoticed: receiving against an order passed no bin to
+   * the movement, and a binned store refuses one that does not name it. The main
+   * store is both the store most likely to be divided into bins and the store
+   * orders are received into, so in practice a purchase order could not be
+   * received at all.
+   */
+  {
+    const binned = await db.store.create({
+      data: { companyId: co.id, code: `${tag}-BINS`, name: "Binned store" },
+    });
+    const shelf = await db.storageBin.create({
+      data: { storeId: binned.id, code: "A-01", zone: "A", materialType: "Cable" },
+    });
+
+    const order = await createOrder({
+      companyId: co.id, raisedBy: "buyer", partyId: supplier.id, date: today(),
+      lines: [{ itemId: item.id, description: item.name, unitCode: "EA", quantity: 20, unitPrice: 10 }],
+    });
+    await submitOrder(order.orderId, co.tenantId, "buyer");
+    await decide(order.orderId, "Approved");
+    orders.push(order.orderId);
+    const line = await db.purchaseOrderLine.findFirst({ where: { orderId: order.orderId } });
+
+    const withBin = await receiveAgainstOrder({
+      orderLineId: line.id, postedBy: "storeman", storeId: binned.id, binId: shelf.id,
+      date: today(), quantity: 5, reference: `${tag}-DN1`,
+    });
+    ok("a delivery is received into a store that uses bins", withBin.ok === true,
+      withBin.ok ? "" : withBin.error);
+
+    if (withBin.ok) {
+      const m = await db.stockMovement.findUnique({ where: { id: withBin.movementId } });
+      ok("  and the movement says which bin it was put away in", m?.binId === shelf.id,
+        m?.binId ? "bin recorded" : "no bin on the movement");
+      ok("  and it is still tied to the order line it came against",
+        m?.purchaseOrderLineId === line.id);
+    }
+
+    const noBin = await receiveAgainstOrder({
+      orderLineId: line.id, postedBy: "storeman", storeId: binned.id,
+      date: today(), quantity: 5, reference: `${tag}-DN2`,
+    });
+    ok("  and a delivery into a binned store still has to name one", noBin.ok === false,
+      noBin.ok ? "it was allowed in with no bin" : noBin.error.slice(0, 60));
+  }
+
   /* ===================================================== what is open ==== */
   {
     const open = await openOrders(co.id);
@@ -301,6 +351,8 @@ ok("and the receipt checks the live status, not a remembered one",
 const schema = read("prisma/schema.prisma");
 ok("a receipt can be tied to the order line it came from", /purchaseOrderLineId String\?/.test(schema));
 ok("an order carries no VAT, and the schema says why", /No VAT anywhere on it/.test(schema));
+
+
 
 console.log(`\n${pass} passed, ${fail} failed`);
 await db.$disconnect();

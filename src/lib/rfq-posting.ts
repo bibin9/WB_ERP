@@ -248,6 +248,14 @@ export async function awardRfq(input: AwardInput): Promise<Result<{ orderId: str
   }
   if (rfq.status === "Cancelled") return { ok: false, error: "This enquiry was cancelled." };
 
+  // Who made the call. The same rule a return from site follows, and it matters
+  // more here: this name and the reason beside it are the whole audit record of
+  // why one supplier got the work and two did not. Without it the award fell
+  // through to the order and came back as a database error nobody could act on.
+  if (!String(input.awardedBy ?? "").trim()) {
+    return { ok: false, error: "Say who made the award. It is the only record of who chose this supplier." };
+  }
+
   const quotes = await quotesFor(input.rfqId);
   const permitted = checkAward(quotes, input.partyId, input.reason);
   if (!permitted.ok) return permitted;

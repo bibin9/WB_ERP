@@ -126,6 +126,25 @@ export default async function OrdersPage({
     ? await db.store.findMany({ where: { companyId, isActive: true }, orderBy: { code: "asc" }, select: { id: true, code: true, name: true, isDefault: true } })
     : [];
 
+  /**
+   * The bins in each store (INV-14).
+   *
+   * A binned store refuses a movement that does not name a bin, and the main
+   * store is both the store most likely to be binned and the store orders are
+   * received into — so without these the delivery was refused at the counter
+   * with nothing on the screen that could answer it.
+   */
+  const binsByStore: Record<string, { id: string; code: string; zone: string | null; materialType: string | null }[]> = {};
+  if (companyId) {
+    for (const b of await db.storageBin.findMany({
+      where: { store: { companyId }, isActive: true },
+      orderBy: [{ zone: "asc" }, { code: "asc" }],
+      select: { id: true, storeId: true, code: true, zone: true, materialType: true },
+    })) {
+      (binsByStore[b.storeId] ??= []).push({ id: b.id, code: b.code, zone: b.zone, materialType: b.materialType });
+    }
+  }
+
   // Arriving from an approved material request, its lines prefill the order.
   const fromRequest = sp.from
     ? await db.materialRequest.findFirst({
@@ -301,6 +320,7 @@ export default async function OrdersPage({
                                 outstanding={p.outstanding}
                                 unitCode={l.unitCode}
                                 stores={stores}
+                                bins={binsByStore}
                                 defaultStoreId={o.storeId ?? stores.find((x) => x.isDefault)?.id ?? ""}
                               />
                             )}

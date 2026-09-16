@@ -655,6 +655,7 @@ export async function receiveOrderLine(formData: FormData): Promise<Result> {
     orderLineId: lineId,
     postedBy: session.user.name,
     storeId: str(formData, "storeId"),
+    binId: orNull(formData, "binId"),
     date: str(formData, "date", 10),
     quantity: num(formData, "quantity"),
     reference: str(formData, "reference", 120),
