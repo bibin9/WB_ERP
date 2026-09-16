@@ -46,18 +46,53 @@ function loadEnvFile(file) {
 const fileEnv = loadEnvFile(".env");
 const target = process.env.DATABASE_URL || fileEnv.DATABASE_URL || "";
 const prodUrl = process.env.PROD_DATABASE_URL || fileEnv.PROD_DATABASE_URL || "";
-const host = (u) => u.replace(/^.*@/, "").replace(/\?.*$/, "");
 
-if (prodUrl && target && host(target) === host(prodUrl)) {
+/**
+ * host:port of a database URL, and nothing else.
+ *
+ * Never the whole string. The check this replaced looked for words like "uat"
+ * or "test" anywhere in the URL, which included the password — so a password
+ * that happened to contain "uat" walked straight past a guard meant to protect
+ * the client's data. And Railway's public connection string never carries the
+ * service's name at all, so a correctly named UAT database was refused anyway.
+ * A guard that the wrong database can pass and the right one cannot is worse
+ * than none.
+ */
+function hostPort(u) {
+  try {
+    const x = new URL(u);
+    return `${x.hostname}:${x.port || "5432"}`.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+const isPostgres = /^postgres(ql)?:\/\//i.test(target);
+const isLocal = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostPort(target).replace(/:\d+$/, ""));
+
+if (isPostgres && prodUrl && hostPort(target) === hostPort(prodUrl)) {
   console.error("\nThat is the production database. Test data does not go there. Refusing.\n");
   process.exit(1);
 }
-if (/rlwy\.net|railway\.internal/i.test(target) && !/rehears|scratch|staging|test|uat/i.test(target)) {
-  console.error(
-    "\nThat looks like a live Railway database and is not named as a scratch or UAT one. Refusing.\n" +
-      "If it really is the UAT instance, name it so, or set DATABASE_URL explicitly for this run.\n",
-  );
-  process.exit(1);
+
+// Any database that is not on this machine gets test data only when the person
+// running this has typed which one they mean. Nothing about the URL can stand
+// in for that: names are not in Railway's URLs, and passwords are not evidence.
+if (isPostgres && !isLocal) {
+  const confirmed = String(process.env.TEST_DATA_CONFIRM_HOST ?? "").trim().toLowerCase();
+  if (!confirmed) {
+    console.error(
+      `\nThis would write test data into the database at ${hostPort(target)}.\n` +
+        "Say that is the one you mean by setting TEST_DATA_CONFIRM_HOST to exactly that host and port.\n" +
+        "Use npm run db:demo:uat, which asks for it.\n",
+    );
+    process.exit(1);
+  }
+  if (confirmed !== hostPort(target)) {
+    console.error(
+      `\nYou confirmed ${confirmed}, but the database this is pointed at is ${hostPort(target)}. Refusing.\n`,
+    );
+    process.exit(1);
+  }
 }
 
 const ONLY_CLEAN = process.argv.includes("--clean");
@@ -1057,7 +1092,10 @@ try {
       // total printed here would be smaller than what was actually removed.
       ? `\nTest data removed.\n`
       : `\nWrote ${made} rows of test data, all marked "${MARK}" or coded "${P}…".\n` +
-          `Remove it with:  npm run db:demo:clean\n`,
+          // The command that undoes it depends on where it was loaded.
+          (process.env.TEST_DATA_CONFIRM_HOST
+            ? `Remove it with:  npm run db:demo:uat -- --confirm-host=${process.env.TEST_DATA_CONFIRM_HOST} --clean\n`
+            : `Remove it with:  npm run db:demo:clean\n`),
   );
 } catch (err) {
   console.error("\n" + String(err?.stack ?? err));

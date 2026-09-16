@@ -233,6 +233,42 @@ old code restored.
 **This is live phase-1 code and the fix has to reach `main`.** It touches no
 schema, so it is a plain code change with no migration.
 
+### The administrator password is written into the deploy logs on every boot
+
+Found on 16 September 2026, while writing the UAT instructions — by reading what
+a first boot would print.
+
+The seed runs on every deploy, and its last line was:
+
+```js
+console.log("Login:  admin@wandb.ae  /  " + ADMIN_PASSWORD);
+```
+
+That prints the value of `ADMIN_PASSWORD` into Railway's deploy logs each time,
+including when it was set deliberately. Anybody who can read the project's logs
+can read it, and so can anybody a log has ever been pasted to. It is the other
+half of audit finding **MAJ-2** — the login page stopped showing the password,
+the logs never did. `main` has the identical line.
+
+A second problem sat beside it: with `ADMIN_PASSWORD` unset, a new random password
+is generated on every boot, but an existing administrator is never updated. So
+every restart announced a password that was not the administrator's and told the
+reader to sign in with it.
+
+Fixed in phase 2: the password is printed only outside production, and the
+generated one only by the boot that actually created the administrator. Proved
+by running the seed as production would against a throwaway database, twice —
+the old seed printed the password, the new one does not — and pinned in
+`test-security.mjs`, which fails with the old line restored.
+
+**This is live phase-1 code and the fix has to reach `main`**, authored from the
+`main` worktree. No schema change.
+
+What it means for the live system today: the value in production's
+`ADMIN_PASSWORD` variable is in its deploy logs. If `admin@wandb.ae` was changed
+in the app after first sign-in, the current password was never printed — only the
+original one. Either way, do not reuse that original value anywhere.
+
 ---
 
 ## Not code — for Bibin, on the live system
@@ -245,6 +281,9 @@ These need doing in production and no amount of development replaces them.
 - Set payday, the workforce mix target, and the production administrator
   password.
 - Confirm whether employees **EMP-0006** and **EMP-0007** are the same person.
+- Check that `admin@wandb.ae` has been changed in the app since first sign-in.
+  The original value set in `ADMIN_PASSWORD` is in the deploy logs (see *The
+  administrator password is written into the deploy logs* above).
 
 ---
 

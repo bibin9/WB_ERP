@@ -326,6 +326,173 @@ Now that a schema change is reviewed before it ships and applied by
 `migrate deploy`, auto-deploy is safe to turn back on (Settings → Source). A bad
 migration fails on its own rather than stopping the server from starting.
 
+## A UAT instance for phase 2
+
+A second, completely separate copy of the system running the `phase-2` branch, with
+test data in it, so the storekeeper, the buyer, the estimator and sales can use the new
+screens before any of it goes near the client's live system. About 30 minutes, most of
+it waiting for the first boot.
+
+**Two rules the steps below are built around.**
+
+- **A separate Railway project, not a second service inside the production project.**
+  Inside one project, `${{Postgres.DATABASE_URL}}` can resolve to the *production*
+  database, and one mistyped reference points UAT at the client's data. In its own
+  project there is no production database for it to find.
+- **The `phase-2` branch is pushed, never merged.** Production follows `main`. Pushing a
+  different branch puts it on GitHub and nowhere else — there are no GitHub Actions in
+  this repository, so nothing runs on the push.
+
+> You create the accounts and type every password and secret into Railway yourself.
+> None of them should ever be pasted into a chat — including with me.
+
+### Step 0 — Check production is following `main`, then push the branch
+
+1. Open the **production** project in Railway → the app service → **Settings → Source**.
+   The branch must say **`main`**. If it says anything else, stop here.
+2. On this machine, from `C:\Bibin\wb-erp-phase2`:
+
+   ```bash
+   git push -u origin phase-2
+   ```
+
+### Step 1 — A new project, with its database first
+
+1. Railway → **New Project → Empty Project**. Name it **WB ERP UAT**.
+2. **New → Database → Add PostgreSQL**.
+3. Open that database → **Settings** → rename the service to **`postgres-uat`**.
+
+The database comes first so that when the app is added it has something to point at.
+
+### Step 2 — Add the app, on the `phase-2` branch
+
+1. In the same project: **New → GitHub Repo → WB_ERP**.
+2. Straight away: the new service → **Settings → Source → Branch** → choose **`phase-2`**.
+
+If Railway has already started building `main` before you changed the branch, leave it —
+it has no variables yet and will fail harmlessly. The next deploy uses `phase-2`.
+
+### Step 3 — Variables on the app service
+
+App service → **Variables**:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | `${{postgres-uat.DATABASE_URL}}` — exactly, including the `${{ }}` |
+| `PRISMA_PROVIDER` | `postgresql` |
+| `AUTH_SECRET` | a **new** random value — not production's. Generate one on this machine with the command below |
+| `ADMIN_PASSWORD` | a strong password for `admin@wandb.ae` — **not** production's |
+
+```bash
+node -e "console.log(require('crypto').randomBytes(36).toString('base64url'))"
+```
+
+**Why `AUTH_SECRET` must differ from production:** it signs sign-in sessions and encrypts
+the saved mail server password. Shared between the two, a session from UAT could be
+presented to production, and a mail password saved in one could be read by the other.
+
+**Do not add `NEXT_PUBLIC_DEMO_LOGIN`.** It pre-fills the administrator's email and
+password on the sign-in page, which is fine on a laptop and not on a URL anybody can open.
+
+### Step 4 — Uploads disk (optional for UAT)
+
+**Settings → Volumes → New Volume**, mount path `/app/uploads`. Without it, employee
+documents uploaded during testing disappear on each redeploy — acceptable for UAT if
+nobody is testing document upload.
+
+### Step 5 — Deploy, and what a good first boot looks like
+
+**Deploy**, then open **Deployments → View logs**. The first boot is slow — a few minutes
+— because it builds the whole database at once. In order, you should see:
+
+```
+Prisma provider set to "postgresql" (railway=true, ...)
+No migration history — baselining this database.
+  marking 20260905114828_init as already applied    (37 of these)
+Baselined. Later releases will apply migrations normally.
+Seeded tenant, companies, roles, admin, ...
+Login:  admin@wandb.ae  (password as set in ADMIN_PASSWORD — not printed)
+✓ Ready
+```
+
+The password is deliberately **not** in the log. If you see one there, stop — the branch
+deployed is not `phase-2`.
+
+If you deployed before setting `ADMIN_PASSWORD`, the first deploy's log instead shows a
+boxed *"ADMIN_PASSWORD was not set, so one was generated for this install"* with a
+one-time password, and you will be asked to change it at first sign-in.
+
+### Step 6 — Get the address and sign in
+
+1. App service → **Settings → Networking → Generate Domain**.
+2. Open it and sign in as **`admin@wandb.ae`** with your `ADMIN_PASSWORD`.
+3. Check Stores, Buying and CRM open. They will be mostly empty until Step 7.
+
+### Step 7 — Load the test data, from this machine
+
+The test data runs here rather than on Railway: the server is built on Node 20, and the
+test data needs Node 22.6, which this machine has.
+
+1. Railway → **`postgres-uat`** → **Variables** → copy **`DATABASE_PUBLIC_URL`**.
+   If it is not listed, first turn on **Settings → Networking → Public Network → Enable TCP Proxy**.
+2. Open `C:\Bibin\wb-erp-phase2\.env` (git-ignored) and add a line:
+
+   ```
+   UAT_DATABASE_URL="<paste it here>"
+   ```
+
+3. **Stop the local dev server** on `localhost:3001` — Windows locks a database file the
+   loader has to rebuild.
+4. Run:
+
+   ```bash
+   npm run db:demo:uat
+   ```
+
+   It refuses the first time and prints the exact command to run, with the database's
+   host and port filled in. Read the host, check it is the UAT database, and run what it
+   printed. That confirmation is the safety catch: test data is written into a database
+   only after somebody has typed which one.
+5. When it finishes it puts this machine back to SQLite. Start the dev server again:
+
+   ```bash
+   npm run dev
+   ```
+
+What goes in: 4 stores and 13 bins, 24 items, 11 suppliers and customers with contacts,
+four months of receipts, issues and transfers, requests and orders at every status,
+RFQs with competing quotes, equipment with calibration in and out of date, returns from
+site, 14 enquiries across the pipeline, 8 estimates and 7 quotations. Everything is coded
+`T-…` or marked `[test data]`, and all of it lands in **WBE — WB Engineering**.
+
+### Step 8 — Logins for the testers
+
+**Users & Roles** → one user per person testing, on the role they actually do. Nobody
+tests as the administrator: a screen that works for Group Admin can still be refused to
+the storekeeper, and that is exactly what UAT is for finding.
+
+### Living with it
+
+- **Every push to `phase-2` redeploys UAT.** Production is not touched.
+- **Email.** Leave **Settings → Email** unset in UAT unless you are testing sending. The
+  test customers have `.test` addresses that deliver nowhere — but an address somebody
+  types in during testing is real.
+- **Remove the test data:**
+  `npm run db:demo:uat -- --confirm-host=<host:port> --clean`
+- **The enquiry page that 500s locally** does not on UAT. That crash belongs to the
+  development server on Windows, not to the application.
+- **Finished with it:** delete the WB ERP UAT project. Nothing in production depends on it.
+
+### If something goes wrong
+
+| What you see | What it means |
+|---|---|
+| `EPERM: operation not permitted, rename ... query_engine` | The local dev server is still running. Stop it and run the loader again. |
+| `You confirmed ..., but the database this is pointed at is ...` | `UAT_DATABASE_URL` in `.env` is not the database you think. Copy it again. |
+| `UAT_DATABASE_URL points at production` | It is the production database. Do not work round this. |
+| Sign-in fails with the password you set | `ADMIN_PASSWORD` is used only when the administrator is first created. If the first deploy ran without it, use the generated one from that deploy's log. |
+| First boot still going after 10 minutes | Open the log. A migration error stops there with its reason. |
+
 ## Backups
 
 Railway's volume snapshots are **not enabled by default** and must be turned on for

@@ -343,6 +343,84 @@ ok("the size ceiling is unchanged at 10MB", MAX_UPLOAD_BYTES === 10 * 1024 * 102
   ok("the log is left as it was found", (await db.auditLog.count()) === before);
 }
 
+/*
+ * The administrator password never goes into a deployed system's logs.
+ *
+ * The seed runs on every boot, and its last line printed the admin login with
+ * the password beside it — including when that password was set deliberately
+ * in the host's environment. So every deploy wrote the live administrator
+ * password into the deploy logs, where anybody who can read logs could read it,
+ * and so could anybody a log was ever pasted to. Found while writing the UAT
+ * instructions, by reading what a first boot would print.
+ *
+ * Checked by running the seed as production would against a throwaway
+ * database; this pins the shape so the line cannot quietly come back.
+ */
+{
+  const seed = read("prisma/seed.mjs");
+  const loginLine = seed.split("\n").filter((l) => /Login:/.test(l));
+  ok("the seed's login line exists", loginLine.length > 0);
+  ok("  and only prints a password outside production",
+    /IS_PRODUCTION\s*\?\s*"Login:[^"]*not printed\)"\s*:\s*"Login:\s+admin@wandb\.ae\s+\/\s+"\s*\+\s*ADMIN_PASSWORD/.test(seed),
+    loginLine.map((l) => l.trim()).join(" | "));
+  ok("  and a generated password is announced only by the boot that created the admin",
+    /GENERATED_PASSWORD && admin\.mustReset && !adminExisted/.test(seed),
+    "a restart must not announce a password the administrator was never given");
+}
+
+/*
+ * Test data goes only into a database somebody has named on purpose.
+ *
+ * The guard used to look for words like "uat" or "test" anywhere in the
+ * connection string. That included the password, so a password containing
+ * "uat" walked past it — and Railway's public connection string never carries
+ * the service's name, so a correctly named UAT database was refused anyway.
+ * Now anything that is not on this machine needs its host and port typed out.
+ *
+ * Every case exits in the guard, before anything connects, so a made-up
+ * address is enough to test it.
+ */
+{
+  const { spawnSync } = await import("node:child_process");
+  const FAKE = "postgresql://postgres:qUATtest99@shuttle.proxy.rlwy.net:43210/railway";
+  const attempt = (env) => {
+    const res = spawnSync(
+      process.execPath,
+      ["--experimental-strip-types", "scripts/demo-data.mjs"],
+      { encoding: "utf8", env: { ...process.env, PROD_DATABASE_URL: "", TEST_DATA_CONFIRM_HOST: "", ...env } },
+    );
+    return { code: res.status, out: `${res.stdout}${res.stderr}` };
+  };
+
+  const bare = attempt({ DATABASE_URL: FAKE });
+  // Pinned to the refusal's own words. A failed connection also exits 1 and can
+  // name the host, so an exit code alone would pass against the old guard too.
+  ok("test data is refused for a remote database nobody confirmed",
+    bare.code === 1 && /TEST_DATA_CONFIRM_HOST/.test(bare.out),
+    "even though its password contains both 'uat' and 'test'");
+  ok("  and it says which host it would have written to",
+    /shuttle\.proxy\.rlwy\.net:43210/.test(bare.out));
+  ok("  without ever printing the password", !/qUATtest99/.test(bare.out));
+
+  const wrong = attempt({ DATABASE_URL: FAKE, TEST_DATA_CONFIRM_HOST: "other.proxy.rlwy.net:43210" });
+  ok("confirming a different host is refused", wrong.code === 1 && /You confirmed other\.proxy/.test(wrong.out));
+
+  const prod = attempt({
+    DATABASE_URL: FAKE,
+    TEST_DATA_CONFIRM_HOST: "shuttle.proxy.rlwy.net:43210",
+    PROD_DATABASE_URL: "postgresql://someone:else@shuttle.proxy.rlwy.net:43210/railway",
+  });
+  ok("production is refused even when its host is confirmed", prod.code === 1 && /That is the production database/.test(prod.out));
+
+  const wrapper = spawnSync(process.execPath, ["scripts/demo-data-uat.mjs"], {
+    encoding: "utf8",
+    env: { ...process.env, UAT_DATABASE_URL: FAKE, PROD_DATABASE_URL: "" },
+  });
+  ok("the UAT loader will not start without --confirm-host", wrapper.status === 1,
+    "and it prints the exact command to run");
+  ok("  and neither does it print the password", !/qUATtest99/.test(`${wrapper.stdout}${wrapper.stderr}`));
+}
+
 await db.$disconnect();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

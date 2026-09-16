@@ -137,6 +137,13 @@ async function main() {
 
   const adminRole = await db.role.findFirst({ where: { tenantId: tenant.id, name: "Group Admin" } });
   const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+  // Whether this boot is the one creating the administrator. The seed runs on
+  // every deploy, and a password generated on a later boot is not the one the
+  // administrator was created with.
+  const adminExisted = !!(await db.user.findUnique({
+    where: { tenantId_email: { tenantId: tenant.id, email: "admin@wandb.ae" } },
+    select: { id: true },
+  }));
   const admin = await db.user.upsert({
     where: { tenantId_email: { tenantId: tenant.id, email: "admin@wandb.ae" } },
     update: {}, // never reset an existing admin's password on redeploy
@@ -149,7 +156,12 @@ async function main() {
       mustReset: !!GENERATED_PASSWORD,
     },
   });
-  if (GENERATED_PASSWORD && admin.mustReset) {
+  // Only on the boot that created the administrator. This used to print on every
+  // boot while the reset was still pending — but the password is regenerated on
+  // each boot and an existing administrator is never updated, so every restart
+  // announced a new password that was not the administrator's, and told whoever
+  // read the logs to sign in with it.
+  if (GENERATED_PASSWORD && admin.mustReset && !adminExisted) {
     console.log("\n" + "=".repeat(64));
     console.log("  ADMIN_PASSWORD was not set, so one was generated for this install.");
     console.log("  Sign in once with it, then change it — you will be asked to.");
@@ -914,7 +926,15 @@ async function main() {
   }
 
   console.log("Seeded tenant, companies, roles, admin, tasks, chart of accounts, approval routes, employees, certs, supplied worker, sample vouchers, jobs, cost centres, timesheets, cheques, retention, corporate tax, site attendance, compliance.");
-  console.log("Login:  admin@wandb.ae  /  " + ADMIN_PASSWORD);
+  // The password is printed only where it is the well-known development one.
+  // On a deployed system this line ran on every boot and wrote the real
+  // administrator password into the host's logs each time — readable by anybody
+  // who can see the logs, and by anybody a log is ever pasted to.
+  console.log(
+    IS_PRODUCTION
+      ? "Login:  admin@wandb.ae  (password as set in ADMIN_PASSWORD — not printed)"
+      : "Login:  admin@wandb.ae  /  " + ADMIN_PASSWORD,
+  );
 }
 
 main().catch((e) => { console.error(e); process.exit(1); }).finally(() => db.$disconnect());
