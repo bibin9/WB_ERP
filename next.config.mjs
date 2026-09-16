@@ -66,6 +66,10 @@ const nextConfig = {
   reactStrictMode: true,
   // Version and framework are free reconnaissance for anybody scanning.
   poweredByHeader: false,
+  // The PDF renderer ships its own layout engine and fonts, and has to load
+  // them as ordinary Node modules at request time rather than through the
+  // server bundle, where its font files and optional dependencies go missing.
+  serverExternalPackages: ["@react-pdf/renderer"],
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },

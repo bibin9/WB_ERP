@@ -434,7 +434,7 @@ async function build() {
     parties[code] = await db.party.create({
       data: {
         companyId: cid, code: P + code, name, type: "Supplier", email, contactPerson,
-        creditDays: pick([30, 45, 60]), emirate: pick(["Abu Dhabi", "Dubai", "Sharjah"]), city: "—",
+        creditDays: pick([30, 45, 60]), emirate: pick(["Abu Dhabi", "Dubai", "Sharjah"]), city: null,
       },
     });
     await db.partyContact.createMany({
@@ -451,7 +451,7 @@ async function build() {
     parties[code] = await db.party.create({
       data: {
         companyId: cid, code: P + code, name, type: "Customer", email, contactPerson,
-        creditDays: pick([30, 60, 90]), emirate: pick(["Abu Dhabi", "Dubai", "Sharjah"]), city: "—",
+        creditDays: pick([30, 60, 90]), emirate: pick(["Abu Dhabi", "Dubai", "Sharjah"]), city: null,
       },
     });
     await db.partyContact.createMany({

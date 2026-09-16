@@ -2,7 +2,9 @@ import "server-only";
 import { db } from "./db";
 import { documentStem, nextInSeries } from "./docnumber";
 import { resolveRoute } from "./approval-engine";
-import { priceEstimate } from "./estimate-posting";
+import { priceEstimate, toBidLine } from "./estimate-posting";
+import { bidLine } from "./estimating";
+import { priceLines } from "./quotation-lines";
 import { checkIssue, checkEdit, checkAccept, poVariance } from "./quoting";
 import { sendMail, escapeHtml, mailReady } from "./mailer";
 import { money } from "./money";
@@ -72,7 +74,7 @@ export async function createQuotation(
     where: { id: input.estimateId, companyId: input.companyId },
     include: {
       lead: { select: { id: true, partyId: true, customerName: true, title: true } },
-      lines: { include: { takeoffs: true } },
+      lines: { include: { takeoffs: true }, orderBy: { sortOrder: "asc" } },
     },
   });
   if (!estimate) return { ok: false, error: "That estimate is not in this company." };
@@ -90,6 +92,17 @@ export async function createQuotation(
       error: "That estimate quotes below cost. Put the price up, or mark it as a deliberate loss leader first.",
     };
   }
+
+  // The lines as the customer will read them, priced so that every one
+  // multiplies out. The total is their sum — see lib/quotation-lines.
+  const priced = priceLines(
+    estimate.lines.map((l) => {
+      const line = bidLine(toBidLine(l));
+      return { ref: l.ref, description: l.description, unit: l.unit, quantity: line.quantity, unitCost: line.unitCost };
+    }),
+    totals.direct,
+    totals.sell,
+  );
 
   const customerName =
     String(input.customerName ?? "").trim() || estimate.lead?.customerName || "";
@@ -112,7 +125,8 @@ export async function createQuotation(
           customerName: customerName.slice(0, 200),
           title: String(input.title ?? "").trim().slice(0, 300) || estimate.title,
           // Snapshotted. See the note at the top of this file.
-          total: totals.sell,
+          total: priced.total,
+          linesSnapshot: JSON.stringify(priced.lines),
           costAtQuote: totals.cost,
           budgetHours: totals.labourHours,
           validUntil: input.validUntil ? new Date(input.validUntil + "T00:00:00.000Z") : null,
@@ -121,7 +135,7 @@ export async function createQuotation(
           preparedBy: input.preparedBy,
         },
       });
-      return { ok: true, quotationId: created.id, number, total: totals.sell };
+      return { ok: true, quotationId: created.id, number, total: priced.total };
     } catch (e) {
       if ((e as { code?: string })?.code !== "P2002") throw e;
     }

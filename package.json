@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@react-pdf/renderer": "4.9.0",
     "@types/nodemailer": "^8.0.1",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",

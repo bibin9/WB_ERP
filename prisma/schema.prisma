@@ -136,6 +136,7 @@ model Company {
   estimates           Estimate[]
   quotations          Quotation[]
   emailSettings       EmailSettings?
+  documentSettings    DocumentSettings?
   emailLogs           EmailLog[]
 
   @@unique([tenantId, code])
@@ -2444,6 +2445,12 @@ model Quotation {
   /// What it was costed at, so the margin on the accepted job can be checked.
   costAtQuote Float    @default(0)
   budgetHours Float    @default(0)
+  /// The priced lines exactly as the customer received them, as JSON.
+  ///
+  /// The estimate goes on being edited for the next revision, and a reprint of
+  /// a quotation already sent must be the same document — the same reason an
+  /// invoice snapshots its customer. Written when the quotation is raised.
+  linesSnapshot String?
   validUntil DateTime?
   terms      String?
   notes      String?
@@ -2589,4 +2596,45 @@ model EmailLog {
 
   @@index([companyId])
   @@index([entity, entityId])
+}
+
+/// How this company's documents look on paper (quotations, orders, notes,
+/// invoices, payslips).
+///
+/// The seam for the client's own templates. Most letterhead designs arrive as
+/// artwork — a header band and a footer band — so both can be uploaded as
+/// images and are then used on every document at once. Everything else here is
+/// the part that changes more often than artwork does: contact details, the
+/// accent colour, and the standard terms each kind of document carries.
+model DocumentSettings {
+  id        String  @id @default(cuid())
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// #RRGGBB, used for rules and table headings.
+  accentColor String @default("#1F4E79")
+
+  /// Artwork across the top of every page. Replaces the logo-and-name block.
+  /// PNG or JPEG as a data URI — the PDF engine reads no other image formats.
+  headerImage String?
+  /// Artwork across the foot of every page. Replaces the footer text.
+  footerImage String?
+
+  phone   String?
+  email   String?
+  website String?
+  /// Extra footer line — registration numbers, bank details, a slogan.
+  footerNote String?
+
+  /// Standard terms printed on each kind of document, if it has none of its own.
+  quotationTerms     String?
+  purchaseOrderTerms String?
+  rfqTerms           String?
+
+  /// Signature boxes at the foot of orders and quotations.
+  showSignatures Boolean @default(true)
+
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
