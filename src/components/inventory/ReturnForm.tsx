@@ -90,15 +90,28 @@ export default function ReturnForm({
   };
 
   const filled = lines.filter((l) => l.itemId && Number(l.quantity) > 0);
-  const verdict = filled.length
-    ? returnVerdict(
-        filled.map((l) => ({
-          condition: l.condition,
-          quantity: Number(l.quantity),
-          value: (Number(l.quantity) || 0) * (averageCost[`${l.itemId}:${storeId}`] ?? 0),
-        })),
-      )
-    : "";
+
+  /**
+   * What this note will actually do, or why it will do nothing.
+   *
+   * A note is all or nothing: one impossible line and postReturn writes none of
+   * it, because half a return note leaves a job credited for material the
+   * storekeeper is still holding. The summary used to be built from every
+   * filled line regardless, so a line the screen had already refused still
+   * showed up as "1 line going back on the shelf, crediting the job 835.54" —
+   * a promise about a credit that was never going to happen.
+   */
+  const blocked = filled.filter((l) => complaintFor(l));
+  const verdict =
+    blocked.length > 0 || filled.length === 0
+      ? ""
+      : returnVerdict(
+          filled.map((l) => ({
+            condition: l.condition,
+            quantity: Number(l.quantity),
+            value: (Number(l.quantity) || 0) * (averageCost[`${l.itemId}:${storeId}`] ?? 0),
+          })),
+        );
 
   if (!open) {
     return (
@@ -293,6 +306,17 @@ export default function ReturnForm({
           </div>
 
           {verdict && <p className="rounded bg-brand-paper p-3 text-xs text-ink">{verdict}</p>}
+
+          {blocked.length > 0 && (
+            <p className="rounded border border-brand-gold/40 bg-brand-gold/10 p-3 text-xs text-ink">
+              <span className="font-medium">
+                Nothing will be recorded until {blocked.length === 1 ? "that line is" : "those lines are"} sorted
+                out.
+              </span>{" "}
+              A note goes on the shelf whole or not at all: posting the rest of it would credit the job for material
+              still sitting on the back of the lorry.
+            </p>
+          )}
 
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">Notes</label>
