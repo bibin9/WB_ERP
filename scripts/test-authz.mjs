@@ -42,6 +42,14 @@ ok("every (app) page calls requireAccess (or is explicitly open)", ungated.lengt
 /* 2. Screens that expose personal data are gated even outside the (app) group. */
 ok("employee profile page is gated", read("src/app/(app)/hr/employees/[id]/page.tsx").includes('requireAccess("hr.employees")'));
 ok("settlement statement page is gated", read("src/app/statement/[id]/page.tsx").includes('requireAccess("hr.separation")'));
+{
+  // Every printed document — payslips, settlements, invoices — is served by
+  // one route. It must check the document's screen and scope the load to the
+  // reader's companies; the loaders are tested for the scoping.
+  const pdf = read("src/app/api/pdf/[kind]/[id]/route.ts");
+  ok("the PDF route checks the document's screen and the reader's companies",
+    pdf.includes("can(session, doc.screen)") && pdf.includes("session.companies.map((c) => c.id)") && pdf.includes('"Unauthorized", { status: 401 }'));
+}
 ok("document download API is gated", read("src/app/api/documents/[id]/route.ts").includes('can(session, "hr.employees")'));
 
 /* 3. Every exported server action carries a permission check.

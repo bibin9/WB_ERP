@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { requireAccess } from "@/lib/guard";
 
 export const dynamic = "force-dynamic";
 
@@ -7,9 +8,11 @@ export const dynamic = "force-dynamic";
  * the company's letterhead, so a link or bookmark to this address opens that
  * instead of a second, drifting copy of the same document.
  *
- * The PDF route checks the permission and the company itself.
+ * Checked here as well as in the PDF route, so this address refuses on its
+ * own rather than relying on where it points.
  */
 export default async function LegacyPrintPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAccess("hr.separation");
   const { id } = await params;
   redirect(`/api/pdf/settlement/${encodeURIComponent(id)}`);
 }

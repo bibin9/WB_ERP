@@ -64,7 +64,7 @@ Taken from the approved BRD rather than summarised. Eleven of eighteen are Must.
 | CRM-12 | Site visit recorded, report attached, status shown | Must | **Done** — status derived from the report existing |
 | CRM-13 | Estimation engineer prepares a quotation from the report | Must | **Done** — priced from the estimate, no box to type one |
 | CRM-14 | Quotation routed to management for approval | Must | **Done** — through the existing approval engine |
-| CRM-15 | On approval, issue the quotation as a PDF by email | Must | **Done** — sends through the client's own mail server, configured in Settings |
+| CRM-15 | On approval, issue the quotation as a PDF by email | Must | **Done** — sends through the client's own mail server, configured in Settings, with the quotation PDF attached (until 16 Sep 2026 the email went without the PDF; corrected and proved against a test mail server) |
 | CRM-16 | Revisions with full version history | Should | **Done** — a revision supersedes, never edits |
 | CRM-17 | Capture the customer PO, hand over to Projects and Finance | Must | **Done** — the job takes THEIR figure, budgeted from the estimate |
 | CRM-18 | Markup rules, margin analysis, multi-currency, discount matrices | Should | Not started — multi-currency is the phase-1 item below |
@@ -195,6 +195,49 @@ Empty shells today, in the order they earn their place for a contractor:
   before a contract exists, where everything currently starts from a job
   somebody typed by hand.
 - **HSE** — incidents, toolbox talks, permits, and the statutory registers.
+
+## Printed documents and templates
+
+Every document that leaves the building, or gets signed, is a PDF drawn on the
+server (`@react-pdf/renderer`) on the company's letterhead. Print opens it in the
+browser's PDF viewer; Download saves the same file; the quotation email attaches
+the same file.
+
+| Document | Opened from | Guarded by |
+|---|---|---|
+| Quotation | Quotation page | `crm.quotations` |
+| Purchase order | Purchase order card | `inventory.orders` |
+| Request for quotation (to one supplier, or blank) | Enquiry comparison sheet | `inventory.rfq` |
+| Material request | Request card | `inventory.requests` |
+| Goods received / issue / transfer / return-to-supplier note | Receive & Issue, beside the reference | `inventory.movements` |
+| Material return note | Returns from site | `inventory.returns` |
+| Tax invoice, credit note, debit note (sales only) | Invoice page | `finance.invoices` |
+| Payslip, or a whole run a page each | Payroll | `hr.payroll` |
+| Full and final settlement | Separation | `hr.separation` |
+| Letterhead sample | Settings -> Printed Documents | `settings.documents` |
+
+- **The client's templates.** Settings -> Printed Documents, per company: header
+  and footer artwork (PNG/JPEG), accent colour, contact line, footer line,
+  standard quotation / PO / enquiry terms, signature boxes. When the client's
+  designer supplies letterhead artwork it is uploaded there and every document
+  changes at once, with no release. A template that changes a document's
+  *layout* rather than its letterhead is a code change in `src/documents/`;
+  shared pieces are in `src/documents/parts.tsx`.
+- **Not final means marked.** DRAFT / NOT APPROVED / REJECTED / CANCELLED /
+  SUPERSEDED / CLOSED across every page. Worked from the states allowed to print
+  clean, so a status added later is marked until someone decides otherwise.
+- **Figures are the record's own**, snapshotted when raised or issued, so a
+  reprint is the same document.
+- **Payslips print the bank account as its last four characters.**
+- **Arabic is not supported yet.** The built-in PDF font has no Arabic glyphs; a
+  bilingual template needs an embedded Arabic font.
+- The old `/invoice/[id]` and `/statement/[id]` HTML print pages redirect to the
+  PDFs.
+- Tests: `scripts/test-documents.mjs` draws every document and checks where each
+  line lands (letterhead and footer on every page, page numbers, nothing off
+  the sheet or overlapping, marks by status); `scripts/test-document-loaders.mjs`
+  runs every loader against the local database (company scoping, supplier bills
+  refused as tax invoices, one note per delivery, masked IBAN).
 
 ## 6. Remaining security audit findings
 
