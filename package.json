@@ -20,6 +20,7 @@
     "db:demo": "node --experimental-strip-types scripts/demo-data.mjs",
     "db:demo:clean": "node --experimental-strip-types scripts/demo-data.mjs --clean",
     "db:demo:uat": "node scripts/demo-data-uat.mjs",
+    "user:password-sql": "node scripts/password-sql.mjs",
     "test:pg": "node scripts/run-on-pg.mjs"
   },
   "dependencies": {
