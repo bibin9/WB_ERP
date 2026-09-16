@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, FileSignature } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import PrintHeader from "@/components/finance/PrintHeader";
-import PrintReport from "@/components/finance/PrintReport";
+import DocumentButtons from "@/components/DocumentButtons";
 import QuoteTracker from "@/components/crm/QuoteTracker";
 import QuoteActions from "@/components/crm/QuoteActions";
 import CostBar from "@/components/crm/CostBar";
@@ -87,7 +87,10 @@ export default async function QuotationPage({ params }: { params: Promise<{ id: 
         subtitle={`${quote.number}${quote.revision > 1 ? ` · revision ${quote.revision}` : ""} · ${quote.customerName}`}
       >
         <div className="flex flex-wrap items-center gap-2">
-          <PrintReport />
+          {/* The customer's document, not this screen: printing the screen put
+              cost, margin and markup on paper — the one thing a customer must
+              never be handed by mistake. */}
+          <DocumentButtons kind="quotation" id={quote.id} />
           <QuoteActions
             quote={{
               id: quote.id, number: quote.number, status: quote.status,

@@ -333,6 +333,90 @@ try {
       "a client with no mail server still issues quotations");
   }
 
+  /* ============================================ the PDF goes with it == */
+  /*
+   * CRM-15 is "issue the quotation as a PDF by email", and for a while it was
+   * marked done while the email carried no PDF at all — only a body promising
+   * one. So this does not check that attachments were passed along; it runs a
+   * mail server, lets the message arrive, and looks inside it.
+   */
+  {
+    const net = await import("node:net");
+    let received = "";
+    const server = net.createServer((socket) => {
+      let inData = false;
+      let buffer = "";
+      socket.write("220 test ESMTP\r\n");
+      socket.on("data", (chunk) => {
+        buffer += chunk.toString("latin1");
+        if (inData) {
+          const end = buffer.indexOf("\r\n.\r\n");
+          if (end === -1) return;
+          received = buffer.slice(0, end);
+          buffer = buffer.slice(end + 5);
+          inData = false;
+          socket.write("250 queued\r\n");
+        }
+        let nl;
+        while (!inData && (nl = buffer.indexOf("\r\n")) !== -1) {
+          const line = buffer.slice(0, nl);
+          buffer = buffer.slice(nl + 2);
+          const verb = line.slice(0, 4).toUpperCase();
+          if (verb === "EHLO" || verb === "HELO") socket.write("250 test\r\n");
+          else if (verb === "MAIL" || verb === "RCPT" || verb === "RSET" || verb === "NOOP") socket.write("250 ok\r\n");
+          else if (verb === "DATA") { inData = true; socket.write("354 go ahead\r\n"); }
+          else if (verb === "QUIT") { socket.write("221 bye\r\n"); socket.end(); }
+          else socket.write("250 ok\r\n");
+        }
+      });
+    });
+    await new Promise((r) => server.listen(0, "127.0.0.1", r));
+    const port = server.address().port;
+
+    try {
+      const { estimateId: e4 } = await pricedEstimate("Sent with PDF");
+      const q = await createQuotation({ companyId: co.id, preparedBy: "E", estimateId: e4 });
+      await submitQuotation(q.quotationId, tenant.id, "E");
+      await decide(q.quotationId, "Approved");
+      await syncQuoteApproval(q.quotationId);
+
+      await db.emailSettings.deleteMany({ where: { companyId: co.id } });
+      await db.emailSettings.create({
+        data: { companyId: co.id, host: "127.0.0.1", port, security: "None", fromEmail: "quotes@wandb.ae", isActive: true },
+      });
+
+      // Stands in for the drawn PDF; the route and the action draw the real one.
+      const pdf = Buffer.from("%PDF-1.4\n% stand-in for the drawn quotation\n%%EOF\n");
+      const sent = await issueQuotation({
+        quotationId: q.quotationId, issuedTo: "them@example.com", by: "Estimator", send: true,
+        attachments: [{ filename: "WBE-QTN-26-9999.pdf", content: pdf, contentType: "application/pdf" }],
+      });
+      ok("a quotation emailed through a working server goes out", sent.ok === true, sent.ok ? "" : sent.error);
+      ok("  and the message that arrived carries the PDF",
+        /Content-Type: application\/pdf/i.test(received) && /filename="?WBE-QTN-26-9999\.pdf/i.test(received),
+        received ? "attachment found in the delivered message" : "nothing arrived");
+      const decoded = received.replace(/=\r\n/g, "");
+      ok("  and says it is attached, rather than promising a document it does not carry",
+        /Please find attached our quotation/.test(decoded));
+
+      const withoutPdf = await (async () => {
+        received = "";
+        const { estimateId: e5 } = await pricedEstimate("Sent without PDF");
+        const q2 = await createQuotation({ companyId: co.id, preparedBy: "E", estimateId: e5 });
+        await submitQuotation(q2.quotationId, tenant.id, "E");
+        await decide(q2.quotationId, "Approved");
+        await syncQuoteApproval(q2.quotationId);
+        await issueQuotation({ quotationId: q2.quotationId, issuedTo: "them@example.com", by: "Estimator", send: true });
+        return received.replace(/=\r\n/g, "");
+      })();
+      ok("without an attachment the email does not claim one",
+        !/Please find attached/.test(withoutPdf) && /is below/.test(withoutPdf));
+    } finally {
+      await db.emailSettings.deleteMany({ where: { companyId: co.id } });
+      server.close();
+    }
+  }
+
   /* ====================================================== posts nothing == */
   {
     const vouchers = await db.journalEntry.count({ where: { companyId: co.id, memo: { contains: TAG } } });

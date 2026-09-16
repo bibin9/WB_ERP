@@ -254,7 +254,7 @@ function quotationEmail(quote: {
   total: number;
   validUntil: Date | null;
   terms: string | null;
-}, companyName: string, signedBy: string) {
+}, companyName: string, signedBy: string, attached = false) {
   const valid = quote.validUntil
     ? `This price is held until ${quote.validUntil.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })}.`
     : "";
@@ -262,7 +262,11 @@ function quotationEmail(quote: {
   const text = [
     `Dear Sir or Madam,`,
     ``,
-    `Please find our quotation ${quote.number} for ${quote.title}.`,
+    // "Please find" only when there is something to find. Before the PDF was
+    // attached, this sentence promised a document the email did not carry.
+    attached
+      ? `Please find attached our quotation ${quote.number} for ${quote.title}.`
+      : `Our quotation ${quote.number} for ${quote.title} is below.`,
     ``,
     `Total: ${money(quote.total)}`,
     valid,
@@ -277,7 +281,9 @@ function quotationEmail(quote: {
 
   const html = [
     `<p>Dear Sir or Madam,</p>`,
-    `<p>Please find our quotation <strong>${escapeHtml(quote.number)}</strong> for ${escapeHtml(quote.title)}.</p>`,
+    attached
+      ? `<p>Please find attached our quotation <strong>${escapeHtml(quote.number)}</strong> for ${escapeHtml(quote.title)}.</p>`
+      : `<p>Our quotation <strong>${escapeHtml(quote.number)}</strong> for ${escapeHtml(quote.title)} is below.</p>`,
     `<p style="font-size:1.1em"><strong>Total: ${escapeHtml(money(quote.total))}</strong></p>`,
     valid ? `<p>${escapeHtml(valid)}</p>` : "",
     quote.terms ? `<p><strong>Terms</strong><br>${escapeHtml(quote.terms).replace(/\n/g, "<br>")}</p>` : "",
@@ -308,6 +314,12 @@ export async function issueQuotation(input: {
   /** Send it through the company's mail server, rather than recording a send
    *  somebody has already made by hand. */
   send?: boolean;
+  /**
+   * The quotation as a PDF, drawn by the caller. Passed in rather than drawn
+   * here so this module stays plain TypeScript the test suite can load — the
+   * PDF templates are React, and live beside the screens.
+   */
+  attachments?: { filename: string; content: Buffer; contentType?: string }[];
 }): Promise<Outcome> {
   const quote = await db.quotation.findUnique({
     where: { id: input.quotationId },
@@ -322,7 +334,8 @@ export async function issueQuotation(input: {
   if (!to) return { ok: false, error: "Say who it went to, so there is a record of where it was sent." };
 
   if (input.send) {
-    const body = quotationEmail(quote, quote.company.name, input.by);
+    const attachments = input.attachments ?? [];
+    const body = quotationEmail(quote, quote.company.name, input.by, attachments.length > 0);
     const sent = await sendMail({
       companyId: quote.companyId,
       to,
@@ -330,6 +343,7 @@ export async function issueQuotation(input: {
       subject: body.subject,
       text: body.text,
       html: body.html,
+      attachments,
       kind: "quotation",
       entity: "quotation",
       entityId: quote.id,

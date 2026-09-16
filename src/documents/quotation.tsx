@@ -52,7 +52,16 @@ const WATERMARK: Record<string, string> = {
   Superseded: "SUPERSEDED",
 };
 
-export async function loadQuotation(id: string, companyIds: string[]): Promise<QuotationDoc | null> {
+export async function loadQuotation(
+  id: string,
+  companyIds: string[],
+  /**
+   * The date to print as the issue date. Sending draws the PDF a moment before
+   * the quotation is marked issued, and the copy the customer receives must
+   * carry the day it was sent, not the day it was first raised.
+   */
+  options: { issuedOn?: Date } = {},
+): Promise<QuotationDoc | null> {
   const q = await db.quotation.findFirst({
     where: { id, companyId: { in: companyIds } },
     include: {
@@ -97,7 +106,7 @@ export async function loadQuotation(id: string, companyIds: string[]): Promise<Q
     revision: q.revision,
     status: q.status,
     title: q.title,
-    issuedOn: q.issuedAt ?? q.createdAt,
+    issuedOn: options.issuedOn ?? q.issuedAt ?? q.createdAt,
     validUntil: q.validUntil,
     enquiry: q.lead?.number ?? null,
     preparedBy: q.preparedBy,

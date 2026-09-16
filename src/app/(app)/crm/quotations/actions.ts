@@ -1,5 +1,8 @@
 "use server";
 
+import React from "react";
+import { renderToBuffer, type DocumentProps } from "@react-pdf/renderer";
+import { loadQuotation, QuotationPdf } from "@/documents/quotation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
@@ -91,12 +94,24 @@ export async function issue(formData: FormData): Promise<Result> {
   if (!session) return { ok: false, error: "No access" };
 
   const send = str(formData, "send") === "on";
+
+  // The quotation itself goes with the email, drawn exactly as Print and
+  // Download draw it, dated the day it is sent.
+  let attachments: { filename: string; content: Buffer; contentType: string }[] = [];
+  if (send) {
+    const doc = await loadQuotation(quotationId, session.companies.map((c) => c.id), { issuedOn: new Date() });
+    if (!doc) return { ok: false, error: "Not found" };
+    const pdf = await renderToBuffer(React.createElement(QuotationPdf, doc) as React.ReactElement<DocumentProps>);
+    attachments = [{ filename: doc.filename, content: Buffer.from(pdf), contentType: "application/pdf" }];
+  }
+
   const res = await issueQuotation({
     quotationId,
     issuedTo: str(formData, "issuedTo", 500),
     cc: orNull(formData, "cc", 500),
     by: session.user.name,
     send,
+    attachments,
   });
   if (!res.ok) return res;
 
