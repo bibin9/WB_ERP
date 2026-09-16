@@ -328,52 +328,46 @@ migration fails on its own rather than stopping the server from starting.
 
 ## UAT and production
 
-Two permanent copies of the system. Every phase goes through the first before it
-reaches the second.
+Two permanent copies of the system in one Railway project, as two **environments**.
+Every phase goes through the first before it reaches the second.
 
 ```
  phase work            phase-2, phase-3 ...            C:\Bibin\wb-erp-phase2
       |
       |  ready for the client to test:   git push origin phase-2:uat
       v
- uat branch  ------>  WB ERP UAT  (Railway)      test data, the client's testers
+ uat branch  ------>  Pre-Prod environment      wberp-pre-prod.up.railway.app
       |
       |  client signs off:   fast-forward main to uat
       v
- main branch ------>  WB ERP production          the client's live data
+ main branch ------>  production environment    the client's live system
 ```
 
 **Four rules the setup is built around.**
 
-1. **Two separate Railway projects, not two services in one.** Membership of a Railway
-   project is the access boundary: a tester or developer can be added to UAT without
-   seeing production's variables or its logs — and until this release, production's logs
-   held the administrator password. A reference like `${{Postgres.DATABASE_URL}}` also
-   only ever resolves inside its own project, so UAT cannot be pointed at production's
-   database by a mistyped name.
-2. **Production receives only what UAT tested.** Promotion is a fast-forward of `main` to
-   `uat`. If production has anything UAT never had, git refuses the promotion rather than
-   quietly combining the two.
-3. **UAT never holds a copy of production data.** Production has passports, Emirates IDs,
-   salaries and IBANs. UAT gets the seed and the marked test data, nothing else.
-4. **Nothing is shared between them:** different `AUTH_SECRET`, different
-   `ADMIN_PASSWORD`, different users, different mail settings.
+1. **Separate environments share nothing but the project.** Each environment has its own
+   Postgres, its own volumes and its own variables, and a reference such as
+   `${{Postgres.DATABASE_URL}}` resolves inside its own environment — so Pre-Prod cannot
+   reach production's database through one. The one thing they do share is project
+   membership: anybody added to the project can see both. Add only people who are also
+   trusted with production.
+2. **Production receives only what Pre-Prod tested.** Promotion is a fast-forward of
+   `main` to `uat`. If production has anything Pre-Prod never had, git refuses.
+3. **Pre-Prod is never refreshed from a production holding real data.** It was created
+   by duplicating production on 16 September 2026, while production held only dummy data.
+   Once the client's passports, salaries and IBANs are in production, a duplicate would
+   copy them — so from then on, Pre-Prod is refreshed from test data only.
+4. **No secret is shared:** its own `AUTH_SECRET`, its own administrator password, its own
+   database password, no live mail settings.
 
-> You create the accounts and type every password and secret into Railway yourself.
-> None of them should ever be pasted into a chat — including with me.
+> You type every password and secret into Railway yourself. None of them should ever be
+> pasted into a chat — including with me. Screenshot variable **names**, never values.
 
 ---
 
-### One-time setup
+### One-time setup — as it was actually done
 
-Production already exists and stays exactly as it is. This adds UAT beside it.
-
-#### Step 0 — Confirm production follows `main`
-
-Production project → app service → **Settings → Source**. The branch must say **`main`**.
-If it says anything else, stop here.
-
-#### Step 1 — Create the `uat` branch on GitHub
+#### Step 1 — Put phase 2 on GitHub as `uat`
 
 From `C:\Bibin\wb-erp-phase2`:
 
@@ -381,117 +375,144 @@ From `C:\Bibin\wb-erp-phase2`:
 git push origin phase-2:uat
 ```
 
-This creates `uat` on GitHub from phase 2. It deliberately does **not** give `phase-2` an
-upstream, so a bare `git push` from that folder still fails rather than going somewhere
-unexpected. There are no GitHub Actions in this repository, so nothing runs on the push,
-and production follows `main`, so production does not see it.
+`phase-2` keeps no upstream, so a bare `git push` from that folder still fails. There are
+no GitHub Actions, and production follows `main`, so nothing else happens on the push.
+**Ignore GitHub's "create a pull request" link** — a pull request into `main` is exactly
+how untested work would reach production.
 
-#### Step 2 — A new project, database first
+#### Step 2 — Duplicate production as Pre-Prod
 
-1. Railway → **New Project → Empty Project**. Name it **WB ERP UAT**.
-2. **New → Database → Add PostgreSQL**.
-3. Open the database → **Settings** → rename the service to **`postgres-uat`**.
+Railway → the project → environment menu → **duplicate** production → name it **Pre-Prod**.
+Nothing deploys yet: Railway holds every change until **Deploy**, so make all of Steps 3–4
+first and deploy once.
 
-#### Step 3 — Add the app, following `uat`
+**What duplicating copies — and what that means:**
 
-1. Same project: **New → GitHub Repo → WB_ERP**.
-2. Straight away: the new service → **Settings → Source → Branch** → **`uat`**.
-
-If Railway had already started building `main` before you changed the branch, leave it:
-it has no variables yet and fails harmlessly. The next deploy uses `uat`.
-
-#### Step 4 — Variables on the UAT app service
-
-| Variable | Value |
+| Copied | Consequence |
 |---|---|
-| `DATABASE_URL` | `${{postgres-uat.DATABASE_URL}}` — exactly, including the `${{ }}` |
-| `PRISMA_PROVIDER` | `postgresql` |
-| `AUTH_SECRET` | a **new** random value, not production's — generate with the command below |
-| `ADMIN_PASSWORD` | a strong password for `admin@wandb.ae`, **not** production's |
+| The database, **with its data** | Every production user and password comes too. `ADMIN_PASSWORD` is ignored — it only sets the password when the administrator is first created. |
+| The migration history | The first deploy applies only the migrations production has not seen — a real rehearsal of the promotion |
+| Every variable, **including `AUTH_SECRET`** | Must be changed: Pre-Prod has production's user IDs, so a shared secret would let a Pre-Prod sign-in be accepted by production |
+| The source branch (`main`) | Must be changed to `uat` |
+| Saved mail settings | Unreadable once `AUTH_SECRET` changes, so Pre-Prod cannot send — which is what you want |
 
-```bash
-node -e "console.log(require('crypto').randomBytes(36).toString('base64url'))"
+#### Step 3 — WB_ERP → Variables (check the top bar says **Pre-Prod**)
+
+| Variable | Do this |
+|---|---|
+| `DATABASE_URL` | **⋮ → Edit** must show `${{Postgres.DATABASE_URL}}` |
+| `AUTH_SECRET` | **⋮ → Edit** → a new value: `node -e "console.log(require('crypto').randomBytes(36).toString('base64url'))"` |
+| `NEXT_PUBLIC_DEMO_LOGIN` | delete it if present |
+| `PRISMA_PROVIDER` | leave as `postgresql` |
+
+Showing a variable in the **Edit** box shows its template; the **eye** icon shows the
+value it resolves to. Being in the list is not the same as being changed — check the new
+value is really there.
+
+#### Step 4 — WB_ERP → Settings → Source → Branch → **`uat`**
+
+Leave **Auto deploys when pushed to GitHub** on and **Wait for CI** off.
+
+#### Step 5 — Deploy, and read the log
+
+Expected, because the database already has production's history:
+
 ```
-
-`AUTH_SECRET` signs sign-in sessions and encrypts the saved mail password. Shared between
-the two, a session from UAT could be presented to production, and a mail password saved in
-one could be read in the other.
-
-**Do not add `NEXT_PUBLIC_DEMO_LOGIN`** to either environment. It pre-fills the
-administrator's email and password on the sign-in page.
-
-#### Step 5 — Uploads disk (optional for UAT)
-
-**Settings → Volumes → New Volume**, mount path `/app/uploads`. Without it, documents
-uploaded during testing disappear on each redeploy — acceptable if nobody is testing
-document upload.
-
-#### Step 6 — Deploy, and what a good first boot looks like
-
-**Deploy**, then **Deployments → View logs**. The first boot takes a few minutes because it
-builds the whole database at once:
-
-```
-Prisma provider set to "postgresql" (railway=true, ...)
-No migration history — baselining this database.
-  marking 20260905114828_init as already applied    (one line per migration)
-Baselined. Later releases will apply migrations normally.
-Seeded tenant, companies, roles, admin, ...
+Prisma provider already "postgresql"
+Applying migrations.
+Applying migration `20260914112837_add-stock`        (one line per new migration)
+All migrations have been successfully applied.
+Seeded tenant, companies, ...
 Login:  admin@wandb.ae  (password as set in ADMIN_PASSWORD — not printed)
 ✓ Ready
 ```
 
-The password is deliberately **not** in the log. If you see one, the deployed branch is
-older than this release.
+`npm warn config production` is shown in red by Railway but is only a notice. If the
+`Login:` line shows a password, the branch is not `uat`.
 
-If you deployed before setting `ADMIN_PASSWORD`, that first log instead shows a boxed
-*"ADMIN_PASSWORD was not set, so one was generated for this install"* with a one-time
-password, and you are asked to change it at first sign-in.
+Then switch to **production** and check its branch still says `main`.
 
-#### Step 7 — Address and first sign-in
+#### Step 6 — Get into the administrator account
 
-1. **Settings → Networking → Generate Domain**.
-2. Sign in as **`admin@wandb.ae`** with the UAT `ADMIN_PASSWORD`.
+Pre-Prod's administrator has production's current password. If that is not to hand, do
+not guess: **three wrong attempts lock the account for 15 minutes**, and a locked account
+refuses even the right password. Set a new one instead, in Pre-Prod's database:
 
-#### Step 8 — Load the test data, from this machine
+1. `npm run user:password-sql` — type the new password twice (12+ characters). **Save it
+   in the password manager before using it.**
+2. Notepad opens with two queries. **Copy from Notepad, not from the terminal** — a
+   terminal wraps long lines, and copying a wrapped line can put a break into the text.
+3. Pre-Prod → **Postgres → Database → Data**: run query 1 (the `UPDATE`). This box shows
+   **"0 rows" for any update** — that is normal, not a failure.
+4. Run query 2. It must say **`hash intact`**.
+5. Sign in, **typing** the password — clear anything the browser filled in first.
 
-It runs here rather than on Railway: the server is Node 20 and the test data needs 22.6.
+The same tool works for any user in any environment. It connects to nothing; which
+database it changes is decided by where the statement is pasted.
 
-1. **`postgres-uat` → Variables** → copy **`DATABASE_PUBLIC_URL`**. If it is not listed,
-   turn on **Settings → Networking → Public Network → Enable TCP Proxy** first.
-2. Add it to `C:\Bibin\wb-erp-phase2\.env` (git-ignored) — never on the command line, never
-   in a chat:
+#### Step 7 — Give Pre-Prod its own database password
 
-   ```
-   UAT_DATABASE_URL="<paste it here>"
-   ```
+A duplicate has production's database password. Change it before Pre-Prod is ever given
+public access.
 
-3. **Stop the local dev server** on `localhost:3001` — Windows locks a file the loader
-   rebuilds.
-4. Run:
+1. `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"` — save it.
+2. **Postgres → Database → Data**: `ALTER USER postgres WITH PASSWORD 'the-new-password';`
+3. **Postgres → Variables**, each via **⋮ → Edit**:
+
+   | Variable | Value |
+   |---|---|
+   | `POSTGRES_PASSWORD` | the new password |
+   | `PGPASSWORD` | `${{POSTGRES_PASSWORD}}` |
+   | `DATABASE_URL` | `postgresql://${{PGUSER}}:${{POSTGRES_PASSWORD}}@${{RAILWAY_PRIVATE_DOMAIN}}:5432/${{PGDATABASE}}` |
+
+4. **Deploy — and then redeploy WB_ERP too** (Deployments → ⋮ → Redeploy). Skipping
+   this is what produces *"Application error: a server-side exception has occurred"*:
+   the app is still running with the old password, and Postgres's restart dropped the
+   connections it had.
+5. Check WB_ERP's log shows `No pending migrations to apply` and `✓ Ready`.
+
+#### Step 8 — Load the test data (from this PC)
+
+The server is Node 20; the loader needs 22.6, so it runs here, over the internet.
+
+1. Pre-Prod → **Postgres → Settings → Networking → Public Access** → on.
+2. **Postgres → Database → Connect → Public Network** → copy the connection URL. It must
+   start `postgresql://postgres:` and contain **no `${{`** — that would be the template
+   from the Edit box, not the address.
+3. In `C:\Bibin\wb-erp-phase2\.env`: `UAT_DATABASE_URL="<paste>"`
+4. **Stop the local dev server** (`localhost:3001`). It holds a file Prisma must replace,
+   and the load fails with `EPERM … query_engine` otherwise.
+5. Run the loader **with `node` directly** — in PowerShell, `npm run … --` can drop the
+   arguments after the `--`:
 
    ```bash
-   npm run db:demo:uat
+   node scripts/demo-data-uat.mjs
    ```
 
-   It refuses the first time and prints the exact command, with the database's host and
-   port filled in. Check the host is the UAT database, then run what it printed. That
-   confirmation is the safety catch: test data goes into a database only after somebody
-   has typed which one. It refuses production outright.
-5. It puts this machine back to SQLite when it finishes. Start the dev server again with
-   `npm run dev`.
+   It prints the database's host and port and the exact command to confirm with. Check the
+   host matches Public Access, then run that command on one line.
+6. **It takes about 45 minutes** — every receipt and issue is a few dozen round trips
+   to Railway, roughly ten seconds each. It prints nothing during long stretches.
+   Interrupting is safe: the next run clears what it wrote first.
+7. When it prints `Wrote 459 rows of test data`: **turn Public Access off**, and start the
+   dev server again if you want it.
 
-What goes in, all in **WBE — WB Engineering**, all coded `T-…` or marked `[test data]`:
-4 stores and 13 bins, 24 items, 11 suppliers and customers with contacts, four months of
-receipts, issues and transfers, requests and orders at every status, RFQs with competing
-quotes, equipment in and out of calibration, returns from site, 14 enquiries across the
-pipeline, 8 estimates and 7 quotations.
+Loaded on 16 September 2026 and checked: trial balance 0.00, 159 of 167 movements
+with a voucher (the other 8 are transfers, which post none), no negative stock, all
+seven quotation statuses and all eight pipeline stages present, all in **WBE**.
 
 #### Step 9 — Logins for the testers
 
 **Users & Roles** → one user per person, on the role they actually do. Nobody tests as the
 administrator: a screen that works for Group Admin can still be refused to the storekeeper,
-and that is exactly what UAT is for finding.
+and finding that is what UAT is for.
+
+#### Still to do on production
+
+Production's **database password** is the one Pre-Prod was created with, and it was shared
+in a chat on 16 September 2026. Production has no public access, so it cannot be reached
+from the internet with it — but change it with Step 7's procedure, **including the WB_ERP
+redeploy**, before real client data goes in.
 
 ---
 
@@ -503,7 +524,7 @@ When a set of changes is ready for the client to test, from `C:\Bibin\wb-erp-pha
 git push origin phase-2:uat
 ```
 
-UAT redeploys on its own and applies any new migrations. `uat` is only ever pushed from
+Pre-Prod redeploys on its own and applies any new migrations. `uat` is only ever pushed from
 phase 2, so it never has anything phase 2 lacks. If git ever answers
 *"rejected (non-fast-forward)"*, somebody pushed to `uat` from somewhere else: run
 `git fetch origin` and `git merge origin/uat`, check what arrived, then push again.
@@ -517,7 +538,7 @@ tested, push it to `uat` only once you are content for both to reach production 
 
 Work through these in order. Each one exists because skipping it has a specific cost.
 
-1. **Client sign-off.** Who, on which build, on what date. UAT's **Deployments** tab shows
+1. **Client sign-off.** Who, on which build, on what date. Pre-Prod's **Deployments** tab shows
    the commit that was tested — write it down.
 2. **Read what is shipping.** From `C:\Bibin\wb-erp`:
 
@@ -559,7 +580,7 @@ Work through these in order. Each one exists because skipping it has a specific 
    The phase 2 release applies 13 migrations.
 8. **Check it by hand.** Sign in; open Finance, HR, Stores and CRM; confirm one company's
    trial balance still balances.
-9. **If it has gone wrong:** production project → **Deployments** → the deployment before
+9. **If it has gone wrong:** production environment → WB_ERP → **Deployments** → the deployment before
    this one → **Redeploy**. Rehearsed: the previous version boots against the newer
    database with *"No pending migrations to apply"*, because phase 2's migrations only add
    tables, and columns on tables of their own — none alter or remove anything phase 1
@@ -593,7 +614,7 @@ a UAT without the fix must not replace a production that has it.
 - **Email.** Leave **Settings → Email** unset in UAT unless you are testing sending, and
   then point it at a test mailbox — never the live Outlook. The test customers' `.test`
   addresses deliver nowhere, but an address a tester types in is real.
-- **Remove the test data:** `npm run db:demo:uat -- --confirm-host=<host:port> --clean`
+- **Remove the test data:** `node scripts/demo-data-uat.mjs --confirm-host=<host:port> --clean`
 - **The enquiry page that returns 500 locally** works on UAT. That crash belongs to the
   development server on Windows, not the application.
 

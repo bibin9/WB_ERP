@@ -294,7 +294,7 @@ Two worktrees, one repository, and two Railway environments.
 | | Folder | Branch | Port | Deploys to |
 |---|---|---|---|---|
 | Production | `C:\Bibin\wb-erp` | `main` | 3000 | **WB ERP production** — the client's live system |
-| UAT | *(no folder)* | `uat` | — | **WB ERP UAT** — the client's testers, test data only |
+| UAT | *(no folder)* | `uat` | — | **Pre-Prod** environment (wberp-pre-prod.up.railway.app) — testers, test data |
 | Phase 2 | `C:\Bibin\wb-erp-phase2` | `phase-2` | 3001 | Nothing directly |
 
 Work reaches the client in two steps. Phase 2 is pushed to `uat`
@@ -306,8 +306,11 @@ anything UAT never tested. `phase-2` itself keeps no upstream, so a bare
 The full procedure — setup, promotion checklist, rollback and hotfixes — is in
 **DEPLOY.md, *UAT and production***.
 
-As of 16 September 2026 the `uat` branch and the UAT project do not exist yet;
-DEPLOY.md's one-time setup creates them.
+Set up on 16 September 2026: `uat` pushed, Pre-Prod duplicated from production
+(which held dummy data), given its own `AUTH_SECRET`, admin password and database
+password, and loaded with the test data. Production's database password still has to
+be changed before real client data goes in — see DEPLOY.md, *Still to do on
+production*.
 
 A phase-1 bug is fixed from the `main` worktree, never from this one. That
 matters most for migrations: the authoring script diffs against a snapshot

@@ -86,7 +86,8 @@ if (!confirm) {
   console.error(
     `\nThis writes test data into ${hostPort(url)}.\n` +
       "If that is the UAT database, run it again saying so:\n\n" +
-      `  npm run db:demo:uat -- --confirm-host=${hostPort(url)}\n`,
+      // node directly: PowerShell can drop what follows `npm run … --`.
+      `  node scripts/demo-data-uat.mjs --confirm-host=${hostPort(url)}\n`,
   );
   process.exit(1);
 }

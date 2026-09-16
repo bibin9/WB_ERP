@@ -1094,7 +1094,10 @@ try {
       : `\nWrote ${made} rows of test data, all marked "${MARK}" or coded "${P}…".\n` +
           // The command that undoes it depends on where it was loaded.
           (process.env.TEST_DATA_CONFIRM_HOST
-            ? `Remove it with:  npm run db:demo:uat -- --confirm-host=${process.env.TEST_DATA_CONFIRM_HOST} --clean\n`
+            // node directly rather than `npm run … --`: PowerShell can drop
+            // everything after the `--`, which is how a confirmed run once
+            // arrived with no confirmation on it.
+            ? `Remove it with:  node scripts/demo-data-uat.mjs --confirm-host=${process.env.TEST_DATA_CONFIRM_HOST} --clean\n`
             : `Remove it with:  npm run db:demo:clean\n`),
   );
 } catch (err) {
