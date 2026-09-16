@@ -89,6 +89,10 @@ ok("a user with no access sees no reports", visibleReports([]).length === 0);
     ["bounced", "cheques"],
     ["budget", "jobs"],
     ["fta", "vat"],
+    ["late", "purchase-orders"],
+    ["scrap", "site-returns"],
+    ["win", "quotations"],
+    ["inspection", "supplier-performance"],
   ]) {
     const hits = searchReports(all, term).map((r) => r.key);
     ok(`searching "${term}" finds ${key}`, hits.includes(key), hits.join(", ") || "nothing");

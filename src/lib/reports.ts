@@ -2,7 +2,8 @@ import {
   Scale, FileBarChart, Clock, HardHat, Building2, Receipt, Percent,
   ShieldAlert, BadgeCheck, Wallet, CalendarCheck, Banknote, Lock, Landmark,
   BookOpen, ScrollText, Users, TrendingUp, Timer, AlarmClock, UsersRound, HandCoins, ClipboardList,
-  Boxes, Wrench, Compass, type LucideIcon,
+  Boxes, Wrench, Compass, Target, Calculator, FileText, ShoppingCart, Truck, ClipboardCheck, ArrowLeftRight, Undo2, MessageSquareQuote,
+  type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -44,6 +45,7 @@ export const REPORT_AREAS = [
   "Performance",
   "Jobs and sites",
   "Winning work",
+  "Buying and stores",
   "People",
   "Tax and statutory",
   "Records",
@@ -55,6 +57,53 @@ export const REPORTS: ReportDef[] = [
     key: "enquiry-sources", label: "Where the Work Comes From", href: "/crm/sources",
     screen: "crm.leads", module: "crm", area: "Winning work",
     question: "Which sources bring in work we actually win, and why do we lose the rest?", icon: Compass,
+  },
+  {
+    key: "pipeline", label: "Enquiry Pipeline", href: "/crm",
+    screen: "crm.leads", module: "crm", area: "Winning work",
+    question: "What work are we chasing, at what stage, and what is the pipeline really worth once weighted for its chances?", icon: Target,
+  },
+  {
+    key: "estimates", label: "Estimates & Margins", href: "/crm/estimates",
+    screen: "crm.estimates", module: "crm", area: "Winning work",
+    question: "What margin is each job being priced at before it goes to the customer?", icon: Calculator,
+  },
+  {
+    key: "quotations", label: "Quotations & Hit Rate", href: "/crm/quotations",
+    screen: "crm.quotations", module: "crm", area: "Winning work",
+    question: "How much of what we quote do we actually win, and which quotes are still waiting on an answer?", icon: FileText,
+  },
+
+  // ===== Buying and stores =====
+  {
+    key: "purchase-orders", label: "Purchase Orders", href: "/inventory/orders",
+    screen: "inventory.orders", module: "inventory", area: "Buying and stores",
+    question: "What have we committed to suppliers, what is still to arrive, and which deliveries are late?", icon: ShoppingCart,
+  },
+  {
+    key: "supplier-performance", label: "Supplier Performance", href: "/inventory/vendors",
+    screen: "inventory.vendors", module: "inventory", area: "Buying and stores",
+    question: "Which suppliers deliver on time and in full, and whose material fails inspection?", icon: Truck,
+  },
+  {
+    key: "material-requests", label: "Material Requests", href: "/inventory/requests",
+    screen: "inventory.requests", module: "inventory", area: "Buying and stores",
+    question: "What has site asked for, and what is still waiting for approval or short on the shelf?", icon: ClipboardCheck,
+  },
+  {
+    key: "enquiries", label: "Supplier Enquiries (RFQ)", href: "/inventory/rfq",
+    screen: "inventory.rfq", module: "inventory", area: "Buying and stores",
+    question: "Have enough suppliers been asked for a price, who has not replied, and who won?", icon: MessageSquareQuote,
+  },
+  {
+    key: "stock-movements", label: "Receipts, Issues & Transfers", href: "/inventory/movements",
+    screen: "inventory.movements", module: "inventory", area: "Buying and stores",
+    question: "What came in, what went out to which job, and what is still waiting for inspection?", icon: ArrowLeftRight,
+  },
+  {
+    key: "site-returns", label: "Returns from Site", href: "/inventory/returns",
+    screen: "inventory.returns", module: "inventory", area: "Buying and stores",
+    question: "What material came back from site, and how much of it was scrap?", icon: Undo2,
   },
 
   // ===== Money in / money out =====
