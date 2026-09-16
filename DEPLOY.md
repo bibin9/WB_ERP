@@ -326,170 +326,286 @@ Now that a schema change is reviewed before it ships and applied by
 `migrate deploy`, auto-deploy is safe to turn back on (Settings → Source). A bad
 migration fails on its own rather than stopping the server from starting.
 
-## A UAT instance for phase 2
+## UAT and production
 
-A second, completely separate copy of the system running the `phase-2` branch, with
-test data in it, so the storekeeper, the buyer, the estimator and sales can use the new
-screens before any of it goes near the client's live system. About 30 minutes, most of
-it waiting for the first boot.
+Two permanent copies of the system. Every phase goes through the first before it
+reaches the second.
 
-**Two rules the steps below are built around.**
+```
+ phase work            phase-2, phase-3 ...            C:\Bibin\wb-erp-phase2
+      |
+      |  ready for the client to test:   git push origin phase-2:uat
+      v
+ uat branch  ------>  WB ERP UAT  (Railway)      test data, the client's testers
+      |
+      |  client signs off:   fast-forward main to uat
+      v
+ main branch ------>  WB ERP production          the client's live data
+```
 
-- **A separate Railway project, not a second service inside the production project.**
-  Inside one project, `${{Postgres.DATABASE_URL}}` can resolve to the *production*
-  database, and one mistyped reference points UAT at the client's data. In its own
-  project there is no production database for it to find.
-- **The `phase-2` branch is pushed, never merged.** Production follows `main`. Pushing a
-  different branch puts it on GitHub and nowhere else — there are no GitHub Actions in
-  this repository, so nothing runs on the push.
+**Four rules the setup is built around.**
+
+1. **Two separate Railway projects, not two services in one.** Membership of a Railway
+   project is the access boundary: a tester or developer can be added to UAT without
+   seeing production's variables or its logs — and until this release, production's logs
+   held the administrator password. A reference like `${{Postgres.DATABASE_URL}}` also
+   only ever resolves inside its own project, so UAT cannot be pointed at production's
+   database by a mistyped name.
+2. **Production receives only what UAT tested.** Promotion is a fast-forward of `main` to
+   `uat`. If production has anything UAT never had, git refuses the promotion rather than
+   quietly combining the two.
+3. **UAT never holds a copy of production data.** Production has passports, Emirates IDs,
+   salaries and IBANs. UAT gets the seed and the marked test data, nothing else.
+4. **Nothing is shared between them:** different `AUTH_SECRET`, different
+   `ADMIN_PASSWORD`, different users, different mail settings.
 
 > You create the accounts and type every password and secret into Railway yourself.
 > None of them should ever be pasted into a chat — including with me.
 
-### Step 0 — Check production is following `main`, then push the branch
+---
 
-1. Open the **production** project in Railway → the app service → **Settings → Source**.
-   The branch must say **`main`**. If it says anything else, stop here.
-2. On this machine, from `C:\Bibin\wb-erp-phase2`:
+### One-time setup
 
-   ```bash
-   git push -u origin phase-2
-   ```
+Production already exists and stays exactly as it is. This adds UAT beside it.
 
-### Step 1 — A new project, with its database first
+#### Step 0 — Confirm production follows `main`
+
+Production project → app service → **Settings → Source**. The branch must say **`main`**.
+If it says anything else, stop here.
+
+#### Step 1 — Create the `uat` branch on GitHub
+
+From `C:\Bibin\wb-erp-phase2`:
+
+```bash
+git push origin phase-2:uat
+```
+
+This creates `uat` on GitHub from phase 2. It deliberately does **not** give `phase-2` an
+upstream, so a bare `git push` from that folder still fails rather than going somewhere
+unexpected. There are no GitHub Actions in this repository, so nothing runs on the push,
+and production follows `main`, so production does not see it.
+
+#### Step 2 — A new project, database first
 
 1. Railway → **New Project → Empty Project**. Name it **WB ERP UAT**.
 2. **New → Database → Add PostgreSQL**.
-3. Open that database → **Settings** → rename the service to **`postgres-uat`**.
+3. Open the database → **Settings** → rename the service to **`postgres-uat`**.
 
-The database comes first so that when the app is added it has something to point at.
+#### Step 3 — Add the app, following `uat`
 
-### Step 2 — Add the app, on the `phase-2` branch
+1. Same project: **New → GitHub Repo → WB_ERP**.
+2. Straight away: the new service → **Settings → Source → Branch** → **`uat`**.
 
-1. In the same project: **New → GitHub Repo → WB_ERP**.
-2. Straight away: the new service → **Settings → Source → Branch** → choose **`phase-2`**.
+If Railway had already started building `main` before you changed the branch, leave it:
+it has no variables yet and fails harmlessly. The next deploy uses `uat`.
 
-If Railway has already started building `main` before you changed the branch, leave it —
-it has no variables yet and will fail harmlessly. The next deploy uses `phase-2`.
-
-### Step 3 — Variables on the app service
-
-App service → **Variables**:
+#### Step 4 — Variables on the UAT app service
 
 | Variable | Value |
 |---|---|
 | `DATABASE_URL` | `${{postgres-uat.DATABASE_URL}}` — exactly, including the `${{ }}` |
 | `PRISMA_PROVIDER` | `postgresql` |
-| `AUTH_SECRET` | a **new** random value — not production's. Generate one on this machine with the command below |
-| `ADMIN_PASSWORD` | a strong password for `admin@wandb.ae` — **not** production's |
+| `AUTH_SECRET` | a **new** random value, not production's — generate with the command below |
+| `ADMIN_PASSWORD` | a strong password for `admin@wandb.ae`, **not** production's |
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(36).toString('base64url'))"
 ```
 
-**Why `AUTH_SECRET` must differ from production:** it signs sign-in sessions and encrypts
-the saved mail server password. Shared between the two, a session from UAT could be
-presented to production, and a mail password saved in one could be read by the other.
+`AUTH_SECRET` signs sign-in sessions and encrypts the saved mail password. Shared between
+the two, a session from UAT could be presented to production, and a mail password saved in
+one could be read in the other.
 
-**Do not add `NEXT_PUBLIC_DEMO_LOGIN`.** It pre-fills the administrator's email and
-password on the sign-in page, which is fine on a laptop and not on a URL anybody can open.
+**Do not add `NEXT_PUBLIC_DEMO_LOGIN`** to either environment. It pre-fills the
+administrator's email and password on the sign-in page.
 
-### Step 4 — Uploads disk (optional for UAT)
+#### Step 5 — Uploads disk (optional for UAT)
 
-**Settings → Volumes → New Volume**, mount path `/app/uploads`. Without it, employee
-documents uploaded during testing disappear on each redeploy — acceptable for UAT if
-nobody is testing document upload.
+**Settings → Volumes → New Volume**, mount path `/app/uploads`. Without it, documents
+uploaded during testing disappear on each redeploy — acceptable if nobody is testing
+document upload.
 
-### Step 5 — Deploy, and what a good first boot looks like
+#### Step 6 — Deploy, and what a good first boot looks like
 
-**Deploy**, then open **Deployments → View logs**. The first boot is slow — a few minutes
-— because it builds the whole database at once. In order, you should see:
+**Deploy**, then **Deployments → View logs**. The first boot takes a few minutes because it
+builds the whole database at once:
 
 ```
 Prisma provider set to "postgresql" (railway=true, ...)
 No migration history — baselining this database.
-  marking 20260905114828_init as already applied    (37 of these)
+  marking 20260905114828_init as already applied    (one line per migration)
 Baselined. Later releases will apply migrations normally.
 Seeded tenant, companies, roles, admin, ...
 Login:  admin@wandb.ae  (password as set in ADMIN_PASSWORD — not printed)
 ✓ Ready
 ```
 
-The password is deliberately **not** in the log. If you see one there, stop — the branch
-deployed is not `phase-2`.
+The password is deliberately **not** in the log. If you see one, the deployed branch is
+older than this release.
 
-If you deployed before setting `ADMIN_PASSWORD`, the first deploy's log instead shows a
-boxed *"ADMIN_PASSWORD was not set, so one was generated for this install"* with a
-one-time password, and you will be asked to change it at first sign-in.
+If you deployed before setting `ADMIN_PASSWORD`, that first log instead shows a boxed
+*"ADMIN_PASSWORD was not set, so one was generated for this install"* with a one-time
+password, and you are asked to change it at first sign-in.
 
-### Step 6 — Get the address and sign in
+#### Step 7 — Address and first sign-in
 
-1. App service → **Settings → Networking → Generate Domain**.
-2. Open it and sign in as **`admin@wandb.ae`** with your `ADMIN_PASSWORD`.
-3. Check Stores, Buying and CRM open. They will be mostly empty until Step 7.
+1. **Settings → Networking → Generate Domain**.
+2. Sign in as **`admin@wandb.ae`** with the UAT `ADMIN_PASSWORD`.
 
-### Step 7 — Load the test data, from this machine
+#### Step 8 — Load the test data, from this machine
 
-The test data runs here rather than on Railway: the server is built on Node 20, and the
-test data needs Node 22.6, which this machine has.
+It runs here rather than on Railway: the server is Node 20 and the test data needs 22.6.
 
-1. Railway → **`postgres-uat`** → **Variables** → copy **`DATABASE_PUBLIC_URL`**.
-   If it is not listed, first turn on **Settings → Networking → Public Network → Enable TCP Proxy**.
-2. Open `C:\Bibin\wb-erp-phase2\.env` (git-ignored) and add a line:
+1. **`postgres-uat` → Variables** → copy **`DATABASE_PUBLIC_URL`**. If it is not listed,
+   turn on **Settings → Networking → Public Network → Enable TCP Proxy** first.
+2. Add it to `C:\Bibin\wb-erp-phase2\.env` (git-ignored) — never on the command line, never
+   in a chat:
 
    ```
    UAT_DATABASE_URL="<paste it here>"
    ```
 
-3. **Stop the local dev server** on `localhost:3001` — Windows locks a database file the
-   loader has to rebuild.
+3. **Stop the local dev server** on `localhost:3001` — Windows locks a file the loader
+   rebuilds.
 4. Run:
 
    ```bash
    npm run db:demo:uat
    ```
 
-   It refuses the first time and prints the exact command to run, with the database's
-   host and port filled in. Read the host, check it is the UAT database, and run what it
-   printed. That confirmation is the safety catch: test data is written into a database
-   only after somebody has typed which one.
-5. When it finishes it puts this machine back to SQLite. Start the dev server again:
+   It refuses the first time and prints the exact command, with the database's host and
+   port filled in. Check the host is the UAT database, then run what it printed. That
+   confirmation is the safety catch: test data goes into a database only after somebody
+   has typed which one. It refuses production outright.
+5. It puts this machine back to SQLite when it finishes. Start the dev server again with
+   `npm run dev`.
+
+What goes in, all in **WBE — WB Engineering**, all coded `T-…` or marked `[test data]`:
+4 stores and 13 bins, 24 items, 11 suppliers and customers with contacts, four months of
+receipts, issues and transfers, requests and orders at every status, RFQs with competing
+quotes, equipment in and out of calibration, returns from site, 14 enquiries across the
+pipeline, 8 estimates and 7 quotations.
+
+#### Step 9 — Logins for the testers
+
+**Users & Roles** → one user per person, on the role they actually do. Nobody tests as the
+administrator: a screen that works for Group Admin can still be refused to the storekeeper,
+and that is exactly what UAT is for finding.
+
+---
+
+### Everyday: putting work in front of the client
+
+When a set of changes is ready for the client to test, from `C:\Bibin\wb-erp-phase2`:
+
+```bash
+git push origin phase-2:uat
+```
+
+UAT redeploys on its own and applies any new migrations. `uat` is only ever pushed from
+phase 2, so it never has anything phase 2 lacks. If git ever answers
+*"rejected (non-fast-forward)"*, somebody pushed to `uat` from somewhere else: run
+`git fetch origin` and `git merge origin/uat`, check what arrived, then push again.
+
+**UAT is promoted as a whole.** If a later phase starts while an earlier one is still being
+tested, push it to `uat` only once you are content for both to reach production together.
+
+---
+
+### Promoting UAT to production
+
+Work through these in order. Each one exists because skipping it has a specific cost.
+
+1. **Client sign-off.** Who, on which build, on what date. UAT's **Deployments** tab shows
+   the commit that was tested — write it down.
+2. **Read what is shipping.** From `C:\Bibin\wb-erp`:
 
    ```bash
-   npm run dev
+   git fetch origin
+   git log --oneline main..origin/uat
    ```
 
-What goes in: 4 stores and 13 bins, 24 items, 11 suppliers and customers with contacts,
-four months of receipts, issues and transfers, requests and orders at every status,
-RFQs with competing quotes, equipment with calibration in and out of date, returns from
-site, 14 enquiries across the pipeline, 8 estimates and 7 quotations. Everything is coded
-`T-…` or marked `[test data]`, and all of it lands in **WBE — WB Engineering**.
+   The top line should be the commit the client signed off.
+3. **Rehearse the database change.** From `C:\Bibin\wb-erp-phase2`, with it at the
+   signed-off commit:
 
-### Step 8 — Logins for the testers
+   ```bash
+   git fetch origin
+   MERGE_BASE_REF=origin/main npm run db:rehearse-merge
+   ```
 
-**Users & Roles** → one user per person testing, on the role they actually do. Nobody
-tests as the administrator: a screen that works for Group Admin can still be refused to
-the storekeeper, and that is exactly what UAT is for finding.
+   It builds a database the way production's is, applies every migration production has
+   not seen, and fails if any data went missing. It must pass.
+4. **Decide anything that changes production's data on first boot.** For the phase 2
+   release: the seed adds **six accounts to each company's chart of accounts** (stock and
+   work in progress).
+5. **Back up production.** From `C:\Bibin\wb-erp`: `npm run db:backup` — see BACKUP.md. The backup contains
+   passports, salaries and IBANs: it stays in `backups/`, which is git-ignored, and is
+   never emailed or pasted.
+6. **Promote**, from `C:\Bibin\wb-erp`:
 
-### Living with it
+   ```bash
+   git fetch origin
+   git merge --ff-only origin/uat
+   git push origin main
+   ```
 
-- **Every push to `phase-2` redeploys UAT.** Production is not touched.
-- **Email.** Leave **Settings → Email** unset in UAT unless you are testing sending. The
-  test customers have `.test` addresses that deliver nowhere — but an address somebody
-  types in during testing is real.
-- **Remove the test data:**
-  `npm run db:demo:uat -- --confirm-host=<host:port> --clean`
-- **The enquiry page that 500s locally** does not on UAT. That crash belongs to the
-  development server on Windows, not to the application.
-- **Finished with it:** delete the WB ERP UAT project. Nothing in production depends on it.
+   If `--ff-only` refuses, **stop**. Production has something UAT never tested — a hotfix
+   that was not merged back. Bring it into UAT (see *Hotfixes*), let the client re-check,
+   and start this list again.
+7. **Watch production's deploy log.** Expect `Applying migrations.`, then each new
+   migration by name, the seed, the login line **without** a password, and `✓ Ready`.
+   The phase 2 release applies 13 migrations.
+8. **Check it by hand.** Sign in; open Finance, HR, Stores and CRM; confirm one company's
+   trial balance still balances.
+9. **If it has gone wrong:** production project → **Deployments** → the deployment before
+   this one → **Redeploy**. Rehearsed: the previous version boots against the newer
+   database with *"No pending migrations to apply"*, because phase 2's migrations only add
+   tables, and columns on tables of their own — none alter or remove anything phase 1
+   uses. The new tables stay, unused, until the fix is promoted.
+
+---
+
+### Hotfixes
+
+For something broken in production that cannot wait for a UAT round:
+
+1. Fix it in `C:\Bibin\wb-erp` on `main`, run the tests, push. Production deploys.
+2. Straight after, bring the fix into phase 2, from `C:\Bibin\wb-erp-phase2`:
+
+   ```bash
+   git fetch origin
+   git merge origin/main
+   ```
+
+3. Put it into UAT with your **next normal push** to `uat` — not before, if phase 2 has
+   work in it that is not ready for the client. A hotfix is no reason to put half-finished
+   work in front of testers.
+
+Until UAT has the fix, promotion is refused by `--ff-only`. That refusal is on purpose:
+a UAT without the fix must not replace a production that has it.
+
+---
+
+### Living with UAT
+
+- **Email.** Leave **Settings → Email** unset in UAT unless you are testing sending, and
+  then point it at a test mailbox — never the live Outlook. The test customers' `.test`
+  addresses deliver nowhere, but an address a tester types in is real.
+- **Remove the test data:** `npm run db:demo:uat -- --confirm-host=<host:port> --clean`
+- **The enquiry page that returns 500 locally** works on UAT. That crash belongs to the
+  development server on Windows, not the application.
 
 ### If something goes wrong
 
 | What you see | What it means |
 |---|---|
-| `EPERM: operation not permitted, rename ... query_engine` | The local dev server is still running. Stop it and run the loader again. |
+| `EPERM: operation not permitted, rename ... query_engine` | The local dev server is still running. Stop it, run the loader again. |
 | `You confirmed ..., but the database this is pointed at is ...` | `UAT_DATABASE_URL` in `.env` is not the database you think. Copy it again. |
-| `UAT_DATABASE_URL points at production` | It is the production database. Do not work round this. |
+| `UAT_DATABASE_URL points at production` | It is production's database. Do not work round this. |
+| `! [rejected] phase-2 -> uat (non-fast-forward)` | Something was pushed to `uat` from outside phase 2. `git fetch origin`, `git merge origin/uat`, check it, push again. |
+| `fatal: Not possible to fast-forward, aborting.` during promotion | Production has a change UAT never tested — usually a hotfix not yet pushed to `uat`. See *Hotfixes*. |
 | Sign-in fails with the password you set | `ADMIN_PASSWORD` is used only when the administrator is first created. If the first deploy ran without it, use the generated one from that deploy's log. |
 | First boot still going after 10 minutes | Open the log. A migration error stops there with its reason. |
 

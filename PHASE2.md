@@ -289,15 +289,25 @@ These need doing in production and no amount of development replaces them.
 
 ## How this branch works
 
-Two worktrees, one repository.
+Two worktrees, one repository, and two Railway environments.
 
-| | Folder | Branch | Port | Reaches the client |
+| | Folder | Branch | Port | Deploys to |
 |---|---|---|---|---|
-| Phase 1 | `C:\Bibin\wb-erp` | `main` | 3000 | Yes, on push |
-| Phase 2 | `C:\Bibin\wb-erp-phase2` | `phase-2` | 3001 | No |
+| Production | `C:\Bibin\wb-erp` | `main` | 3000 | **WB ERP production** — the client's live system |
+| UAT | *(no folder)* | `uat` | — | **WB ERP UAT** — the client's testers, test data only |
+| Phase 2 | `C:\Bibin\wb-erp-phase2` | `phase-2` | 3001 | Nothing directly |
 
-Railway is connected to `main` only, with auto-deploy on push, so a phase-2
-push cannot reach production.
+Work reaches the client in two steps. Phase 2 is pushed to `uat`
+(`git push origin phase-2:uat`) when it is ready to be tested; once the client
+signs off, `main` is fast-forwarded to `uat`, which refuses if production has
+anything UAT never tested. `phase-2` itself keeps no upstream, so a bare
+`git push` from this folder fails rather than going anywhere.
+
+The full procedure — setup, promotion checklist, rollback and hotfixes — is in
+**DEPLOY.md, *UAT and production***.
+
+As of 16 September 2026 the `uat` branch and the UAT project do not exist yet;
+DEPLOY.md's one-time setup creates them.
 
 A phase-1 bug is fixed from the `main` worktree, never from this one. That
 matters most for migrations: the authoring script diffs against a snapshot
