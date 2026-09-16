@@ -492,6 +492,21 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "Wastage is asked for on each takeoff line rather than added once at the end, because it differs by material — five per cent on a cable drum is a rounding error, five per cent on structural steel is a week of somebody's wages.",
   },
   {
+    id: "crm-sources", category: "CRM & Estimation", screens: ["/crm/sources"],
+    title: "Where the work comes from, and why it is lost",
+    summary: "Which sources bring in work you actually win, and the reasons you lose the rest.",
+    body: "Every enquiry records where it came from, and every loss records why and to whom. This is the page that reads them back. Sources are ranked by what each has WON, not by how many enquiries it produced \u2014 a tender portal will always win on volume, and volume is not what pays wages. A win rate is deliberately withheld until five enquiries from that source have actually been decided: one win out of two is not a fifty per cent channel, and a percentage printed beside a number that small will be quoted in a meeting as though it were. The two rows nobody wants to see are the useful ones. \"Not recorded\" counts enquiries logged with no source, and \"Nothing was said\" counts losses with no reason \u2014 both are shown rather than hidden, because if either is large the honest reading is not that the channels are performing as shown, it is that the answer is not known yet.",
+    steps: [
+      "Open CRM and Estimation, then All reports, then Where the Work Comes From.",
+      "Read the top line first. It names the source that has won the most work and what share of everything won that is.",
+      "In the table, Won value is the column that matters. Enquiries only tells you where the noise comes from.",
+      "Where the win rate says \"too few\", not enough has been decided yet for a percentage to mean anything. Leave it alone rather than quoting it.",
+      "Below, Why work was lost groups the reasons by value, so the expensive reason leads rather than the most frequent one.",
+      "Who took the work adds up the rivals. The same two or three names usually account for most of it.",
+    ],
+    tip: "If the \"Not recorded\" row is large, fix that before drawing any conclusion from the rest of the table. A source nobody filled in is not a source that performed badly \u2014 it is a question that was never asked.",
+  },
+  {
     id: "crm-pipeline", category: "CRM & Estimation", screens: ["/crm"],
     title: "The sales pipeline, and what it is really worth",
     summary: "A board of where every enquiry has got to, weighted honestly.",

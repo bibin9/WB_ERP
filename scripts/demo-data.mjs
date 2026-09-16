@@ -770,26 +770,32 @@ async function build() {
   tally("material returns from site, posted through the rules", returns);
 
   /* --- enquiries, right across the pipeline -------------------------------- */
+  // Sources must be ones the form actually offers, or the report groups rows
+  // nobody could have created.
+  const ALLOWED_SOURCES = ["Existing customer", "Referral", "Tender portal", "Consultant", "Cold approach", "Website"];
   const LEADS = [
-    ["Tank farm earthing upgrade", "CUS-ADNOC", 480000, "Site visit", "Tender"],
+    ["Tank farm earthing upgrade", "CUS-ADNOC", 480000, "Site visit", "Tender portal"],
     ["Cable replacement, substation 4", "CUS-EMSTL", 265000, "Qualifying", "Existing customer"],
     ["Pipe rack fabrication, phase 2", "CUS-DPORT", 1250000, "Estimating", "Referral"],
-    ["Fire water line refurbishment", "CUS-SHJWT", 720000, "Quoted", "Tender"],
-    ["Workshop lighting replacement", "CUS-JEBEL", 95000, "Negotiating", "Cold call"],
+    ["Fire water line refurbishment", "CUS-SHJWT", 720000, "Quoted", "Tender portal"],
+    ["Workshop lighting replacement", "CUS-JEBEL", 95000, "Negotiating", "Cold approach"],
     ["Instrument tubing, unit 12", "CUS-ADNOC", 310000, "New", "Existing customer"],
-    ["Structural steel walkways", "CUS-EMSTL", 540000, "Estimating", "Tender"],
+    ["Structural steel walkways", "CUS-EMSTL", 540000, "Estimating", "Tender portal"],
     ["Jetty crane power supply", "CUS-DPORT", 880000, "Negotiating", "Existing customer"],
-    ["Pump house MCC replacement", "CUS-SHJWT", 430000, "Quoted", "Tender"],
+    ["Pump house MCC replacement", "CUS-SHJWT", 430000, "Quoted", "Tender portal"],
     ["Painting and insulation, tank 7", "CUS-JEBEL", 175000, "Qualifying", "Referral"],
     ["Emergency shutdown valve tie-ins", "CUS-ADNOC", 660000, "Site visit", "Existing customer"],
     ["Compressor house HVAC ducting", "CUS-EMSTL", 240000, "New", "Website"],
-    ["Effluent pipeline, 600m", "CUS-SHJWT", 1400000, "Negotiating", "Tender"],
-    ["Warehouse mezzanine steelwork", "CUS-JEBEL", 385000, "Lost", "Cold call"],
+    ["Effluent pipeline, 600m", "CUS-SHJWT", 1400000, "Negotiating", "Tender portal"],
+    ["Warehouse mezzanine steelwork", "CUS-JEBEL", 385000, "Lost", "Cold approach"],
   ];
 
   const leadIds = {};
   let leads = 0, interactions = 0, visits = 0;
   for (const [title, customer, value, stage, source] of LEADS) {
+    if (!ALLOWED_SOURCES.includes(source)) {
+      throw new Error(`"${source}" is not a source the enquiry form offers. Use one of: ${ALLOWED_SOURCES.join(", ")}`);
+    }
     const party = parties[customer];
     const contact = await db.partyContact.findFirst({ where: { partyId: party.id, isPrimary: true } });
     const res = await createLead({

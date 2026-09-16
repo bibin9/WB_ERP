@@ -2,7 +2,7 @@ import {
   Scale, FileBarChart, Clock, HardHat, Building2, Receipt, Percent,
   ShieldAlert, BadgeCheck, Wallet, CalendarCheck, Banknote, Lock, Landmark,
   BookOpen, ScrollText, Users, TrendingUp, Timer, AlarmClock, UsersRound, HandCoins, ClipboardList,
-  Boxes, Wrench, type LucideIcon,
+  Boxes, Wrench, Compass, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -43,12 +43,20 @@ export const REPORT_AREAS = [
   "Money coming in and going out",
   "Performance",
   "Jobs and sites",
+  "Winning work",
   "People",
   "Tax and statutory",
   "Records",
 ] as const;
 
 export const REPORTS: ReportDef[] = [
+  // ===== Winning work =====
+  {
+    key: "enquiry-sources", label: "Where the Work Comes From", href: "/crm/sources",
+    screen: "crm.leads", module: "crm", area: "Winning work",
+    question: "Which sources bring in work we actually win, and why do we lose the rest?", icon: Compass,
+  },
+
   // ===== Money in / money out =====
   {
     key: "cash-flow", label: "Cash Flow Forecast", href: "/finance/cash-flow",

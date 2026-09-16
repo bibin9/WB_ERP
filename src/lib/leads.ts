@@ -232,6 +232,177 @@ export function summarisePipeline(leads: LeadLike[]): Pipeline {
   return p;
 }
 
+/* ===================================================== where work comes from = */
+
+/** A lead, as the source and loss reports read it. */
+export type SourcedLead = LeadLike & {
+  source?: string | null;
+  lostReason?: string | null;
+  lostTo?: string | null;
+};
+
+export type SourceRow = {
+  source: string;
+  total: number;
+  won: number;
+  lost: number;
+  open: number;
+  /** What was won from this source, which is the only number that pays wages. */
+  wonValue: number;
+  /** Still live and still weighted by stage. */
+  weighted: number;
+  /** Won over decided. Null while too few have been decided to mean anything. */
+  winRate: number | null;
+};
+
+/** How few decisions is too few to quote a rate from. */
+export const MIN_DECIDED = 5;
+
+/**
+ * Where the work comes from, and which of it is won.
+ *
+ * Every lead carries a source and it was never added up anywhere, which made
+ * the field a cost with no benefit: people type into a box that nothing reads,
+ * and what they type gets worse every month. This is the question the field
+ * exists to answer — not how many enquiries a channel produced, which flatters
+ * whichever one is cheapest to generate, but how much work it won.
+ *
+ * A win rate is withheld below MIN_DECIDED decisions rather than shown small.
+ * One win from two enquiries is not a fifty per cent channel, and a percentage
+ * printed beside a number that small will be quoted in a meeting as though it
+ * were.
+ */
+export function summariseSources(leads: SourcedLead[]): SourceRow[] {
+  const rows = new Map<string, SourceRow>();
+
+  for (const l of leads) {
+    // Blank, null and whitespace all mean the same thing and must not become
+    // three different rows in the table.
+    const source = String(l.source ?? "").trim() || "Not recorded";
+    const row = rows.get(source) ?? {
+      source, total: 0, won: 0, lost: 0, open: 0, wonValue: 0, weighted: 0, winRate: null,
+    };
+    const value = Number(l.estimatedValue) || 0;
+
+    row.total += 1;
+    if (l.stage === "Won") {
+      row.won += 1;
+      row.wonValue = round2(row.wonValue + value);
+    } else if (l.stage === "Lost") {
+      row.lost += 1;
+    } else {
+      row.open += 1;
+      row.weighted = round2(row.weighted + weightedValue(l));
+    }
+    rows.set(source, row);
+  }
+
+  for (const row of rows.values()) {
+    const decided = row.won + row.lost;
+    row.winRate = decided >= MIN_DECIDED ? round2(row.won / decided) : null;
+  }
+
+  // Most work won first. That is the order the question is asked in, and a
+  // channel with forty enquiries and no wins should not lead the table.
+  return [...rows.values()].sort((a, b) => b.wonValue - a.wonValue || b.total - a.total);
+}
+
+export type LossRow = { reason: string; count: number; value: number };
+
+export type Losses = {
+  reasons: LossRow[];
+  /** Who took the work, where anybody wrote it down. */
+  competitors: LossRow[];
+  lost: number;
+  lostValue: number;
+  /** Lost with nothing said about why. */
+  unexplained: number;
+};
+
+/**
+ * Why work was lost, and to whom.
+ *
+ * The reason is demanded at the moment of the loss precisely so this can be
+ * read later, and nothing read it. Reasons are grouped on their exact words
+ * rather than guessed at: inventing categories out of free text would put two
+ * different stories in one bucket and make the report confidently wrong.
+ */
+export function summariseLosses(leads: SourcedLead[]): Losses {
+  const out: Losses = { reasons: [], competitors: [], lost: 0, lostValue: 0, unexplained: 0 };
+  const reasons = new Map<string, LossRow>();
+  const rivals = new Map<string, LossRow>();
+
+  for (const l of leads) {
+    if (l.stage !== "Lost") continue;
+    const value = Number(l.estimatedValue) || 0;
+    out.lost += 1;
+    out.lostValue = round2(out.lostValue + value);
+
+    const reason = String(l.lostReason ?? "").trim();
+    if (!reason) out.unexplained += 1;
+    else {
+      const r = reasons.get(reason) ?? { reason, count: 0, value: 0 };
+      r.count += 1;
+      r.value = round2(r.value + value);
+      reasons.set(reason, r);
+    }
+
+    const to = String(l.lostTo ?? "").trim();
+    if (to) {
+      const c = rivals.get(to) ?? { reason: to, count: 0, value: 0 };
+      c.count += 1;
+      c.value = round2(c.value + value);
+      rivals.set(to, c);
+    }
+  }
+
+  const byValue = (a: LossRow, b: LossRow) => b.value - a.value || b.count - a.count;
+  out.reasons = [...reasons.values()].sort(byValue);
+  out.competitors = [...rivals.values()].sort(byValue);
+  return out;
+}
+
+/** Where the work comes from, in a sentence. */
+export function sourcesVerdict(rows: SourceRow[]): string {
+  if (rows.length === 0) return "No enquiries have been logged yet.";
+  const won = rows.filter((r) => r.wonValue > 0);
+  if (won.length === 0) {
+    const busiest = [...rows].sort((a, b) => b.total - a.total)[0];
+    return (
+      `Nothing has been won yet. Most enquiries come from ${busiest.source} ` +
+      `(${plural(busiest.total, "enquiry", "enquiries")}), which says where the work comes from ` +
+      `but not yet where it is won.`
+    );
+  }
+  const best = won[0];
+  const rest = won.slice(1).reduce((s, r) => s + r.wonValue, 0);
+  const share = best.wonValue + rest > 0 ? best.wonValue / (best.wonValue + rest) : 0;
+  const rate = best.winRate == null
+    ? `too few decided to call a win rate`
+    : `${Math.round(best.winRate * 100)}% of its decisions won`;
+  return (
+    `${best.source} has won the most work — ${fmt(best.wonValue)} of ${fmt(best.wonValue + rest)}, ` +
+    `${Math.round(share * 100)}% of everything won, with ${rate}.`
+  );
+}
+
+/** Why work is lost, in a sentence. */
+export function lossesVerdict(l: Losses): string {
+  if (l.lost === 0) return "Nothing has been recorded as lost.";
+  if (l.reasons.length === 0) {
+    return `${plural(l.lost, "enquiry", "enquiries")} lost, worth ${fmt(l.lostValue)}, and not one says why.`;
+  }
+  const top = l.reasons[0];
+  const tail = l.unexplained > 0
+    ? ` ${plural(l.unexplained, "loss", "losses")} said nothing at all.`
+    : "";
+  return (
+    `${plural(l.lost, "enquiry", "enquiries")} lost, worth ${fmt(l.lostValue)}. ` +
+    `The biggest single reason by value is "${top.reason}" ` +
+    `(${plural(top.count, "enquiry", "enquiries")}, ${fmt(top.value)}).${tail}`
+  );
+}
+
 /* ========================================================== moving on === */
 
 /**

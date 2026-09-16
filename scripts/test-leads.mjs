@@ -16,6 +16,7 @@ const {
   LEAD_STAGES, STAGE_PROBABILITY, STAGE_HELP, CLOSED_STAGES, LEAD_SOURCES,
   qualify, siteReportSubmitted, stageProbability, isOpen, weightedValue,
   summarisePipeline, checkStageChange, pipelineVerdict, leadVerdict,
+  summariseSources, summariseLosses, sourcesVerdict, lossesVerdict, MIN_DECIDED,
 } = lib;
 
 let pass = 0, fail = 0;
@@ -245,6 +246,97 @@ ok("and why probability belongs to the stage",
   /every deal is ninety per cent/.test(src));
 ok("and what a low qualification score actually means",
   /a lead nobody has done the work on yet/.test(src));
+
+/* ============================================ where work comes from ==== */
+
+/*
+ * Every lead carries a source, a lost reason and who it was lost to, and not
+ * one of the three was added up anywhere. A field nothing reads is a cost with
+ * no benefit: people type into a box that feeds nothing, and what they type
+ * gets worse every month. These are the questions those fields exist to answer.
+ */
+{
+  const leads = [
+    { stage: "Won",    source: "Referral",      estimatedValue: 500000 },
+    { stage: "Won",    source: "Referral",      estimatedValue: 300000 },
+    { stage: "Lost",   source: "Referral",      estimatedValue: 100000, lostReason: "Priced too high", lostTo: "Descon" },
+    { stage: "Lost",   source: "Tender portal", estimatedValue: 900000, lostReason: "Priced too high", lostTo: "Descon" },
+    { stage: "Lost",   source: "Tender portal", estimatedValue: 400000, lostReason: "Programme too tight", lostTo: "Al Jaber" },
+    { stage: "Lost",   source: "Tender portal", estimatedValue: 200000 },
+    { stage: "Quoted", source: "Tender portal", estimatedValue: 1000000 },
+    { stage: "New",    source: "",              estimatedValue: 50000 },
+    { stage: "New",    source: "   ",           estimatedValue: 25000 },
+    { stage: "Won",    source: "Website",       estimatedValue: 80000 },
+    // Three cheap losses for one reason, against two expensive ones for
+    // another. Without these the fixture could not tell an ordering by value
+    // from an ordering by count, because the same reason led on both — the
+    // assertion below passed for the wrong reason.
+    { stage: "Lost",   source: "Website",       estimatedValue: 50000, lostReason: "Nobody followed it up" },
+    { stage: "Lost",   source: "Website",       estimatedValue: 50000, lostReason: "Nobody followed it up" },
+    { stage: "Lost",   source: "Website",       estimatedValue: 50000, lostReason: "Nobody followed it up" },
+  ];
+
+  const rows = summariseSources(leads);
+  const by = (name) => rows.find((r) => r.source === name);
+
+  ok("sources are added up", rows.length === 4, rows.map((r) => r.source).join(", "));
+  ok("  blank and whitespace become one row, not three",
+    by("Not recorded")?.total === 2, `${by("Not recorded")?.total} enquiries`);
+  ok("  the source that won the most work leads the table", rows[0].source === "Referral", rows[0].source);
+  ok("  won value is what was won, not what was enquired about",
+    by("Referral")?.wonValue === 800000, String(by("Referral")?.wonValue));
+  ok("  a lost enquiry adds nothing to won value", by("Tender portal")?.wonValue === 0);
+  ok("  open enquiries are weighted by stage rather than counted gross",
+    by("Tender portal")?.weighted === 400000,
+    `1,000,000 at Quoted is ${by("Tender portal")?.weighted}`);
+  ok("  and closed ones are not in the weighted figure",
+    by("Referral")?.weighted === 0, "won and lost are not pipeline");
+
+  /*
+   * One win out of two decisions is not a fifty per cent channel, and a
+   * percentage printed beside a number that small gets quoted in a meeting as
+   * though it were.
+   */
+  ok("a win rate is withheld until enough has been decided",
+    by("Referral")?.winRate === null,
+    `${(by("Referral")?.won ?? 0) + (by("Referral")?.lost ?? 0)} decided, needs ${MIN_DECIDED}`);
+
+  const decisive = Array.from({ length: 4 }, () => ({ stage: "Won", source: "Consultant", estimatedValue: 10 }))
+    .concat(Array.from({ length: 4 }, () => ({ stage: "Lost", source: "Consultant", estimatedValue: 10 })));
+  ok("  and shown once there is enough", summariseSources(decisive)[0].winRate === 0.5,
+    String(summariseSources(decisive)[0].winRate));
+
+  const losses = summariseLosses(leads);
+  ok("losses are grouped by reason", losses.reasons.length === 3,
+    losses.reasons.map((r) => r.reason).join(" | "));
+  ok("  biggest by value first, not by count",
+    losses.reasons[0].reason === "Priced too high" && losses.reasons[0].value === 1000000,
+    `${losses.reasons[0].reason}: 2 losses worth ${losses.reasons[0].value}, ahead of ` +
+      `"Nobody followed it up" which has 3 losses behind it but only 150000`);
+  ok("  and the one with the most losses is not the one that leads",
+    losses.reasons.find((r) => r.reason === "Nobody followed it up")?.count === 3 &&
+      losses.reasons[0].reason !== "Nobody followed it up",
+    "three cheap losses must not outrank two expensive ones");
+  ok("  a loss that says nothing is counted rather than hidden",
+    losses.unexplained === 1, `${losses.unexplained} with no reason`);
+  ok("  and who took the work is added up too",
+    losses.competitors[0].reason === "Descon" && losses.competitors[0].count === 2,
+    losses.competitors.map((c) => `${c.reason} ${c.count}`).join(", "));
+  ok("  the lost total counts every loss, explained or not",
+    losses.lost === 7 && losses.lostValue === 1750000, `${losses.lost} worth ${losses.lostValue}`);
+
+  const v = sourcesVerdict(rows);
+  ok("the sources verdict names the channel that won most", /Referral/.test(v), v);
+  ok("  and says what share of the won work it is", /%/.test(v));
+
+  const lv = lossesVerdict(losses);
+  ok("the losses verdict names the biggest reason by value", /Priced too high/.test(lv), lv);
+  ok("  and does not quietly drop the ones that said nothing", /said nothing/.test(lv));
+
+  ok("having nothing to report is said in words rather than drawn as an empty table",
+    /No enquiries have been logged yet/.test(sourcesVerdict([])) &&
+      /Nothing has been recorded as lost/.test(lossesVerdict(summariseLosses([]))));
+}
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
