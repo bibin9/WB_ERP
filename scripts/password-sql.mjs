@@ -81,18 +81,72 @@ if (/'/.test(email)) {
 
 const hash = await bcrypt.hash(password, 10);
 
+/*
+ * Printed so that copying it cannot damage it.
+ *
+ * The first version printed the hash on one long line. A terminal wraps a long
+ * line, and copying from a wrapped terminal can put a real line break into the
+ * text — which landed inside the hash. A bcrypt hash with a line break in it
+ * matches no password at all, so the administrator was locked out by the very
+ * statement meant to let them in, and every careful retype failed.
+ *
+ * Two defences, because either alone can fail. The hash is split into short
+ * pieces joined in SQL, so no line is long enough to wrap. And the database
+ * strips whitespace from the joined result before storing it: a bcrypt hash
+ * never contains any, so removing it can only repair, never change, the hash.
+ */
+const pieces = hash.match(/.{1,20}/g).map((c) => `      '${c}'`).join(" ||\n");
+
+const statement = `UPDATE "User"
+   SET "passwordHash" = regexp_replace(
+${pieces},
+      '\\s', '', 'g'),
+       "failedAttempts" = 0,
+       "lockedUntil" = NULL,
+       "mustReset" = false,
+       "passwordChangedAt" = NOW()
+ WHERE email = '${email}';`;
+
+const check = `SELECT email,
+       CASE WHEN "passwordHash" ~ '^\\$2[aby]\\$10\\$[./A-Za-z0-9]{53}$'
+            THEN 'hash intact' ELSE 'hash damaged' END AS result,
+       "failedAttempts", "lockedUntil"
+  FROM "User"
+ WHERE email = '${email}';`;
+
+// Also into a file, opened in Notepad on Windows: copying from Notepad does not
+// add line breaks the way copying from a terminal can.
+const { writeFileSync } = await import("node:fs");
+const { join } = await import("node:path");
+const { tmpdir } = await import("node:os");
+const file = join(tmpdir(), "set-password.sql");
+writeFileSync(
+  file,
+  `-- 1. Run this first\n${statement}\n\n-- 2. Then run this. It must say: hash intact\n${check}\n`,
+);
+let opened = false;
+// Only for a person at a terminal — a piped run (a test) must not pop windows up.
+if (process.platform === "win32" && process.stdin.isTTY) {
+  try {
+    const { spawn } = await import("node:child_process");
+    spawn("notepad.exe", [file], { detached: true, stdio: "ignore" }).unref();
+    opened = true;
+  } catch {
+    /* printed below either way */
+  }
+}
+
 console.log(`
-Run this against the database whose ${email} you mean — for Pre-Prod, in
+${opened ? `Opened in Notepad: ${file}\nCopy from Notepad rather than from this window.\n` : `Also saved to: ${file}\n`}
+Run these against the database whose ${email} you mean — for Pre-Prod, in
 Railway: Pre-Prod -> Postgres -> Database -> Data, in the query box.
 
-UPDATE "User"
-   SET "passwordHash"      = '${hash}',
-       "failedAttempts"    = 0,
-       "lockedUntil"       = NULL,
-       "mustReset"         = false,
-       "passwordChangedAt" = NOW()
- WHERE email = '${email}';
+-- 1. Run this first
+${statement}
 
-It should report 1 row updated. Then sign in with the password you just typed.
+-- 2. Then run this. It must say: hash intact
+${check}
+
+When it says "hash intact", sign in with the password you just typed.
 Setting passwordChangedAt also signs out anyone already signed in as ${email}.
 `);
