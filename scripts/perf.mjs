@@ -29,20 +29,25 @@ if (!/^postgres(ql)?:\/\//i.test(url) || !process.env.PERF_CONFIRM_HOST || hostP
   process.exit(1);
 }
 
-const FULL = process.env.PERF_SCALE !== "small";
-const VOUCHERS = FULL ? 20_000 : 2_000;
-const MOVEMENTS = FULL ? 30_000 : 3_000;
+// full: 20,000 vouchers and 30,000 movements. half: 10,000 and 15,000.
+// small: a tenth, for proving the harness itself.
+const SCALE = ["small", "half"].includes(process.env.PERF_SCALE) ? process.env.PERF_SCALE : "full";
+const FULL = SCALE !== "small";
+const FACTOR = SCALE === "half" ? 0.5 : SCALE === "small" ? 0.1 : 1;
+const VOUCHERS = Math.round(20_000 * FACTOR);
+const MOVEMENTS = Math.round(30_000 * FACTOR);
 const SOAK_SECONDS = FULL ? 60 : 15;
 
-const libs = await importLibs(["db", "posting", "stock-posting", "purchase-posting", "ledger-query", "stock"]);
+const libs = await importLibs(["db", "posting", "stock-posting", "purchase-posting", "ledger-query", "stock", "stock-totals"]);
 const { db } = libs.db;
 const { postVoucher } = libs.posting;
 const { recordMovement, balanceFor } = libs["stock-posting"];
 const { createOrder, createRequest, receiveAgainstOrder } = libs["purchase-posting"];
 const { accountBalances, profitAndLoss } = libs["ledger-query"];
 const { balanceOf } = libs.stock;
+const { totalsByItem, totalsByItemAndStore } = libs["stock-totals"];
 
-const results = { target: process.env.PERF_CONFIRM_HOST, scale: FULL ? "full" : "small", startedAt: new Date().toISOString(), sections: {} };
+const results = { target: process.env.PERF_CONFIRM_HOST, scale: SCALE, startedAt: new Date().toISOString(), sections: {} };
 const ms = (n) => `${Math.round(n)} ms`;
 const pct = (a, p) => (a.length ? a.slice().sort((x, y) => x - y)[Math.min(a.length - 1, Math.floor(a.length * p))] : 0);
 const log = (s = "") => console.log(s);
@@ -153,13 +158,25 @@ try {
   volume["Day book, first page"] = await timeIt("Day book, first page", () => db.journalEntry.findMany({ where: { companyId: company.id }, orderBy: { date: "desc" }, take: 50, include: { lines: true } }));
   volume["Day book, page 300"] = await timeIt("Day book, page 300", () => db.journalEntry.findMany({ where: { companyId: company.id }, orderBy: { date: "desc" }, skip: 15_000 > VOUCHERS ? Math.floor(VOUCHERS * 0.75) : 15_000, take: 50, include: { lines: true } }));
   // The Stock on Hand screen: every stocked item with every movement it has had.
-  volume["Stock on Hand screen query"] = await timeIt("Stock on Hand screen query (all movements)", async () => {
+  volume["Stock on Hand screen query"] = await timeIt("Stock on Hand, every movement loaded (before)", async () => {
     const rows = await db.item.findMany({ where: { companyId: company.id, isStocked: true }, include: { movements: { select: { kind: true, quantity: true, value: true, inspection: true } } }, orderBy: { code: "asc" } });
     return rows.map((r) => balanceOf(r.movements));
   }, 3);
   // Receive & Issue: all movements for the company, grouped in memory.
-  volume["Receive & Issue balances query"] = await timeIt("Receive & Issue balances query (all movements)", () =>
+  volume["Receive & Issue balances query"] = await timeIt("Receive & Issue, every movement loaded (before)", () =>
     db.stockMovement.findMany({ where: { companyId: company.id }, select: { itemId: true, storeId: true, kind: true, quantity: true, value: true, inspection: true } }), 3);
+  // What the two screens run now: totals added up by the database.
+  volume["Stock on Hand, database totals"] = await timeIt("Stock on Hand screen, database totals (current)", async () => {
+    const [rows, totals] = await Promise.all([
+      db.item.findMany({ where: { companyId: company.id, isStocked: true }, orderBy: { code: "asc" } }),
+      totalsByItem(company.id),
+    ]);
+    return rows.map((r) => balanceOf(totals.get(r.id) ?? []));
+  }, 3);
+  volume["Receive & Issue, database totals"] = await timeIt("Receive & Issue balances, database totals (current)", async () => {
+    const totals = await totalsByItemAndStore(company.id);
+    return [...totals.values()].map((list) => balanceOf(list));
+  }, 3);
   volume["One item's balance before an issue"] = await timeIt("One item's balance, checked before every issue", () => balanceFor(company.id, items[0].id, store.id));
   results.sections.volume = { vouchers: VOUCHERS, movements: MOVEMENTS, buildMs: Math.round(buildMs), timings: volume };
 

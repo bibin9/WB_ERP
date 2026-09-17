@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./db";
+import { serialised, seriesKey, type Client } from "./serialise";
 import { financialYear } from "./period";
 import { VAT_TREATMENTS } from "./vat";
 import { toFils } from "./money";
@@ -102,12 +103,12 @@ const MAX_REFERENCE_ATTEMPTS = 25;
  * true maximum by sort. Neither can be low, and low is the only answer that
  * would hand out a number somebody already has.
  */
-async function highestIssued(companyId: string, prefix: string): Promise<number> {
+async function highestIssued(companyId: string, prefix: string, client: Client = db): Promise<number> {
   const where = { companyId, reference: { startsWith: prefix } };
-  const [last, howMany] = await Promise.all([
-    db.journalEntry.findFirst({ where, orderBy: { reference: "desc" }, select: { reference: true } }),
-    db.journalEntry.count({ where }),
-  ]);
+  // One after the other: inside a transaction there is a single connection, and
+  // Promise.all over it only queues the two queries anyway.
+  const last = await client.journalEntry.findFirst({ where, orderBy: { reference: "desc" }, select: { reference: true } });
+  const howMany = await client.journalEntry.count({ where });
   const top = last ? Number(last.reference.slice(prefix.length)) : 0;
   return Math.max(Number.isFinite(top) ? top : 0, howMany);
 }
@@ -262,13 +263,24 @@ export async function postVoucher(input: PostingInput): Promise<PostingResult> {
   // A database sequence would be tidier on PostgreSQL and unavailable on the
   // SQLite used for local development, and a number that behaves differently in
   // the two places is worse than one that retries in both.
+  //
+  // A stress test later found the retry alone was not enough: fifty people
+  // posting at once, and half were still refused after every attempt. So the
+  // number is now read and used while holding the lock for this series — on
+  // PostgreSQL a transaction-scoped advisory lock, so every server process
+  // queues behind it — and simultaneous postings wait their turn for a few
+  // milliseconds instead of colliding. The retry stays, for anything that
+  // numbers vouchers without the lock.
   let floor = 0;
   for (let attempt = 0; attempt < MAX_REFERENCE_ATTEMPTS; attempt++) {
-    const n = Math.max(await highestIssued(input.companyId, prefix), floor);
-    const reference = `${prefix}${String(n + 1).padStart(4, "0")}`;
+    let n = floor;
+    let reference = "";
 
     try {
-      const created = await db.journalEntry.create({
+      const created = await serialised([seriesKey(input.companyId, prefix)], async (client) => {
+        n = Math.max(await highestIssued(input.companyId, prefix, client), floor);
+        reference = `${prefix}${String(n + 1).padStart(4, "0")}`;
+        return client.journalEntry.create({
         data: {
           companyId: input.companyId,
           reference,
@@ -293,6 +305,7 @@ export async function postVoucher(input: PostingInput): Promise<PostingResult> {
             })),
           },
         },
+        });
       });
       return { ok: true, entryId: created.id, reference };
     } catch (err) {

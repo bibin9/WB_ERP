@@ -9,6 +9,7 @@ import {
   MOVEMENT_KINDS, type StockBalance,
 } from "./stock";
 import { goesBackToStock, checkReturn, RETURN_CONDITIONS } from "./returns";
+import { serialised, shelfKey, seriesKey, isUniqueClash, type Client } from "./serialise";
 
 /**
  * Turning a stock movement into accounting.
@@ -69,6 +70,20 @@ export type MovementInput = {
   notes?: string | null;
   /** Which bin inside the store (INV-14). Required once the store has any. */
   binId?: string | null;
+  /** The order line a delivery arrives against, stored with the row itself. */
+  purchaseOrderLineId?: string | null;
+};
+
+export type MovementOptions = {
+  /** More locks to hold while the movement is checked and written. */
+  lockKeys?: string[];
+  /**
+   * A last check made while the locks are held, through the same client, just
+   * before the row is written. Receiving against an order uses it to weigh the
+   * delivery against what has arrived so far, so two deliveries cannot both be
+   * weighed against the same figure.
+   */
+  guard?: (client: Client) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
 /** Kinds whose value comes from what is already on the shelf. */
@@ -81,7 +96,7 @@ const PRICED_FROM_SHELF = new Set(["Issue", "Return to supplier", "Adjustment ou
  * removed again if the posting is refused — the same order the advances
  * register uses, and for the same reason.
  */
-export async function recordMovement(input: MovementInput): Promise<StockResult> {
+export async function recordMovement(input: MovementInput, options: MovementOptions = {}): Promise<StockResult> {
   const kind = String(input.kind);
   if (!(MOVEMENT_KINDS as readonly string[]).includes(kind)) {
     return { ok: false, error: "That is not a kind of stock movement." };
@@ -115,57 +130,82 @@ export async function recordMovement(input: MovementInput): Promise<StockResult>
     return { ok: false, error: "Choose the job this material is going to. An issue with no job puts the cost on nothing." };
   }
 
-  // INV-14: a store either uses bins or does not, and that is decided by
-  // whether any exist rather than by a setting somebody can leave set wrong.
-  const bins = await db.storageBin.findMany({ where: { storeId: store.id } });
-  const held = binQuantities(
-    await db.stockMovement.findMany({
-      where: { companyId: input.companyId, itemId: input.itemId, storeId: input.storeId, binId: { not: null } },
-      select: { binId: true, kind: true, quantity: true },
-    }),
-  );
-  const binOk = checkBin(
-    bins, input.binId, kind, input.quantity, held[input.binId ?? ""] ?? 0, item.name,
-  );
-  if (!binOk.ok) return { ok: false, error: binOk.error };
-
-  const balance = await balanceFor(input.companyId, input.itemId, input.storeId);
-
-  let priced;
-  if (PRICED_FROM_SHELF.has(kind)) {
-    const permitted = checkIssue(input.quantity, balance, item.name);
-    if (!permitted.ok) return { ok: false, error: permitted.error };
-    priced = priceIssue(input.quantity, balance);
-  } else {
-    const cost = Number(input.unitCost);
-    if (!Number.isFinite(cost) || cost < 0) return { ok: false, error: "Enter what one unit cost." };
-    priced = priceReceipt(input.quantity, cost);
-    if (priced.quantity <= 0) return { ok: false, error: "Enter how much arrived." };
-  }
-
   // INV-11: material that has to be inspected arrives on the shelf but is not
   // free to use until somebody has looked at it.
   const inspection = kind === "Receipt" && item.requiresInspection ? "Pending" : null;
 
-  const row = await db.stockMovement.create({
-    data: {
-      companyId: input.companyId,
-      itemId: item.id,
-      storeId: store.id,
-      binId: input.binId || null,
-      kind,
-      inspection,
-      date: new Date(input.date + "T00:00:00.000Z"),
-      quantity: priced.quantity,
-      unitCost: priced.unitCost,
-      value: priced.value,
-      jobId: input.jobId ?? null,
-      partyId: input.partyId ?? null,
-      reference,
-      notes: input.notes ?? null,
-      createdBy: input.postedBy,
+  // The shelf is read and the movement written as one step, holding the lock
+  // for this item in this store. Reading the balance and then writing, with
+  // nothing between, let twenty-five simultaneous issues from a shelf of ten
+  // all read "ten" and take the stock to minus fourteen. The voucher is posted
+  // after the lock is released: it does not change what is on the shelf, and
+  // holding the lock through it would queue every store user behind the ledger.
+  const written = await serialised(
+    [shelfKey(input.companyId, item.id, store.id), ...(options.lockKeys ?? [])],
+    async (client) => {
+      if (options.guard) {
+        const guarded = await options.guard(client);
+        if (!guarded.ok) return guarded;
+      }
+
+      // INV-14: a store either uses bins or does not, and that is decided by
+      // whether any exist rather than by a setting somebody can leave set wrong.
+      const bins = await client.storageBin.findMany({ where: { storeId: store.id } });
+      const held = binQuantities(
+        await client.stockMovement.findMany({
+          where: { companyId: input.companyId, itemId: input.itemId, storeId: input.storeId, binId: { not: null } },
+          select: { binId: true, kind: true, quantity: true },
+        }),
+      );
+      const binOk = checkBin(
+        bins, input.binId, kind, input.quantity, held[input.binId ?? ""] ?? 0, item.name,
+      );
+      if (!binOk.ok) return { ok: false as const, error: binOk.error };
+
+      const balance = balanceOf(
+        await client.stockMovement.findMany({
+          where: { companyId: input.companyId, itemId: input.itemId, storeId: input.storeId },
+          select: { kind: true, quantity: true, value: true, inspection: true },
+        }),
+      );
+
+      let priced;
+      if (PRICED_FROM_SHELF.has(kind)) {
+        const permitted = checkIssue(input.quantity, balance, item.name);
+        if (!permitted.ok) return { ok: false as const, error: permitted.error };
+        priced = priceIssue(input.quantity, balance);
+      } else {
+        const cost = Number(input.unitCost);
+        if (!Number.isFinite(cost) || cost < 0) return { ok: false as const, error: "Enter what one unit cost." };
+        priced = priceReceipt(input.quantity, cost);
+        if (priced.quantity <= 0) return { ok: false as const, error: "Enter how much arrived." };
+      }
+
+      const row = await client.stockMovement.create({
+        data: {
+          companyId: input.companyId,
+          itemId: item.id,
+          storeId: store.id,
+          binId: input.binId || null,
+          kind,
+          inspection,
+          date: new Date(input.date + "T00:00:00.000Z"),
+          quantity: priced.quantity,
+          unitCost: priced.unitCost,
+          value: priced.value,
+          jobId: input.jobId ?? null,
+          partyId: input.partyId ?? null,
+          purchaseOrderLineId: input.purchaseOrderLineId ?? null,
+          reference,
+          notes: input.notes ?? null,
+          createdBy: input.postedBy,
+        },
+      });
+      return { ok: true as const, row, priced };
     },
-  });
+  );
+  if (!written.ok) return written;
+  const { row, priced } = written;
 
   // A transfer changes where stock is, not what the company owns, so there is
   // nothing to post. The movement is still recorded — the shelf moved.
@@ -455,29 +495,42 @@ export async function postReturn(input: ReturnInput): Promise<ReturnResult> {
     claimed.set(l.itemId, already + Number(l.quantity));
   }
 
-  const created = await db.materialReturn.create({
-    data: {
-      companyId: input.companyId,
-      number: await nextReturnNumber(input.companyId),
-      status: "Draft",
-      jobId: job.id,
-      storeId: store.id,
-      date: new Date(input.date + "T00:00:00.000Z"),
-      returnedBy: input.returnedBy,
-      notes: input.notes ?? null,
-      lines: {
-        create: lines.map((l, i) => ({
-          itemId: l.itemId,
-          condition: l.condition,
-          quantity: Number(l.quantity),
-          value: 0,
-          notes: l.notes ?? null,
-          sortOrder: i + 1,
-        })),
+  // Numbered while holding the series lock. There was no retry here at all, so
+  // two returns saved at the same moment took the same number and the second
+  // failed with a database error instead of a note.
+  const writeNote = async (client: Client) =>
+    client.materialReturn.create({
+      data: {
+        companyId: input.companyId,
+        number: await nextReturnNumber(input.companyId, client),
+        status: "Draft",
+        jobId: job.id,
+        storeId: store.id,
+        date: new Date(input.date + "T00:00:00.000Z"),
+        returnedBy: input.returnedBy,
+        notes: input.notes ?? null,
+        lines: {
+          create: lines.map((l, i) => ({
+            itemId: l.itemId,
+            condition: l.condition,
+            quantity: Number(l.quantity),
+            value: 0,
+            notes: l.notes ?? null,
+            sortOrder: i + 1,
+          })),
+        },
       },
-    },
-    include: { lines: true },
-  });
+      include: { lines: true },
+    });
+  let created: Awaited<ReturnType<typeof writeNote>> | null = null;
+  for (let attempt = 0; attempt < 5 && !created; attempt++) {
+    try {
+      created = await serialised([seriesKey(input.companyId, "MRN")], writeNote);
+    } catch (e) {
+      if (!isUniqueClash(e)) throw e;
+    }
+  }
+  if (!created) return { ok: false, error: "Could not allocate a number. Try again." };
 
   /**
    * Which bin each line goes back into, by the sort order it was written with.
@@ -523,10 +576,10 @@ export async function postReturn(input: ReturnInput): Promise<ReturnResult> {
   return { ok: true, returnId: created.id, number: created.number };
 }
 
-async function nextReturnNumber(companyId: string): Promise<string> {
+async function nextReturnNumber(companyId: string, client: Client = db): Promise<string> {
   const company = await db.company.findUnique({ where: { id: companyId }, select: { code: true } });
   const stem = documentStem(company?.code ?? "", "MRN");
-  const last = await db.materialReturn.findFirst({
+  const last = await client.materialReturn.findFirst({
     where: { companyId, number: { startsWith: stem } },
     orderBy: { number: "desc" },
     select: { number: true },

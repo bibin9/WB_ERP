@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "./db";
 import { documentStem, nextInSeries } from "./docnumber";
+import { serialised, seriesKey, isUniqueClash, type Client } from "./serialise";
 import {
   BID_UNITS, isLumpSum, materialPerUnit, summariseEstimate, checkQuotable,
   type BidLineLike, type Basis, type EstimateTotals,
@@ -32,10 +33,10 @@ export const ESTIMATE_STATUS_HELP: Record<string, string> = {
   Superseded: "Replaced by a later estimate. Kept so the history still reads.",
 };
 
-async function nextEstimateNumber(companyId: string): Promise<string> {
+async function nextEstimateNumber(companyId: string, client: Client = db): Promise<string> {
   const company = await db.company.findUnique({ where: { id: companyId }, select: { code: true } });
   const stem = documentStem(company?.code ?? "", "EST");
-  const last = await db.estimate.findFirst({
+  const last = await client.estimate.findFirst({
     where: { companyId, number: { startsWith: stem } },
     orderBy: { number: "desc" },
     select: { number: true },
@@ -144,10 +145,13 @@ export async function createEstimate(
   if (pct < 0) return { ok: false, error: "Overhead cannot be negative." };
   if (Number(input.fixedCosts ?? 0) < 0) return { ok: false, error: "Fixed costs cannot be negative." };
 
+  // Numbered while holding the series lock, so simultaneous callers queue for a
+  // moment instead of colliding; the retry is for anything numbering without it.
   for (let attempt = 0; attempt < 5; attempt++) {
-    const number = await nextEstimateNumber(input.companyId);
     try {
-      const created = await db.estimate.create({
+      const { created, number } = await serialised([seriesKey(input.companyId, "EST")], async (client) => {
+        const number = await nextEstimateNumber(input.companyId, client);
+        const created = await client.estimate.create({
         data: {
           companyId: input.companyId,
           number,
@@ -161,10 +165,12 @@ export async function createEstimate(
           preparedBy: input.preparedBy,
           notes: input.notes ?? null,
         },
+        });
+        return { created, number };
       });
       return { ok: true, estimateId: created.id, number };
     } catch (e) {
-      if ((e as { code?: string })?.code !== "P2002") throw e;
+      if (!isUniqueClash(e)) throw e;
     }
   }
   return { ok: false, error: "Could not allocate a number. Try again." };

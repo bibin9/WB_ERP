@@ -14,23 +14,16 @@
  *     absorption at all.
  */
 import { PrismaClient } from "@prisma/client";
+import { importLibs } from "./lib-shim.mjs";
 import fs from "node:fs";
 import { hourlyCostFor, lineCost, STANDARD_MONTHLY_HOURS, LABOUR_COST_CODE, LABOUR_RECOVERED_CODE } from "../src/lib/labour.ts";
 
 const read = (p) => fs.readFileSync(p, "utf8");
 
 // postVoucher carries `import "server-only"`; same shim the other suites use.
-const SHIM = "src/lib/.posting.labour.ts";
-fs.writeFileSync(
-  SHIM,
-  read("src/lib/posting.ts").replace(/^import "server-only";.*$/m, "").replace(/from "\.\/([a-zA-Z-]+)"/g, 'from "./$1.ts"')
-);
-let postVoucher;
-try {
-  ({ postVoucher } = await import("../src/lib/.posting.labour.ts"));
-} finally {
-  fs.unlinkSync(SHIM);
-}
+// posting.ts reaches other modules (the numbering lock among them), so it is
+// loaded through the shared loader, which follows the whole import chain.
+const { postVoucher } = (await importLibs(["posting"])).posting;
 
 const db = new PrismaClient();
 let pass = 0, fail = 0;

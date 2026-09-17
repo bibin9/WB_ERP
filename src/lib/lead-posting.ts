@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "./db";
 import { documentStem, nextInSeries } from "./docnumber";
+import { serialised, seriesKey, isUniqueClash, type Client } from "./serialise";
 import { checkStageChange, type LeadLike } from "./leads";
 
 /**
@@ -22,10 +23,10 @@ export type Outcome = { ok: true } | Failed;
 
 const iso = (d: Date | null | undefined): string | null => (d ? d.toISOString().slice(0, 10) : null);
 
-async function nextLeadNumber(companyId: string): Promise<string> {
+async function nextLeadNumber(companyId: string, client: Client = db): Promise<string> {
   const company = await db.company.findUnique({ where: { id: companyId }, select: { code: true } });
   const stem = documentStem(company?.code ?? "", "ENQ");
-  const last = await db.lead.findFirst({
+  const last = await client.lead.findFirst({
     where: { companyId, number: { startsWith: stem } },
     orderBy: { number: "desc" },
     select: { number: true },
@@ -100,10 +101,13 @@ export async function createLead(input: LeadInput): Promise<Result<{ leadId: str
   }
   if (Number(input.estimatedValue ?? 0) < 0) return { ok: false, error: "A value cannot be negative." };
 
+  // Numbered while holding the series lock, so simultaneous callers queue for a
+  // moment instead of colliding; the retry is for anything numbering without it.
   for (let attempt = 0; attempt < 5; attempt++) {
-    const number = await nextLeadNumber(input.companyId);
     try {
-      const created = await db.lead.create({
+      const { created, number } = await serialised([seriesKey(input.companyId, "ENQ")], async (client) => {
+        const number = await nextLeadNumber(input.companyId, client);
+        const created = await client.lead.create({
         data: {
           companyId: input.companyId,
           number,
@@ -132,10 +136,12 @@ export async function createLead(input: LeadInput): Promise<Result<{ leadId: str
             },
           },
         },
+        });
+        return { created, number };
       });
       return { ok: true, leadId: created.id, number };
     } catch (e) {
-      if ((e as { code?: string })?.code !== "P2002") throw e;
+      if (!isUniqueClash(e)) throw e;
     }
   }
   return { ok: false, error: "Could not allocate a number. Try again." };

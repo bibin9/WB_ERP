@@ -9,24 +9,15 @@
  * empty field and every job margin is suspect.
  */
 import { PrismaClient } from "@prisma/client";
+import { importLibs } from "./lib-shim.mjs";
 import fs from "node:fs";
 const read = (p) => fs.readFileSync(p, "utf8");
 
 // posting.ts carries `import "server-only"`, which Node cannot resolve outside
 // Next's bundler. Same shim the posting test uses.
-const SHIM = "src/lib/.posting.cc.ts";
-fs.writeFileSync(
-  SHIM,
-  read("src/lib/posting.ts")
-    .replace(/^import "server-only";.*$/m, "")
-    .replace(/from "\.\/([a-zA-Z-]+)"/g, 'from "./$1.ts"')
-);
-let postVoucher;
-try {
-  ({ postVoucher } = await import("../src/lib/.posting.cc.ts"));
-} finally {
-  fs.unlinkSync(SHIM);
-}
+// posting.ts reaches other modules (the numbering lock among them), so it is
+// loaded through the shared loader, which follows the whole import chain.
+const { postVoucher } = (await importLibs(["posting"])).posting;
 const { arrange, withDescendants } = await import("../src/lib/tree.ts");
 const { chargeValue, chargeFrom } = await import("../src/lib/costing.ts");
 

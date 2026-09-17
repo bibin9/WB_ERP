@@ -8,6 +8,7 @@
  * Where a figure changes, this file is where the change should fail first.
  */
 import { PrismaClient } from "@prisma/client";
+import { importLibs } from "./lib-shim.mjs";
 import fs from "node:fs";
 import {
   MIDDAY_BAN_START_HOUR, MIDDAY_BAN_END_HOUR,
@@ -206,16 +207,9 @@ ok("nor a blank nationality", !isEmirati(null) && !isEmirati(""));
   // The shipped posting seam, imported the way the other suites do it: the
   // arithmetic is worth little unless it goes through the same balance check,
   // period lock and company-ownership rules as every other voucher.
-  const SHIM = "src/lib/.posting.comp.ts";
-  fs.writeFileSync(
-    SHIM,
-    fs.readFileSync("src/lib/posting.ts", "utf8")
-      .replace(/^import "server-only";.*$/m, "")
-      .replace(/from "\.\/([a-zA-Z-]+)"/g, 'from "./$1.ts"')
-  );
-  let postVoucher;
-  try { ({ postVoucher } = await import("../src/lib/.posting.comp.ts")); }
-  finally { fs.unlinkSync(SHIM); }
+  // posting.ts reaches other modules (the numbering lock among them), so it is
+  // loaded through the shared loader, which follows the whole import chain.
+  const { postVoucher } = (await importLibs(["posting"])).posting;
 
   const co = await db.company.findFirst({ where: { code: "WBE" } });
   const accounts = await db.chartOfAccount.findMany({

@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "./db";
 import { documentStem, nextInSeries } from "./docnumber";
+import { serialised, seriesKey, isUniqueClash, type Client } from "./serialise";
 import { createOrder } from "./purchase-posting";
 import { checkAward, rankQuotes, MIN_VENDORS, type QuoteLike } from "./rfq";
 
@@ -29,10 +30,10 @@ export type Outcome = { ok: true } | Failed;
 
 const iso = (d: Date | null | undefined): string | null => (d ? d.toISOString().slice(0, 10) : null);
 
-async function nextRfqNumber(companyId: string): Promise<string> {
+async function nextRfqNumber(companyId: string, client: Client = db): Promise<string> {
   const company = await db.company.findUnique({ where: { id: companyId }, select: { code: true } });
   const stem = documentStem(company?.code ?? "", "RFQ");
-  const last = await db.rfq.findFirst({
+  const last = await client.rfq.findFirst({
     where: { companyId, number: { startsWith: stem } },
     orderBy: { number: "desc" },
     select: { number: true },
@@ -70,10 +71,13 @@ export async function createRfq(input: RfqInput): Promise<Result<{ rfqId: string
     return { ok: false, error: "That job is not in this company." };
   }
 
+  // Numbered while holding the series lock, so simultaneous callers queue for a
+  // moment instead of colliding; the retry is for anything numbering without it.
   for (let attempt = 0; attempt < 5; attempt++) {
-    const number = await nextRfqNumber(input.companyId);
     try {
-      const created = await db.rfq.create({
+      const { created, number } = await serialised([seriesKey(input.companyId, "RFQ")], async (client) => {
+        const number = await nextRfqNumber(input.companyId, client);
+        const created = await client.rfq.create({
         data: {
           companyId: input.companyId,
           number,
@@ -94,10 +98,12 @@ export async function createRfq(input: RfqInput): Promise<Result<{ rfqId: string
             })),
           },
         },
+        });
+        return { created, number };
       });
       return { ok: true, rfqId: created.id, number };
     } catch (e) {
-      if ((e as { code?: string })?.code !== "P2002") throw e;
+      if (!isUniqueClash(e)) throw e;
     }
   }
   return { ok: false, error: "Could not allocate a number. Try again." };

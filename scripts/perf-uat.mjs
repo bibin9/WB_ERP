@@ -3,7 +3,7 @@
  * machine, and put the local setup back afterwards.
  *
  *   node scripts/perf-uat.mjs --target=rehearsal --confirm-host=<host>:<port> [--small]
- *   node scripts/perf-uat.mjs --target=uat       --confirm-host=<host>:<port> [--small]
+ *   node scripts/perf-uat.mjs --target=uat       --confirm-host=<host>:<port> [--small | --half]
  *
  * The connection string comes from REHEARSAL_DATABASE_URL or UAT_DATABASE_URL
  * in .env (git-ignored) and is never printed. Production is refused outright.
@@ -55,7 +55,7 @@ const out = `perf-results/${target}-${new Date().toISOString().replace(/[:.]/g, 
 
 const pgEnv = {
   ...process.env, DATABASE_URL: url, PRISMA_PROVIDER: "postgresql",
-  PERF_CONFIRM_HOST: confirm, PERF_OUT: out, PERF_SCALE: process.argv.includes("--small") ? "small" : "full",
+  PERF_CONFIRM_HOST: confirm, PERF_OUT: out, PERF_SCALE: process.argv.includes("--small") ? "small" : process.argv.includes("--half") ? "half" : "full",
 };
 const run = (cmd, args, e) => execFileSync(cmd, args, { stdio: "inherit", shell: process.platform === "win32", env: e });
 

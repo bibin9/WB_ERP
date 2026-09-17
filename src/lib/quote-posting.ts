@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "./db";
 import { documentStem, nextInSeries } from "./docnumber";
+import { serialised, seriesKey, isUniqueClash, type Client } from "./serialise";
 import { resolveRoute } from "./approval-engine";
 import { priceEstimate, toBidLine } from "./estimate-posting";
 import { bidLine } from "./estimating";
@@ -34,10 +35,10 @@ export const QUOTE_DOC_TYPE = "Sales Quotation";
 
 const iso = (d: Date | null | undefined): string | null => (d ? d.toISOString().slice(0, 10) : null);
 
-async function nextQuoteNumber(companyId: string): Promise<string> {
+async function nextQuoteNumber(companyId: string, client: Client = db): Promise<string> {
   const company = await db.company.findUnique({ where: { id: companyId }, select: { code: true } });
   const stem = documentStem(company?.code ?? "", "QTN");
-  const last = await db.quotation.findFirst({
+  const last = await client.quotation.findFirst({
     where: { companyId, number: { startsWith: stem } },
     orderBy: { number: "desc" },
     select: { number: true },
@@ -110,10 +111,13 @@ export async function createQuotation(
     return { ok: false, error: "Say who the quotation is for." };
   }
 
+  // Numbered while holding the series lock, so simultaneous callers queue for a
+  // moment instead of colliding; the retry is for anything numbering without it.
   for (let attempt = 0; attempt < 5; attempt++) {
-    const number = await nextQuoteNumber(input.companyId);
     try {
-      const created = await db.quotation.create({
+      const { created, number } = await serialised([seriesKey(input.companyId, "QTN")], async (client) => {
+        const number = await nextQuoteNumber(input.companyId, client);
+        const created = await client.quotation.create({
         data: {
           companyId: input.companyId,
           number,
@@ -134,10 +138,12 @@ export async function createQuotation(
           notes: input.notes ?? null,
           preparedBy: input.preparedBy,
         },
+        });
+        return { created, number };
       });
       return { ok: true, quotationId: created.id, number, total: priced.total };
     } catch (e) {
-      if ((e as { code?: string })?.code !== "P2002") throw e;
+      if (!isUniqueClash(e)) throw e;
     }
   }
   return { ok: false, error: "Could not allocate a number. Try again." };

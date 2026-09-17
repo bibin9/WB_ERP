@@ -7,6 +7,7 @@ import PrintReport from "@/components/finance/PrintReport";
 import SearchBox from "@/components/SearchBox";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
+import { totalsByItem } from "@/lib/stock-totals";
 import { getSession } from "@/lib/auth";
 import { money } from "@/lib/money";
 import { readSearch } from "@/lib/search";
@@ -50,15 +51,11 @@ export default async function StockPage({
             ? { OR: [{ code: { contains: term } }, { name: { contains: term } }, { category: { contains: term } }] }
             : {}),
         },
-        include: {
-          movements: {
-            where: storeFilter ? { storeId: storeFilter } : {},
-            select: { kind: true, quantity: true, value: true, inspection: true },
-          },
-        },
         orderBy: { code: "asc" },
       })
     : [];
+  // Totalled by the database per item, rather than every movement loaded here.
+  const totals = companyId ? await totalsByItem(companyId, storeFilter || null) : new Map();
 
   const rows = items.map((i) => ({
     itemId: i.id,
@@ -67,13 +64,13 @@ export default async function StockPage({
     category: i.category,
     unitCode: i.unitCode,
     reorderLevel: i.reorderLevel,
-    balance: balanceOf(i.movements),
+    balance: balanceOf(totals.get(i.id) ?? []),
   }));
 
   // Items that have never moved crowd out the ones that have. They are still
   // reachable, just not in the way by default.
   const shown = showAll ? rows : rows.filter((r) => r.balance.quantity !== 0);
-  const totals = summariseStock(rows);
+  const stockTotals = summariseStock(rows);
   const verdict = stockVerdict(rows);
   const card = "card p-5";
 
@@ -100,10 +97,10 @@ export default async function StockPage({
 
       <p className="mb-5 text-sm text-ink">{verdict}</p>
 
-      {totals.negative > 0 && (
+      {stockTotals.negative > 0 && (
         <div className="mb-5 rounded-lg border border-brand-gold/50 bg-brand-gold/10 px-4 py-3 text-sm text-ink">
           <span className="font-semibold">
-            {totals.negative === 1 ? "One item shows" : `${totals.negative} items show`} less than nothing in stock.
+            {stockTotals.negative === 1 ? "One item shows" : `${stockTotals.negative} items show`} less than nothing in stock.
           </span>{" "}
           Something left a shelf it was never on. Count it and put the difference through as an adjustment before
           trusting any figure on this page.
@@ -113,22 +110,22 @@ export default async function StockPage({
       <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <div className={card}>
           <div className="text-sm text-muted">Stock value</div>
-          <div className="mt-1 text-2xl font-bold tabular-nums text-heading">{money(totals.value)}</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-heading">{money(stockTotals.value)}</div>
           <div className="mt-0.5 text-xs text-muted">
-            across {totals.stocked} {totals.stocked === 1 ? "item" : "items"}
+            across {stockTotals.stocked} {stockTotals.stocked === 1 ? "item" : "items"}
           </div>
         </div>
         <div className={card}>
           <div className="text-sm text-muted">Items set up</div>
-          <div className="mt-1 text-2xl font-bold tabular-nums text-heading">{totals.items}</div>
-          <div className="mt-0.5 text-xs text-muted">{totals.items - totals.stocked} with nothing on hand</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-heading">{stockTotals.items}</div>
+          <div className="mt-0.5 text-xs text-muted">{stockTotals.items - stockTotals.stocked} with nothing on hand</div>
         </div>
-        <div className={`${card} ${totals.belowReorder > 0 ? "border-brand-gold/40" : ""}`}>
+        <div className={`${card} ${stockTotals.belowReorder > 0 ? "border-brand-gold/40" : ""}`}>
           <div className="flex items-center gap-1.5 text-sm text-muted">
-            {totals.belowReorder > 0 && <AlertTriangle className="h-4 w-4 text-brand-gold" />}
+            {stockTotals.belowReorder > 0 && <AlertTriangle className="h-4 w-4 text-brand-gold" />}
             Need reordering
           </div>
-          <div className="mt-1 text-2xl font-bold tabular-nums text-heading">{totals.belowReorder}</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-heading">{stockTotals.belowReorder}</div>
           <div className="mt-0.5 text-xs text-muted">at or below their level</div>
         </div>
         <div className={card}>

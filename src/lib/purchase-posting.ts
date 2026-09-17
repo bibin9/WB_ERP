@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "./db";
 import { documentStem, nextInSeries } from "./docnumber";
+import { serialised, orderLineKey, seriesKey, isUniqueClash, type Client } from "./serialise";
 import { resolveRoute } from "./approval-engine";
 import { recordMovement } from "./stock-posting";
 import { toFils } from "./money";
@@ -41,11 +42,11 @@ export type Outcome = { ok: true } | Failed;
  * a request in the same second is exactly the case that would otherwise produce
  * one document with two numbers.
  */
-async function nextNumber(companyId: string, prefix: string): Promise<string> {
+async function nextNumber(companyId: string, prefix: string, client: Client = db): Promise<string> {
   const company = await db.company.findUnique({ where: { id: companyId }, select: { code: true } });
   const stem = documentStem(company?.code ?? "", prefix);
 
-  const table = prefix === "MR" ? db.materialRequest : db.purchaseOrder;
+  const table = prefix === "MR" ? client.materialRequest : client.purchaseOrder;
   const last = await (table as typeof db.purchaseOrder).findFirst({
     where: { companyId, number: { startsWith: stem } },
     orderBy: { number: "desc" },
@@ -78,10 +79,14 @@ export async function createRequest(
     return { ok: false, error: "That job is not in this company." };
   }
 
+  // The number is read and used while holding the series lock, so people
+  // raising requests at the same moment queue for a moment instead of
+  // colliding. The retry stays for anything that numbers without the lock.
   for (let attempt = 0; attempt < 5; attempt++) {
-    const number = await nextNumber(input.companyId, "MR");
     try {
-      const created = await db.materialRequest.create({
+      const { created, number } = await serialised([seriesKey(input.companyId, "MR")], async (client) => {
+        const number = await nextNumber(input.companyId, "MR", client);
+        const created = await client.materialRequest.create({
         data: {
           companyId: input.companyId,
           number,
@@ -102,14 +107,16 @@ export async function createRequest(
             })),
           },
         },
+        });
+        return { created, number };
       });
       // INV-03: straight into the approval route, so a request is seen by the
       // people the client named rather than landing in procurement unreviewed.
       if (input.tenantId) await submitRequest(created.id, input.tenantId, input.requestedBy);
       return { ok: true, requestId: created.id, number };
     } catch (e) {
-      // Two people numbering at once. Take the next one rather than fail.
-      if ((e as { code?: string })?.code !== "P2002") throw e;
+      // Somebody numbered without the lock. Take the next one rather than fail.
+      if (!isUniqueClash(e)) throw e;
     }
   }
   return { ok: false, error: "Could not allocate a number. Try again." };
@@ -212,9 +219,10 @@ export async function createOrder(input: OrderInput): Promise<Result<{ orderId: 
   const total = toFils(orderTotal(priced));
 
   for (let attempt = 0; attempt < 5; attempt++) {
-    const number = await nextNumber(input.companyId, "PO");
     try {
-      const created = await db.purchaseOrder.create({
+      const { created, number } = await serialised([seriesKey(input.companyId, "PO")], async (client) => {
+        const number = await nextNumber(input.companyId, "PO", client);
+        const created = await client.purchaseOrder.create({
         data: {
           companyId: input.companyId,
           number,
@@ -242,13 +250,15 @@ export async function createOrder(input: OrderInput): Promise<Result<{ orderId: 
             })),
           },
         },
+        });
+        return { created, number };
       });
       if (input.requestId) {
         await db.materialRequest.update({ where: { id: input.requestId }, data: { status: "Ordered" } });
       }
       return { ok: true, orderId: created.id, number };
     } catch (e) {
-      if ((e as { code?: string })?.code !== "P2002") throw e;
+      if (!isUniqueClash(e)) throw e;
     }
   }
   return { ok: false, error: "Could not allocate a number. Try again." };
@@ -403,26 +413,38 @@ export async function receiveAgainstOrder(input: ReceiveInput): Promise<Result<{
     };
   }
 
-  const moved = await recordMovement({
-    companyId: line.order.companyId,
-    postedBy: input.postedBy,
-    kind: "Receipt",
-    itemId: line.itemId,
-    storeId: input.storeId,
-    date: input.date,
-    quantity: input.quantity,
-    unitCost: line.unitPrice,
-    partyId: line.order.partyId,
-    reference: input.reference,
-    notes: input.notes ?? null,
-    binId: input.binId ?? null,
-  });
+  // Weighed again while holding the order line's lock, against what has
+  // arrived by then, and written with the line already attached. Checking the
+  // figure read at the top and attaching the line afterwards let ten deliveries
+  // of five, recorded at once, all pass against an order for ten.
+  const moved = await recordMovement(
+    {
+      companyId: line.order.companyId,
+      postedBy: input.postedBy,
+      kind: "Receipt",
+      itemId: line.itemId,
+      storeId: input.storeId,
+      date: input.date,
+      quantity: input.quantity,
+      unitCost: line.unitPrice,
+      partyId: line.order.partyId,
+      reference: input.reference,
+      notes: input.notes ?? null,
+      binId: input.binId ?? null,
+      purchaseOrderLineId: line.id,
+    },
+    {
+      lockKeys: [orderLineKey(line.id)],
+      guard: async (client) => {
+        const arrived = await client.stockMovement.findMany({
+          where: { purchaseOrderLineId: line.id },
+          select: { quantity: true },
+        });
+        return checkReceipt(status, line.quantity, arrived, input.quantity, line.description);
+      },
+    },
+  );
   if (!moved.ok) return moved;
-
-  await db.stockMovement.update({
-    where: { id: moved.movementId },
-    data: { purchaseOrderLineId: line.id },
-  });
 
   // The order's status follows from what has now arrived.
   await syncOrderApproval(line.orderId);

@@ -13,6 +13,7 @@ import DocumentButtons from "@/components/DocumentButtons";
 import { hasStoreNote, NOTE_TITLES } from "@/lib/store-notes";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
+import { totalsByItemAndStore, binHoldingsFor } from "@/lib/stock-totals";
 import { getSession } from "@/lib/auth";
 import { money } from "@/lib/money";
 import { readPaging, pageInfo } from "@/lib/paging";
@@ -106,26 +107,10 @@ export default async function MovementsPage({
     })) {
       (binsByStore[b.storeId] ??= []).push({ id: b.id, code: b.code, zone: b.zone, materialType: b.materialType });
     }
-    for (const m of await db.stockMovement.findMany({
-      where: { companyId, binId: { not: null } },
-      select: { itemId: true, binId: true, kind: true, quantity: true },
-    })) {
-      const key = `${m.itemId}:${m.binId}`;
-      binHoldings[key] = (binHoldings[key] ?? 0) + (isInward(m.kind) ? 1 : -1) * m.quantity;
-    }
-
-    const all = await db.stockMovement.findMany({
-      where: { companyId },
-      select: { itemId: true, storeId: true, kind: true, quantity: true, value: true, inspection: true },
-    });
-    const grouped = new Map<string, { kind: string; quantity: number; value: number }[]>();
-    for (const m of all) {
-      const key = `${m.itemId}:${m.storeId}`;
-      const list = grouped.get(key);
-      if (list) list.push(m);
-      else grouped.set(key, [m]);
-    }
-    for (const [key, list] of grouped) balances[key] = balanceOf(list);
+    // Totalled by the database, rather than every movement ever recorded
+    // loaded into the page and added up here.
+    Object.assign(binHoldings, await binHoldingsFor(companyId));
+    for (const [key, list] of await totalsByItemAndStore(companyId)) balances[key] = balanceOf(list);
   }
 
   return (

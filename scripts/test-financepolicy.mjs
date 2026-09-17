@@ -140,16 +140,9 @@ ok("nor does an empty one", Object.keys(parseAccounts(null)).length === 0);
 
 /* ========== a company with its own chart posts into its own accounts ====== */
 {
-  const SHIM = "src/lib/.posting.fp.ts";
-  fs.writeFileSync(
-    SHIM,
-    fs.readFileSync("src/lib/posting.ts", "utf8")
-      .replace(/^import "server-only";.*$/m, "")
-      .replace(/from "\.\/([a-zA-Z-]+)"/g, 'from "./$1.ts"')
-  );
-  let postVoucher;
-  try { ({ postVoucher } = await import("../src/lib/.posting.fp.ts")); }
-  finally { fs.unlinkSync(SHIM); }
+  // posting.ts reaches other modules (the numbering lock among them), so it is
+  // loaded through the shared loader, which follows the whole import chain.
+  const { postVoucher } = (await importLibs(["posting"])).posting;
 
   const tenant = await db.tenant.findFirst();
   const company = await db.company.create({

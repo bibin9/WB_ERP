@@ -7,6 +7,7 @@
  * and one voucher per source document.
  */
 import { PrismaClient } from "@prisma/client";
+import { importLibs } from "./lib-shim.mjs";
 import fs from "node:fs";
 const read = (p) => fs.readFileSync(p, "utf8");
 
@@ -14,20 +15,9 @@ const read = (p) => fs.readFileSync(p, "utf8");
 // component importing the ledger. Node cannot resolve that outside Next's
 // bundler, so the test imports a copy with only that line removed, written
 // beside the original so its relative imports still resolve.
-const SHIM = "src/lib/.posting.undertest.ts";
-fs.writeFileSync(
-  SHIM,
-  read("src/lib/posting.ts")
-    .replace(/^import "server-only";.*$/m, "")
-    // Node's ESM resolver wants the extension that TypeScript leaves off.
-    .replace(/from "\.\/([a-zA-Z-]+)"/g, 'from "./$1.ts"')
-);
-let postVoucher, VOUCHER_PREFIX;
-try {
-  ({ postVoucher, VOUCHER_PREFIX } = await import("../src/lib/.posting.undertest.ts"));
-} finally {
-  fs.unlinkSync(SHIM);
-}
+// posting.ts reaches other modules (the numbering lock among them), so it is
+// loaded through the shared loader, which follows the whole import chain.
+const { postVoucher, VOUCHER_PREFIX } = (await importLibs(["posting"])).posting;
 
 const db = new PrismaClient();
 let pass = 0, fail = 0;
