@@ -13,6 +13,7 @@ Project and end-user documentation for the White & Bright Group ERP.
 
 | **White_and_Bright_ERP_User_Handbook.pdf** | End users / client | The Handbook as a 45-page A4 PDF (September 2026 edition): contents with page numbers, footer on every page. Printed from handbook.html. |
 | **White_and_Bright_ERP_Acceptance_Scripts.xlsx** | Client testers | UAT workbook: Start here (instructions, severity, worked example), Summary (counts and go-live readiness, all formulas), and one sheet per role with the 83 checks, Result/Severity drop-downs and yellow cells to fill. Same checks as acceptance-scripts.html. |
+| **performance-test-report.html** | Project team / client | Stress and performance test of Pre-Prod, 17 September 2026 (claude.ai artifact JvWp23ftnrDYG8Y8ffP6mZ): findings PT-01 to PT-07, fixes, before-and-after re-test, speed, web load, verified clean-up, open items. |
 | **handbook.html** | End users | Source of the online Handbook (claude.ai artifact 1J7JvDYZF6UbFXPfgWy7iH). Covers Finance, HR, CRM & Estimation, Inventory & SCM, printed documents. September 2026 edition. |
 | **acceptance-scripts.html** | Client testers | Source of the online Acceptance Scripts (claude.ai artifact U5vN4ae8eNzA6mzyvBRyKb): 83 role-by-role UAT checks with expected results; each tester records Pass / Fail / Blocked and downloads a CSV. |
 

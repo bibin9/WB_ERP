@@ -1,0 +1,249 @@
+<title>WB Group ERP Performance Test</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@600;700;900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#F5F7F8; --panel:#FFFFFF; --sunk:#EBEFF2;
+    --ink:#12171D; --ink-2:#3A454F; --ink-3:#6C7883;
+    --steel:#2E4057; --rule:#DCE2E7; --rule-soft:#E9EDF0;
+    --pass:#0B6E4F; --pass-bg:#E4F1EB;
+    --fail:#A8321F; --fail-bg:#FBE8E3;
+    --note:#8A5A00; --note-bg:#FAF0DE;
+    --bar-old:#C9D1D8; --bar-new:#2E4057;
+    --disp:'Chivo',system-ui,sans-serif;
+    --body:'IBM Plex Sans',system-ui,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0C1014; --panel:#141A20; --sunk:#1C242C;
+      --ink:#E9EEF2; --ink-2:#B0BCC6; --ink-3:#7E8B96;
+      --steel:#9FBBD8; --rule:#28313A; --rule-soft:#1E262E;
+      --pass:#48BE93; --pass-bg:#0F2A22;
+      --fail:#F0937F; --fail-bg:#33170F;
+      --note:#D6A45C; --note-bg:#2A2214;
+      --bar-old:#3A4652; --bar-new:#9FBBD8;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0C1014; --panel:#141A20; --sunk:#1C242C;
+    --ink:#E9EEF2; --ink-2:#B0BCC6; --ink-3:#7E8B96;
+    --steel:#9FBBD8; --rule:#28313A; --rule-soft:#1E262E;
+    --pass:#48BE93; --pass-bg:#0F2A22;
+    --fail:#F0937F; --fail-bg:#33170F;
+    --note:#D6A45C; --note-bg:#2A2214;
+    --bar-old:#3A4652; --bar-new:#9FBBD8;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--ground);color:var(--ink);font-family:var(--body);font-size:15.5px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:64rem;margin:0 auto;padding-inline:16px;padding-block:2.5rem 6rem}
+  h1,h2,h3{font-family:var(--disp);margin:0;line-height:1.15;text-wrap:balance}
+  p{margin:.75rem 0;max-width:70ch}
+  ul{margin:.7rem 0;padding-left:1.15rem;max-width:70ch} li{margin:.35rem 0}
+  .mono{font-family:var(--mono)}
+
+  .head{border-top:4px solid var(--steel);padding-top:1.5rem}
+  .kicker{font-family:var(--mono);font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3);margin-bottom:.7rem}
+  h1{font-size:clamp(1.9rem,4.6vw,2.8rem);font-weight:900;letter-spacing:-.025em}
+  .sub{font-size:1.1rem;color:var(--ink-2);max-width:60ch;margin-top:.7rem}
+  .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));margin-top:1.6rem;border-top:1px solid var(--rule)}
+  .facts div{padding:.8rem .9rem .85rem 0;border-bottom:1px solid var(--rule)}
+  .facts dt{font-family:var(--mono);font-size:.63rem;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);margin-bottom:.2rem}
+  .facts dd{margin:0;font-family:var(--disp);font-weight:600;font-size:.95rem}
+
+  .verdict{background:var(--pass-bg);border-left:4px solid var(--pass);padding:1.1rem 1.3rem;margin:2rem 0;border-radius:0 4px 4px 0}
+  .verdict b{font-family:var(--disp);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--pass);display:block;margin-bottom:.3rem}
+  .verdict p{margin:0;font-size:1.04rem;color:var(--ink);max-width:none}
+
+  section{margin-top:3rem}
+  h2{font-size:1.45rem;font-weight:700;letter-spacing:-.015em;padding-bottom:.6rem;border-bottom:2px solid var(--rule)}
+  h3{font-size:1rem;font-weight:600;margin-top:1.8rem}
+  .lead{color:var(--ink-2);margin-top:.9rem}
+
+  .tw{overflow-x:auto;margin:1.1rem 0;border:1px solid var(--rule);border-radius:5px;background:var(--panel)}
+  table{border-collapse:collapse;width:100%;font-size:.86rem}
+  th{text-align:left;font-family:var(--disp);font-weight:600;font-size:.66rem;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);padding:.65rem .8rem;border-bottom:1px solid var(--rule);white-space:nowrap;background:var(--sunk)}
+  td{padding:.55rem .8rem;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  td.id{font-family:var(--mono);font-size:.78rem;color:var(--steel);white-space:nowrap}
+
+  .chip{display:inline-block;font-family:var(--mono);font-size:.66rem;font-weight:500;letter-spacing:.05em;padding:.12rem .42rem;border-radius:3px;white-space:nowrap}
+  .chip.ok{background:var(--pass-bg);color:var(--pass)}
+  .chip.bad{background:var(--fail-bg);color:var(--fail)}
+  .chip.watch{background:var(--note-bg);color:var(--note)}
+
+  .note{background:var(--note-bg);border-left:3px solid var(--note);padding:.85rem 1.05rem;margin:1.2rem 0;max-width:70ch;font-size:.93rem}
+  .note b{font-family:var(--disp);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.25rem;color:var(--note)}
+
+  /* Before-and-after bars, drawn to one scale per chart. */
+  .bars{background:var(--panel);border:1px solid var(--rule);border-radius:5px;padding:1rem 1.1rem;margin:1.1rem 0}
+  .bars .row{display:grid;grid-template-columns:minmax(9rem,14rem) 1fr;gap:.25rem 1rem;align-items:center;margin:.55rem 0}
+  .bars .lbl{font-size:.86rem;color:var(--ink-2)}
+  .bars .track{display:flex;flex-direction:column;gap:.25rem}
+  .bars .bar{height:.95rem;border-radius:2px;display:flex;align-items:center;justify-content:flex-end;min-width:3.5rem}
+  .bars .bar span{font-family:var(--mono);font-size:.68rem;padding:0 .35rem;white-space:nowrap}
+  .bars .old{background:var(--bar-old)} .bars .old span{color:var(--ink)}
+  .bars .new{background:var(--bar-new)} .bars .new span{color:var(--panel)}
+  .legend{display:flex;gap:1.2rem;font-size:.78rem;color:var(--ink-3);margin-top:.6rem;flex-wrap:wrap}
+  .legend i{display:inline-block;width:.75rem;height:.75rem;border-radius:2px;margin-right:.35rem;vertical-align:-1px}
+  @media (max-width:36rem){ .bars .row{grid-template-columns:1fr} }
+
+  footer{margin-top:4rem;padding-top:1.3rem;border-top:1px solid var(--rule);font-size:.82rem;color:var(--ink-3);max-width:70ch}
+  @media print{ body{background:#fff} .wrap{max-width:none;padding:0} h2,h3{break-after:avoid} .tw,.bars{break-inside:avoid} }
+</style>
+
+<div class="wrap">
+<header class="head">
+  <div class="kicker">Quality assurance · Stress and performance</div>
+  <h1>WB Group ERP Performance Test</h1>
+  <p class="sub">Load, volume and simultaneous-use testing of Pre-Prod, what it found, what was fixed, and the re-test that proves it — 17 September 2026.</p>
+  <dl class="facts">
+    <div><dt>Environment</dt><dd>Pre-Prod (Railway)</dd></div>
+    <div><dt>Build tested after fixes</dt><dd class="mono">c5d511d</dd></div>
+    <div><dt>Re-test volume</dt><dd>10,000 vouchers · 15,000 stock movements</dd></div>
+    <div><dt>Test data left behind</dt><dd style="color:var(--pass)">None</dd></div>
+  </dl>
+</header>
+
+<div class="verdict">
+  <b>Result</b>
+  <p>The test found two ways simultaneous use could corrupt stock and order records, one way a slow save could leave stock without its accounting entry, and bursts of new documents being refused. All four are fixed, deployed to Pre-Prod and re-tested: stock never went negative, no order line was over-received, the ledger stayed balanced, and every test record was removed afterwards.</p>
+</div>
+
+<section>
+  <h2>What was tested</h2>
+  <div class="tw"><table>
+    <thead><tr><th>Part</th><th>What it does</th></tr></thead>
+    <tr><td>Volume</td><td>Loads years of history into a scratch company — 20,000 vouchers and 30,000 stock movements at full scale, half that for the re-test — and times the reports and stock screens against it.</td></tr>
+    <tr><td>Simultaneous use</td><td>Many people doing exactly the same thing at the same instant: posting vouchers, issuing the last of the stock, recording deliveries against one order line, raising purchase orders and material requests.</td></tr>
+    <tr><td>Sustained load</td><td>A mixed crowd of 10, then 25, users posting, receiving, issuing and running reports continuously for a minute each.</td></tr>
+    <tr><td>Soundness</td><td>After all that: the trial balance, duplicate or unbalanced vouchers, negative stock, and stock movements without their accounting entry.</td></tr>
+    <tr><td>Web server</td><td>10, 50 and 100 simultaneous visitors to pages that need no sign-in, for 20 seconds each.</td></tr>
+    <tr><td>Clean-up</td><td>Every table in the database counted before the test wrote anything, and again after the scratch company was removed. The run fails if a single count differs.</td></tr>
+  </table></div>
+  <p>The database tests ran twice against Pre-Prod before the fixes, then against a PostgreSQL rehearsal database on the test machine, then against Pre-Prod again with the fixes deployed.</p>
+</section>
+
+<section>
+  <h2>What was found, and what was done</h2>
+  <div class="tw"><table>
+    <thead><tr><th>ID</th><th>Finding</th><th>Impact</th><th>Status</th></tr></thead>
+    <tr><td class="id">PT-01</td><td>Stock could be issued below zero. Twenty-five people issuing one each from a shelf of ten, at the same moment, left the shelf at minus fourteen.</td><td>Stock and job costs wrong</td><td><span class="chip ok">Fixed</span></td></tr>
+    <tr><td class="id">PT-02</td><td>An order line could be received more than once over. Ten deliveries of five recorded at once against a line for ten were all accepted: fifty received.</td><td>Stock and supplier liability overstated</td><td><span class="chip ok">Fixed</span></td></tr>
+    <tr><td class="id">PT-03</td><td>Bursts of new documents were refused. Of 25 purchase orders or material requests raised at once, 19–20 were refused; of 50 vouchers, 24.</td><td>Work refused, no data damage</td><td><span class="chip ok">Fixed</span></td></tr>
+    <tr><td class="id">PT-04</td><td>A voucher posting that timed out while waiting its turn raised an error instead of refusing, and left 23 stock movements with no accounting entry. Found by the first re-test.</td><td>Stock and ledger disagree</td><td><span class="chip ok">Fixed</span></td></tr>
+    <tr><td class="id">PT-05</td><td>Two material return notes saved at the same moment took the same number and the second failed with a database error. Found in code review during the fix.</td><td>Work refused with an unreadable error</td><td><span class="chip ok">Fixed</span></td></tr>
+    <tr><td class="id">PT-06</td><td>Stock on Hand and Receive &amp; Issue loaded every stock movement ever recorded to work out balances.</td><td>Screens slow down every year</td><td><span class="chip ok">Fixed</span></td></tr>
+    <tr><td class="id">PT-07</td><td>Two return notes for the same job saved at the same instant could both pass the “still out on the job” check.</td><td>Rare; job could be over-credited</td><td><span class="chip watch">Open</span></td></tr>
+  </table></div>
+  <h3>How they were fixed</h3>
+  <ul>
+    <li><strong>PT-01, PT-02:</strong> the check and the save are now one step, taken while holding a database lock on that item in that store (and on the order line, for deliveries). A second person waits a moment and then sees the first person's save.</li>
+    <li><strong>PT-03, PT-05:</strong> vouchers, purchase orders, material requests, estimates, enquiries, quotations, supplier enquiries and return notes take their next number under a lock for that numbering series, so simultaneous saves queue instead of colliding.</li>
+    <li><strong>PT-04:</strong> giving up after waiting too long is now a plain refusal — “The system is busy… try again in a moment.” — and any record saved before its accounting entry is removed if the posting fails for any reason.</li>
+    <li><strong>PT-06:</strong> the database adds the movements up per item and store, and the screens read the totals. The figures are identical; a test checks it.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Before and after, on Pre-Prod</h2>
+  <p class="lead">The same scenarios, run against the same database, before the fixes (full volume) and after them (half volume).</p>
+  <div class="tw"><table>
+    <thead><tr><th>Scenario</th><th>Should happen</th><th>Before</th><th>After</th></tr></thead>
+    <tr><td>25 people issue 1 each from a shelf of 10</td><td>10 issued, shelf at 0</td><td><span class="chip bad">24 issued · −14</span></td><td><span class="chip ok">10 issued · 0</span></td></tr>
+    <tr><td>10 deliveries of 5 against an order line for 10</td><td>2 accepted, 10 received</td><td><span class="chip bad">10 accepted · 50</span></td><td><span class="chip ok">2 accepted · 10</span></td></tr>
+    <tr><td>Stock movements without an accounting entry</td><td>None</td><td><span class="chip bad">23 (first re-test)</span></td><td><span class="chip ok">0</span></td></tr>
+    <tr><td>Duplicate voucher numbers · gaps in the sequence</td><td>None</td><td><span class="chip ok">0 · 0</span></td><td><span class="chip ok">0 · 0</span></td></tr>
+    <tr><td>Unbalanced vouchers · trial balance</td><td>None · balanced</td><td><span class="chip ok">0 · balanced</span></td><td><span class="chip ok">0 · balanced</span></td></tr>
+    <tr><td>Items with negative stock after the test</td><td>None</td><td><span class="chip ok">none</span></td><td><span class="chip ok">none</span></td></tr>
+  </table></div>
+
+  <h3>Simultaneous saves, next to the database</h3>
+  <p>From the test machine every Pre-Prod query crosses the internet (about 300 ms each), which stretches how long each save holds its turn. The rehearsal database sits beside the test, the way the live application sits beside its own database, so it shows how queues actually behave.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Burst</th><th class="n">Before the fixes · one-tenth volume</th><th class="n">After the fixes · full volume</th></tr></thead>
+    <tr><td>50 vouchers posted at once</td><td class="n">41 of 50 saved</td><td class="n">50 of 50 · 0.9 s</td></tr>
+    <tr><td>25 purchase orders raised at once</td><td class="n">8 of 25 saved</td><td class="n">25 of 25 · 0.4 s</td></tr>
+    <tr><td>25 material requests raised at once</td><td class="n">10 of 25 saved</td><td class="n">25 of 25 · 0.2 s</td></tr>
+    <tr><td>25 users, one minute, mixed work</td><td class="n">82 writes refused</td><td class="n">0 refused · 4,810 operations</td></tr>
+  </table></div>
+  <div class="note">
+    <b>Why Pre-Prod still showed “busy” refusals in bursts</b>
+    Over the 300 ms link, one save holds its turn for about 1.5 seconds, so the back of a queue of 25 or 50 passes the 30-second limit and is refused — cleanly, with nothing half-saved. Beside the database the same queue clears in under a second, as the rehearsal results show. The 15–45 second save times in the Pre-Prod run are the link, not the application.
+  </div>
+</section>
+
+<section>
+  <h2>Screen and report speed</h2>
+  <p class="lead">Pre-Prod at half volume, median of five runs. Every figure includes about 300 ms of network time from the test machine.</p>
+  <div class="bars" role="img" aria-label="Stock on Hand fell from 1,950 ms to 282 ms; Receive and Issue from 1,677 ms to 296 ms">
+    <div class="row"><div class="lbl">Stock on Hand</div><div class="track">
+      <div class="bar old" style="width:100%"><span>1,950 ms</span></div>
+      <div class="bar new" style="width:14.5%"><span>282 ms</span></div>
+    </div></div>
+    <div class="row"><div class="lbl">Receive &amp; Issue</div><div class="track">
+      <div class="bar old" style="width:86%"><span>1,677 ms</span></div>
+      <div class="bar new" style="width:15.2%"><span>296 ms</span></div>
+    </div></div>
+    <div class="legend"><span><i style="background:var(--bar-old)"></i>Every movement loaded (before)</span><span><i style="background:var(--bar-new)"></i>Totals from the database (after)</span></div>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Report</th><th class="n">Pre-Prod, half volume</th><th class="n">Rehearsal, full volume</th></tr></thead>
+    <tr><td>Trial balance, one year</td><td class="n">546 ms</td><td class="n">85 ms</td></tr>
+    <tr><td>Trial balance, all time</td><td class="n">536 ms</td><td class="n">111 ms</td></tr>
+    <tr><td>Profit and loss, one year</td><td class="n">524 ms</td><td class="n">89 ms</td></tr>
+    <tr><td>Day book, first page</td><td class="n">552 ms</td><td class="n">10 ms</td></tr>
+    <tr><td>Day book, page 300</td><td class="n">553 ms</td><td class="n">34 ms</td></tr>
+  </table></div>
+  <p>Reports grew smoothly with volume; nothing slowed disproportionately. Beside the database, a voucher posting took a median 175 ms with 10 users working and 474 ms with 25.</p>
+</section>
+
+<section>
+  <h2>Web server</h2>
+  <p class="lead">Pre-Prod with the fixes deployed, 20 seconds at each level, pages that need no sign-in. Nothing was written.</p>
+  <div class="tw"><table>
+    <thead><tr><th class="n">Simultaneous visitors</th><th class="n">Requests</th><th class="n">Per second</th><th class="n">Failed</th><th class="n">Sign-in page, median</th><th class="n">95th percentile</th></tr></thead>
+    <tr><td class="n">10</td><td class="n">710</td><td class="n">35.5</td><td class="n">0</td><td class="n">282 ms</td><td class="n">328 ms</td></tr>
+    <tr><td class="n">50</td><td class="n">3,458</td><td class="n">172.9</td><td class="n">0</td><td class="n">285 ms</td><td class="n">374 ms</td></tr>
+    <tr><td class="n">100</td><td class="n">7,019</td><td class="n">350.9</td><td class="n">0</td><td class="n">284 ms</td><td class="n">352 ms</td></tr>
+  </table></div>
+  <p>Throughput rose in step with visitors and response time stayed flat, which says the server had headroom at 100; the ~280 ms is mostly network round trip. Signed-in pages were not load-tested.</p>
+</section>
+
+<section>
+  <h2>Clean-up</h2>
+  <p class="lead">Each database run worked inside a scratch company created for it. Afterwards every table was counted against its count before the run.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Run on Pre-Prod</th><th class="n">Tables</th><th class="n">Rows before</th><th class="n">Rows after</th><th>Result</th></tr></thead>
+    <tr><td>Before fixes, full volume</td><td class="n">74</td><td class="n">1,379</td><td class="n">1,379</td><td><span class="chip ok">match</span></td></tr>
+    <tr><td>Before fixes, full volume (repeat)</td><td class="n">74</td><td class="n">1,379</td><td class="n">1,379</td><td><span class="chip ok">match</span></td></tr>
+    <tr><td>Independent recount after the web test</td><td class="n">74</td><td class="n">1,379</td><td class="n">1,379</td><td><span class="chip ok">match</span></td></tr>
+    <tr><td>First fix, full volume</td><td class="n">74</td><td class="n">1,379</td><td class="n">1,379</td><td><span class="chip ok">match</span></td></tr>
+    <tr><td>Both fixes, half volume</td><td class="n">74</td><td class="n">1,379</td><td class="n">1,379</td><td><span class="chip ok">match</span></td></tr>
+  </table></div>
+  <p>The web-server test only reads, so it had nothing to remove.</p>
+</section>
+
+<section>
+  <h2>Checks added so this cannot come back</h2>
+  <ul>
+    <li><strong>Simultaneous use</strong> — fires the same bursts at the shipped code on every test run: the shelf never below zero, no line over-received, every document in a burst numbered with nothing skipped. Removing the lock fails six checks.</li>
+    <li><strong>System busy</strong> — holds the locks deliberately until a save gives up: it must refuse politely, write nothing, and leave no stock without its accounting entry. Removing that clean-up fails two checks.</li>
+    <li>The full suite — 4,015 checks across 88 suites — passes on the local database and on PostgreSQL.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Still open</h2>
+  <div class="tw"><table>
+    <thead><tr><th>Item</th><th>Why it matters</th><th>Who</th></tr></thead>
+    <tr><td>PT-07: return notes for the same job at the same instant</td><td>Rare, but could credit a job for more material than it had out.</td><td>Development</td></tr>
+    <tr><td>Load test from inside Railway</td><td>The only way to get signed-in, next-to-the-database timings for Pre-Prod itself. Needs a temporary service created in the Pre-Prod environment.</td><td>Bibin, then development</td></tr>
+    <tr><td>Voucher numbering counts its whole series each time</td><td>Milliseconds today; worth trimming once a company has years of vouchers.</td><td>Development, later</td></tr>
+    <tr><td>Promote to production</td><td>The fixes are in Pre-Prod only. Production gets them when the client signs off UAT.</td><td>Bibin</td></tr>
+    <tr><td>Turn off Public Access on the Pre-Prod database</td><td>It was opened to load test data and run this test from outside Railway.</td><td>Bibin</td></tr>
+  </table></div>
+</section>
+
+<footer>White &amp; Bright Group ERP · Stress and performance test · 17 September 2026 · Pre-Prod build c5d511d. Production (build fe0667a) was not tested and does not yet carry these fixes.</footer>
+</div>
