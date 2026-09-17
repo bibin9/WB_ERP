@@ -181,6 +181,40 @@ const voucher = (ref) =>
   ok("only seeded vouchers are candidates", s.includes('source: "seed"'));
 }
 
+/* ================= 5. what an administrator set in Access Control ======= */
+// The seed used to write every built-in role's permissions and approval level
+// on every boot, undoing Access Control at each deploy.
+{
+  const tenant = await db.tenant.findFirst({ where: { key: "wandb" } });
+  const role = await db.role.findFirst({ where: { tenantId: tenant.id, name: "Storekeeper" } });
+  const original = { permissions: role.permissions, approvalLevel: role.approvalLevel, seededPermissions: role.seededPermissions };
+  try {
+    const perms = JSON.parse(role.permissions);
+    delete perms["inventory.returns"];
+    perms["inventory.items"] = ["view"];
+    await db.role.update({ where: { id: role.id }, data: { permissions: JSON.stringify(perms), approvalLevel: 25 } });
+    seed();
+    const after = await db.role.findUnique({ where: { id: role.id } });
+    const p = JSON.parse(after.permissions);
+    ok("a screen an administrator removed from a built-in role survives a boot", !("inventory.returns" in p));
+    ok("  and an action they removed", JSON.stringify(p["inventory.items"]) === '["view"]', JSON.stringify(p["inventory.items"]));
+    ok("  and the approval level they set", after.approvalLevel === 25, `${after.approvalLevel}`);
+
+    // A default never applied to this role, standing in for a screen added in a later release.
+    const seeded = JSON.parse(after.seededPermissions);
+    delete seeded["inventory.stock"];
+    const withoutStock = JSON.parse(after.permissions);
+    delete withoutStock["inventory.stock"];
+    await db.role.update({ where: { id: role.id }, data: { seededPermissions: JSON.stringify(seeded), permissions: JSON.stringify(withoutStock) } });
+    seed();
+    const later = JSON.parse((await db.role.findUnique({ where: { id: role.id } })).permissions);
+    ok("a default never applied before still reaches the role", Array.isArray(later["inventory.stock"]) && later["inventory.stock"].includes("view"));
+    ok("  while the removed screen stays removed", !("inventory.returns" in later));
+  } finally {
+    await db.role.update({ where: { id: role.id }, data: original });
+  }
+}
+
 await db.$disconnect();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

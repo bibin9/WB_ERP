@@ -187,6 +187,12 @@ model Role {
   // Permissions as JSON string: { "module": ["create","read","update","delete","approve"] }
   permissions   String              @default("{}")
   approvalLevel Int                 @default(0) // sign-off rank (higher = more authority)
+  /// The default screen permissions the seed has already applied to this role,
+  /// in the same shape as `permissions`. The seed runs on every boot; it adds
+  /// only defaults recorded here as never applied, so a screen or action an
+  /// administrator removed in Access Control stays removed across deploys,
+  /// while a screen added to the system later still reaches the role.
+  seededPermissions String          @default("{}")
   memberships   CompanyMembership[]
 
   @@unique([tenantId, name])

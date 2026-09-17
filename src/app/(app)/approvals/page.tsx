@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { listDocTypes } from "@/lib/approval-engine";
 import { requireAccess } from "@/lib/guard";
+import { can } from "@/lib/rbac";
 import { money } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,10 @@ export default async function ApprovalsPage() {
     return step && m && m.approvalLevel >= step.requiredLevel;
   });
 
+  // Seeing the inbox and deciding in it are separate grants. Somebody with the
+  // level but not the grant is told so, rather than offered buttons that refuse.
+  const mayApprove = can(session, "approvals.inbox", "approve");
+
   const companyOpts = (session?.companies ?? []).map((c) => ({ id: c.id, label: `${c.code} — ${c.name}` }));
   const docTypes = session ? await listDocTypes(session.tenant.id) : [];
 
@@ -87,7 +92,13 @@ export default async function ApprovalsPage() {
                       {r.docType} · {r.company.code} · {amountWithCurrency(r.amount, r.currency)} · by {r.requestedBy} · needs {step.roleName}
                     </div>
                   </div>
-                  <ApprovalDecision stepId={step.id} />
+                  {mayApprove ? (
+                    <ApprovalDecision stepId={step.id} />
+                  ) : (
+                    <span className="text-xs text-muted">
+                      Waiting for your level, but your role cannot approve. Ask an administrator.
+                    </span>
+                  )}
                 </div>
               );
             })}

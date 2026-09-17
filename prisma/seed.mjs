@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
+import { mergeRoleDefaults } from "./role-defaults.mjs";
 
 const db = new PrismaClient();
 // First-run admin password. Set ADMIN_PASSWORD in the host env for the pilot/production;
@@ -65,6 +66,11 @@ const expandPerms = (modulePerms) => {
   }
   return out;
 };
+// A role named on an approval route below must be able to act in the inbox:
+// deciding a step needs the approve action on approvals.inbox as well as the
+// approval level. Project Manager, Site Engineer and Procurement Officer are on
+// the Material Request and Purchase Order routes and once had view only, so
+// their Approve button did nothing and only more senior roles could move work.
 const ROLES = [
   // Admin-level roles (approvalLevel >= 80 get full access automatically)
   { name: "Group Admin", approvalLevel: 100, permissions: {} },
@@ -73,10 +79,10 @@ const ROLES = [
   // Scoped roles — explicit permissions
   { name: "Operations Manager", approvalLevel: 70, permissions: { dashboard: V, companies: V, finance: V, hr: V, approvals: ["view", "approve"], inventory: ["view", "approve"], crm: V, projects: VCE, hse: V, audit: V } },
   { name: "Finance Controller", approvalLevel: 60, permissions: { dashboard: V, companies: V, finance: FULL, approvals: ["view", "approve"], audit: V } },
-  { name: "Project Manager", approvalLevel: 50, permissions: { dashboard: V, projects: VCED, hr: V, inventory: VC, crm: V, approvals: V, hse: V } },
+  { name: "Project Manager", approvalLevel: 50, permissions: { dashboard: V, projects: VCED, hr: V, inventory: VC, crm: V, approvals: ["view", "approve"], hse: V } },
   { name: "Estimation / Sales Engineer", approvalLevel: 40, permissions: { dashboard: V, crm: VCE, projects: V } },
-  { name: "Site Engineer / Planner", approvalLevel: 35, permissions: { dashboard: V, inventory: VC, projects: VCE, hr: V, hse: V } },
-  { name: "Procurement Officer", approvalLevel: 45, permissions: { dashboard: V, inventory: ["view", "create", "edit", "approve"], crm: V } },
+  { name: "Site Engineer / Planner", approvalLevel: 35, permissions: { dashboard: V, inventory: VC, projects: VCE, hr: V, hse: V, approvals: ["view", "approve"] } },
+  { name: "Procurement Officer", approvalLevel: 45, permissions: { dashboard: V, inventory: ["view", "create", "edit", "approve"], crm: V, approvals: ["view", "approve"] } },
   { name: "Storekeeper", approvalLevel: 20, permissions: { dashboard: V, inventory: VCE } },
   { name: "QA/QC & Calibration", approvalLevel: 40, permissions: { dashboard: V, inventory: ["view", "edit"], hse: V } },
   { name: "HSE Officer", approvalLevel: 45, permissions: { dashboard: V, hse: FULL, hr: V } },
@@ -109,13 +115,25 @@ async function main() {
     companies.push(company);
   }
 
+  // Built-in roles. Created with their defaults; afterwards only defaults this
+  // role has never been given are added, and the approval level is left as the
+  // administrator set it. Overwriting both on every boot undid every change
+  // made in Access Control at the next deploy.
   for (const r of ROLES) {
-    const permissions = JSON.stringify(expandPerms(r.permissions ?? {}));
-    await db.role.upsert({
-      where: { tenantId_name: { tenantId: tenant.id, name: r.name } },
-      update: { approvalLevel: r.approvalLevel, permissions },
-      create: { tenantId: tenant.id, name: r.name, approvalLevel: r.approvalLevel, permissions },
-    });
+    const defaults = expandPerms(r.permissions ?? {});
+    const existing = await db.role.findUnique({ where: { tenantId_name: { tenantId: tenant.id, name: r.name } } });
+    if (!existing) {
+      const merged = mergeRoleDefaults("{}", "{}", defaults);
+      await db.role.create({
+        data: { tenantId: tenant.id, name: r.name, approvalLevel: r.approvalLevel, permissions: merged.permissions, seededPermissions: merged.seeded },
+      });
+      continue;
+    }
+    const merged = mergeRoleDefaults(existing.permissions, existing.seededPermissions, defaults);
+    if (merged.permissions !== existing.permissions || merged.seeded !== existing.seededPermissions) {
+      await db.role.update({ where: { id: existing.id }, data: { permissions: merged.permissions, seededPermissions: merged.seeded } });
+      if (merged.added.length) console.log(`  ${r.name}: granted ${merged.added.join(", ")}`);
+    }
   }
 
   // Master data lists

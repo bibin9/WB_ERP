@@ -62,24 +62,39 @@ export async function createApprovalRequest(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
-export async function decideStep(stepId: string, decision: "Approved" | "Rejected", comment: string) {
-  if (!(await allow("approvals.inbox", "approve"))) return;
+export type DecisionResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Approve or reject the step a request is waiting on.
+ *
+ * Says why when it refuses. It used to return nothing, so a Project Manager
+ * whose role could see the inbox but not approve in it pressed Approve and
+ * watched nothing happen, with no way to tell that was a permission rather
+ * than a fault.
+ */
+export async function decideStep(stepId: string, decision: "Approved" | "Rejected", comment: string): Promise<DecisionResult> {
+  if (!(await allow("approvals.inbox", "approve"))) {
+    return { ok: false, error: "Your role can see approvals but not approve them. An administrator can grant Approve on Approvals in Access Control." };
+  }
   const session = await getSession();
-  if (!session) return;
+  if (!session) return { ok: false, error: "Your session has ended. Sign in again." };
 
   const step = await db.approvalStep.findUnique({
     where: { id: stepId },
     include: { request: { include: { steps: true } } },
   });
-  if (!step) return;
+  if (!step) return { ok: false, error: "That approval no longer exists." };
   const request = step.request;
-  if (request.status !== "Pending") return;
-  if (step.order !== request.currentStep || step.status !== "Pending") return;
+  if (request.status !== "Pending" || step.order !== request.currentStep || step.status !== "Pending") {
+    return { ok: false, error: "Somebody has already decided this step. Refresh to see where it has got to." };
+  }
 
   // Authorisation: the acting user must hold, in this request's company, a role
   // whose approval level meets the step's requirement (higher authority may act).
   const membership = session.companies.find((c) => c.id === request.companyId);
-  if (!membership || membership.approvalLevel < step.requiredLevel) return;
+  if (!membership || membership.approvalLevel < step.requiredLevel) {
+    return { ok: false, error: `This step needs ${step.roleName} or above in ${membership ? "this company" : "a company you do not have access to"}.` };
+  }
 
   await db.approvalStep.update({
     where: { id: stepId },
@@ -114,4 +129,5 @@ export async function decideStep(stepId: string, decision: "Approved" | "Rejecte
   });
   revalidatePath("/approvals");
   revalidatePath("/dashboard");
+  return { ok: true };
 }
