@@ -111,26 +111,34 @@ export async function recordAdvance(input: RecordAdvanceInput): Promise<AdvanceR
     },
   });
 
-  const posted = await postVoucher({
-    companyId: input.companyId,
-    postedBy: input.postedBy,
-    voucherType: received ? "Receipt" : "Payment",
-    date: input.date,
-    partyId: party.id,
-    memo: `Advance ${received ? "received from" : "paid to"} ${party.name} — ${reference}`,
-    lines: received
-      ? [
-          { accountId: bank.id, debit: amount, credit: 0 },
-          { accountId: advanceAccountId, debit: 0, credit: amount, jobId: input.jobId ?? null },
-        ]
-      : [
-          { accountId: advanceAccountId, debit: amount, credit: 0, jobId: input.jobId ?? null },
-          { accountId: bank.id, debit: 0, credit: amount },
-        ],
-    sourceType: "party-advance",
-    sourceId: row.id,
-    source: "advances",
-  });
+  // A voucher that fails with a fault rather than a refusal must not leave
+  // this row behind with nothing posted against it.
+  let posted: Awaited<ReturnType<typeof postVoucher>>;
+  try {
+    posted = await postVoucher({
+      companyId: input.companyId,
+      postedBy: input.postedBy,
+      voucherType: received ? "Receipt" : "Payment",
+      date: input.date,
+      partyId: party.id,
+      memo: `Advance ${received ? "received from" : "paid to"} ${party.name} — ${reference}`,
+      lines: received
+        ? [
+            { accountId: bank.id, debit: amount, credit: 0 },
+            { accountId: advanceAccountId, debit: 0, credit: amount, jobId: input.jobId ?? null },
+          ]
+        : [
+            { accountId: advanceAccountId, debit: amount, credit: 0, jobId: input.jobId ?? null },
+            { accountId: bank.id, debit: 0, credit: amount },
+          ],
+      sourceType: "party-advance",
+      sourceId: row.id,
+      source: "advances",
+    });
+  } catch (err) {
+    await db.partyAdvance.delete({ where: { id: row.id } }).catch(() => {});
+    throw err;
+  }
   if (!posted.ok) {
     // Nothing reached the ledger, so nothing should be left in the register.
     await db.partyAdvance.delete({ where: { id: row.id } });
@@ -199,28 +207,36 @@ export async function recoverAdvance(input: RecoverAdvanceInput): Promise<Simple
     },
   });
 
-  const posted = await postVoucher({
-    companyId: row.companyId,
-    postedBy: input.postedBy,
-    voucherType: "Journal",
-    date: input.date,
-    partyId: row.partyId,
-    memo: `Advance recovered against ${invoice ? invoice.number : "invoices"} — ${row.reference}`,
-    lines: received
-      ? [
-          // The liability comes down; the customer owes us that much less.
-          { accountId: advanceAccountId, debit: amount, credit: 0, jobId: row.jobId },
-          { accountId: ordinaryAccountId, debit: 0, credit: amount },
-        ]
-      : [
-          // We owe the supplier less, because they are holding our money.
-          { accountId: ordinaryAccountId, debit: amount, credit: 0 },
-          { accountId: advanceAccountId, debit: 0, credit: amount, jobId: row.jobId },
-        ],
-    sourceType: "advance-recovery",
-    sourceId: rec.id,
-    source: "advances",
-  });
+  // A voucher that fails with a fault rather than a refusal must not leave
+  // this row behind with nothing posted against it.
+  let posted: Awaited<ReturnType<typeof postVoucher>>;
+  try {
+    posted = await postVoucher({
+      companyId: row.companyId,
+      postedBy: input.postedBy,
+      voucherType: "Journal",
+      date: input.date,
+      partyId: row.partyId,
+      memo: `Advance recovered against ${invoice ? invoice.number : "invoices"} — ${row.reference}`,
+      lines: received
+        ? [
+            // The liability comes down; the customer owes us that much less.
+            { accountId: advanceAccountId, debit: amount, credit: 0, jobId: row.jobId },
+            { accountId: ordinaryAccountId, debit: 0, credit: amount },
+          ]
+        : [
+            // We owe the supplier less, because they are holding our money.
+            { accountId: ordinaryAccountId, debit: amount, credit: 0 },
+            { accountId: advanceAccountId, debit: 0, credit: amount, jobId: row.jobId },
+          ],
+      sourceType: "advance-recovery",
+      sourceId: rec.id,
+      source: "advances",
+    });
+  } catch (err) {
+    await db.partyAdvanceRecovery.delete({ where: { id: rec.id } }).catch(() => {});
+    throw err;
+  }
   if (!posted.ok) {
     await db.partyAdvanceRecovery.delete({ where: { id: rec.id } });
     return posted;

@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "./db";
-import { serialised, seriesKey, type Client } from "./serialise";
+import { serialised, seriesKey, isBusy, BUSY_MESSAGE, type Client } from "./serialise";
 import { financialYear } from "./period";
 import { VAT_TREATMENTS } from "./vat";
 import { toFils } from "./money";
@@ -314,6 +314,9 @@ export async function postVoucher(input: PostingInput): Promise<PostingResult> {
       // once — try again. A clash on the source document is the SAME document
       // being posted twice, which must stay a refusal: retrying it would post
       // the thing the index exists to prevent.
+      // Gave up waiting for the series. A refusal, not a throw: every caller
+      // that saved a record before posting removes it on a refusal.
+      if (isBusy(err)) return { ok: false, error: BUSY_MESSAGE };
       const clash = uniqueClash(err);
       if (clash === "source") {
         return { ok: false, error: "That document has already been posted." };

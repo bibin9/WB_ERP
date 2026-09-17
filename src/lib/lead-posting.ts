@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "./db";
 import { documentStem, nextInSeries } from "./docnumber";
-import { serialised, seriesKey, isUniqueClash, type Client } from "./serialise";
+import { serialised, seriesKey, isUniqueClash, isBusy, BUSY_MESSAGE, type Client } from "./serialise";
 import { checkStageChange, type LeadLike } from "./leads";
 
 /**
@@ -141,6 +141,7 @@ export async function createLead(input: LeadInput): Promise<Result<{ leadId: str
       });
       return { ok: true, leadId: created.id, number };
     } catch (e) {
+      if (isBusy(e)) return { ok: false, error: BUSY_MESSAGE };
       if (!isUniqueClash(e)) throw e;
     }
   }

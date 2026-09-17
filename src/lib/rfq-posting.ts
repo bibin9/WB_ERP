@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "./db";
 import { documentStem, nextInSeries } from "./docnumber";
-import { serialised, seriesKey, isUniqueClash, type Client } from "./serialise";
+import { serialised, seriesKey, isUniqueClash, isBusy, BUSY_MESSAGE, type Client } from "./serialise";
 import { createOrder } from "./purchase-posting";
 import { checkAward, rankQuotes, MIN_VENDORS, type QuoteLike } from "./rfq";
 
@@ -103,6 +103,7 @@ export async function createRfq(input: RfqInput): Promise<Result<{ rfqId: string
       });
       return { ok: true, rfqId: created.id, number };
     } catch (e) {
+      if (isBusy(e)) return { ok: false, error: BUSY_MESSAGE };
       if (!isUniqueClash(e)) throw e;
     }
   }

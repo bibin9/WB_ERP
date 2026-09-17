@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "./db";
 import { documentStem, nextInSeries } from "./docnumber";
-import { serialised, orderLineKey, seriesKey, isUniqueClash, type Client } from "./serialise";
+import { serialised, orderLineKey, seriesKey, isUniqueClash, isBusy, BUSY_MESSAGE, type Client } from "./serialise";
 import { resolveRoute } from "./approval-engine";
 import { recordMovement } from "./stock-posting";
 import { toFils } from "./money";
@@ -116,6 +116,7 @@ export async function createRequest(
       return { ok: true, requestId: created.id, number };
     } catch (e) {
       // Somebody numbered without the lock. Take the next one rather than fail.
+      if (isBusy(e)) return { ok: false, error: BUSY_MESSAGE };
       if (!isUniqueClash(e)) throw e;
     }
   }
@@ -258,6 +259,7 @@ export async function createOrder(input: OrderInput): Promise<Result<{ orderId: 
       }
       return { ok: true, orderId: created.id, number };
     } catch (e) {
+      if (isBusy(e)) return { ok: false, error: BUSY_MESSAGE };
       if (!isUniqueClash(e)) throw e;
     }
   }

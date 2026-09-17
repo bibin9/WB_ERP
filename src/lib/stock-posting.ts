@@ -9,7 +9,7 @@ import {
   MOVEMENT_KINDS, type StockBalance,
 } from "./stock";
 import { goesBackToStock, checkReturn, RETURN_CONDITIONS } from "./returns";
-import { serialised, shelfKey, seriesKey, isUniqueClash, type Client } from "./serialise";
+import { serialised, shelfKey, seriesKey, isUniqueClash, isBusy, BUSY_MESSAGE, type Client } from "./serialise";
 
 /**
  * Turning a stock movement into accounting.
@@ -203,7 +203,10 @@ export async function recordMovement(input: MovementInput, options: MovementOpti
       });
       return { ok: true as const, row, priced };
     },
-  );
+  ).catch((err) => {
+    if (isBusy(err)) return { ok: false as const, error: BUSY_MESSAGE };
+    throw err;
+  });
   if (!written.ok) return written;
   const { row, priced } = written;
 
@@ -229,26 +232,34 @@ export async function recordMovement(input: MovementInput, options: MovementOpti
   const up = isInward(kind);
   const amount = priced.value;
 
-  const posted = await postVoucher({
-    companyId: input.companyId,
-    postedBy: input.postedBy,
-    voucherType: "Journal",
-    date: input.date,
-    partyId: input.partyId ?? null,
-    memo: `${kind} — ${item.code} ${item.name} (${reference})`,
-    lines: up
-      ? [
-          { accountId: inventory, debit: amount, credit: 0 },
-          { accountId: counter, debit: 0, credit: amount, jobId: input.jobId ?? null },
-        ]
-      : [
-          { accountId: counter, debit: amount, credit: 0, jobId: input.jobId ?? null },
-          { accountId: inventory, debit: 0, credit: amount },
-        ],
-    sourceType: "stock-movement",
-    sourceId: row.id,
-    source: "stock",
-  });
+  // Whatever happens to the posting — a refusal or a fault — a movement with no
+  // voucher must not be left behind: the shelf and the ledger would disagree.
+  let posted: Awaited<ReturnType<typeof postVoucher>>;
+  try {
+    posted = await postVoucher({
+      companyId: input.companyId,
+      postedBy: input.postedBy,
+      voucherType: "Journal",
+      date: input.date,
+      partyId: input.partyId ?? null,
+      memo: `${kind} — ${item.code} ${item.name} (${reference})`,
+      lines: up
+        ? [
+            { accountId: inventory, debit: amount, credit: 0 },
+            { accountId: counter, debit: 0, credit: amount, jobId: input.jobId ?? null },
+          ]
+        : [
+            { accountId: counter, debit: amount, credit: 0, jobId: input.jobId ?? null },
+            { accountId: inventory, debit: 0, credit: amount },
+          ],
+      sourceType: "stock-movement",
+      sourceId: row.id,
+      source: "stock",
+    });
+  } catch (err) {
+    await db.stockMovement.delete({ where: { id: row.id } }).catch(() => {});
+    throw err;
+  }
   if (!posted.ok) {
     await db.stockMovement.delete({ where: { id: row.id } });
     return posted;
@@ -527,6 +538,7 @@ export async function postReturn(input: ReturnInput): Promise<ReturnResult> {
     try {
       created = await serialised([seriesKey(input.companyId, "MRN")], writeNote);
     } catch (e) {
+      if (isBusy(e)) return { ok: false, error: BUSY_MESSAGE };
       if (!isUniqueClash(e)) throw e;
     }
   }

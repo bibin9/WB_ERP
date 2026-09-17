@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "./db";
 import { documentStem, nextInSeries } from "./docnumber";
-import { serialised, seriesKey, isUniqueClash, type Client } from "./serialise";
+import { serialised, seriesKey, isUniqueClash, isBusy, BUSY_MESSAGE, type Client } from "./serialise";
 import { resolveRoute } from "./approval-engine";
 import { priceEstimate, toBidLine } from "./estimate-posting";
 import { bidLine } from "./estimating";
@@ -143,6 +143,7 @@ export async function createQuotation(
       });
       return { ok: true, quotationId: created.id, number, total: priced.total };
     } catch (e) {
+      if (isBusy(e)) return { ok: false, error: BUSY_MESSAGE };
       if (!isUniqueClash(e)) throw e;
     }
   }

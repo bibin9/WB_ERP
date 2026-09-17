@@ -32,8 +32,28 @@ import { db } from "./db";
 
 export type Client = Prisma.TransactionClient | typeof db;
 
-/** How long a caller will wait for its turn, and for the work, before giving up. */
-export const LOCK_WAIT_MS = 30_000;
+/**
+ * How long a caller will wait for its turn, and for the work, before giving up.
+ * Tests shorten it with LOCK_WAIT_MS to reach the give-up path quickly.
+ */
+export const LOCK_WAIT_MS = Number(process.env.LOCK_WAIT_MS) > 0 ? Number(process.env.LOCK_WAIT_MS) : 30_000;
+
+/** What callers say when they gave up waiting. */
+export const BUSY_MESSAGE = "The system is busy — too many people are saving the same kind of record at once. Try again in a moment.";
+
+/**
+ * Whether an error means "gave up waiting", as opposed to a fault.
+ *
+ * A caller that throws this instead of refusing politely can leave a half-done
+ * job behind: the Pre-Prod stress test left 23 stock movements with no voucher
+ * because a posting that timed out threw, and the movement was only removed
+ * when posting returned a refusal. So every caller turns these into a refusal.
+ *
+ *   P2028      Prisma: the transaction could not start, or ran out of time.
+ *   P2024      Prisma: no database connection became free in time.
+ *   LOCK_TIMEOUT  this module, on SQLite: waited too long for the queue.
+ */
+export const isBusy = (err: unknown): boolean => ["P2028", "P2024", "LOCK_TIMEOUT"].includes(String((err as { code?: string })?.code ?? ""));
 
 const provider = (): string => String((db as unknown as { _activeProvider?: string })._activeProvider ?? "");
 export const usesAdvisoryLocks = (): boolean => provider() === "postgresql";
@@ -52,11 +72,24 @@ async function inProcess<T>(keys: string[], work: () => Promise<T>): Promise<T> 
     const mine = new Promise<void>((r) => (release = r));
     const tail = before.then(() => mine);
     queues.set(key, tail);
-    await before;
-    releases.push(() => {
+    const done = () => {
       release();
       if (queues.get(key) === tail) queues.delete(key);
-    });
+    };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const waited = await Promise.race([
+      before.then(() => true),
+      new Promise<false>((r) => (timer = setTimeout(() => r(false), LOCK_WAIT_MS))),
+    ]);
+    clearTimeout(timer);
+    if (!waited) {
+      // Give up our place without blocking whoever queued behind us, and let go
+      // of anything already held.
+      done();
+      for (const r of releases.reverse()) r();
+      throw Object.assign(new Error(`Waited more than ${LOCK_WAIT_MS} ms for ${key}`), { code: "LOCK_TIMEOUT" });
+    }
+    releases.push(done);
   }
   try {
     return await work();

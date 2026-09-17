@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "./db";
 import { documentStem, nextInSeries } from "./docnumber";
-import { serialised, seriesKey, isUniqueClash, type Client } from "./serialise";
+import { serialised, seriesKey, isUniqueClash, isBusy, BUSY_MESSAGE, type Client } from "./serialise";
 import {
   BID_UNITS, isLumpSum, materialPerUnit, summariseEstimate, checkQuotable,
   type BidLineLike, type Basis, type EstimateTotals,
@@ -170,6 +170,7 @@ export async function createEstimate(
       });
       return { ok: true, estimateId: created.id, number };
     } catch (e) {
+      if (isBusy(e)) return { ok: false, error: BUSY_MESSAGE };
       if (!isUniqueClash(e)) throw e;
     }
   }
