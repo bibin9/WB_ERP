@@ -24,3 +24,6 @@ backups/
 
 # Scratch patch scripts, never part of the project.
 scripts/.*.py
+
+# performance test output (may name database hosts)
+perf-results/
