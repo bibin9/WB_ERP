@@ -1,0 +1,1051 @@
+<title>WB Group ERP Handbook</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+  :root{
+    --paper:#F7F8FA; --raised:#FFFFFF; --sunk:#EDF1F5;
+    --ink:#111820; --ink-2:#3D4A57; --ink-3:#6B7885;
+    --navy:#0F3057; --rule:#D3DCE6; --rule-soft:#E6EBF0;
+    --signal:#0A7D5A; --signal-bg:#E6F3EE;
+    --caution:#9A5B00; --caution-bg:#FBF1E0;
+    --sans:'Archivo',system-ui,sans-serif;
+    --serif:'Source Serif 4',Georgia,serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --measure:66ch;
+  }
+  :root:not([data-theme="light"]){
+    @media (prefers-color-scheme:dark){
+      --paper:#0D1116; --raised:#141A21; --sunk:#1B222B;
+      --ink:#E8EDF2; --ink-2:#AFBCC8; --ink-3:#7D8B99;
+      --navy:#8FB6DC; --rule:#28323D; --rule-soft:#1F2831;
+      --signal:#4FBF95; --signal-bg:#122C24;
+      --caution:#D9A356; --caution-bg:#2C2314;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0D1116; --raised:#141A21; --sunk:#1B222B;
+    --ink:#E8EDF2; --ink-2:#AFBCC8; --ink-3:#7D8B99;
+    --navy:#8FB6DC; --rule:#28323D; --rule-soft:#1F2831;
+    --signal:#4FBF95; --signal-bg:#122C24;
+    --caution:#D9A356; --caution-bg:#2C2314;
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font-family:var(--serif);
+       font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  h1,h2,h3,h4{font-family:var(--sans);text-wrap:balance;margin:0;line-height:1.2}
+  a{color:var(--navy)}
+  code,.mono{font-family:var(--mono);font-size:.88em}
+
+  .shell{display:grid;grid-template-columns:16rem minmax(0,1fr);gap:0;
+         max-width:78rem;margin:0 auto}
+  @media (max-width:60rem){ .shell{grid-template-columns:1fr} }
+
+  /* ---- contents rail ---- */
+  .rail{border-right:1px solid var(--rule);padding:2rem 1.25rem 4rem}
+  @media (min-width:60rem){ .rail{position:sticky;top:0;height:100vh;overflow-y:auto} }
+  @media (max-width:60rem){ .rail{border-right:0;border-bottom:1px solid var(--rule);height:auto;position:static} }
+  .rail .mark{font-family:var(--sans);font-weight:700;font-size:.95rem;letter-spacing:.04em;
+              text-transform:uppercase;color:var(--navy);line-height:1.3}
+  .rail .mark span{display:block;color:var(--ink-3);font-weight:500;letter-spacing:.12em;font-size:.62rem;margin-top:.3rem}
+  .rail nav{margin-top:1.75rem;display:flex;flex-direction:column;gap:.1rem}
+  .rail a{display:block;font-family:var(--sans);font-size:.82rem;color:var(--ink-2);
+          text-decoration:none;padding:.34rem .5rem;border-radius:3px;line-height:1.35}
+  .rail a:hover{background:var(--sunk);color:var(--ink)}
+  .rail a:focus-visible{outline:2px solid var(--navy);outline-offset:1px}
+  .rail .grp{font-family:var(--sans);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;
+             color:var(--ink-3);margin:1.4rem 0 .4rem .5rem;font-weight:600}
+
+  /* ---- reading column ---- */
+  main{padding:2.75rem 2rem 6rem;min-width:0}
+  @media (max-width:40rem){ main{padding:2rem 1.1rem 4rem} }
+  .col{max-width:var(--measure)}
+
+  .lede{font-size:1.32rem;line-height:1.5;color:var(--ink-2);max-width:52ch}
+  h1{font-size:clamp(2.1rem,5vw,3.1rem);font-weight:700;letter-spacing:-.02em}
+  h2{font-size:1.7rem;font-weight:600;letter-spacing:-.01em;margin-top:0}
+  h3{font-size:1.12rem;font-weight:600;margin-top:2.2rem}
+  h4{font-size:.95rem;font-weight:600;color:var(--ink-2);margin-top:1.6rem}
+  p{margin:.9rem 0;max-width:var(--measure)}
+  ul,ol{margin:.9rem 0;padding-left:1.3rem;max-width:var(--measure)}
+  li{margin:.45rem 0}
+  strong{font-weight:600}
+
+  section{padding-top:2.5rem;margin-top:2.5rem;border-top:1px solid var(--rule-soft)}
+  section:first-of-type{border-top:0;margin-top:0;padding-top:0}
+  .eyebrow{font-family:var(--sans);font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;
+           color:var(--ink-3);font-weight:600;margin-bottom:.5rem;display:block}
+
+  /* ---- screen entry: a definition, not a card ---- */
+  .entry{border-left:2px solid var(--rule);padding:.15rem 0 .15rem 1.1rem;margin:1.9rem 0}
+  .entry h4{font-family:var(--sans);font-size:1rem;color:var(--ink);margin:0 0 .1rem}
+  .entry .where{font-family:var(--mono);font-size:.73rem;color:var(--ink-3);display:block;margin-bottom:.5rem}
+  .entry p{margin:.5rem 0}
+  .entry ul{margin:.5rem 0}
+
+  /* ---- callouts ---- */
+  .note{background:var(--sunk);border-left:3px solid var(--navy);padding:.85rem 1.1rem;
+        margin:1.4rem 0;max-width:var(--measure);font-size:.95rem}
+  .note.do{background:var(--signal-bg);border-left-color:var(--signal)}
+  .note.care{background:var(--caution-bg);border-left-color:var(--caution)}
+  .note b{font-family:var(--sans);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;
+          display:block;margin-bottom:.25rem;color:var(--ink-2)}
+  .note.do b{color:var(--signal)} .note.care b{color:var(--caution)}
+
+  /* ---- ordered setup path: genuinely a sequence ---- */
+  .path{list-style:none;padding:0;counter-reset:step;max-width:var(--measure)}
+  .path li{counter-increment:step;position:relative;padding-left:2.6rem;margin:1.5rem 0}
+  .path li::before{content:counter(step);position:absolute;left:0;top:.05rem;
+       font-family:var(--mono);font-size:.72rem;font-weight:500;color:var(--navy);
+       border:1px solid var(--rule);border-radius:50%;width:1.7rem;height:1.7rem;
+       display:grid;place-items:center;background:var(--raised)}
+  .path b{font-family:var(--sans);display:block;font-size:.98rem;margin-bottom:.15rem}
+
+  /* ---- tables ---- */
+  .tw{overflow-x:auto;margin:1.4rem 0;border:1px solid var(--rule);border-radius:4px;background:var(--raised)}
+  table{border-collapse:collapse;width:100%;font-size:.88rem;font-family:var(--sans)}
+  th{text-align:left;font-weight:600;font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;
+     color:var(--ink-3);padding:.7rem .85rem;border-bottom:1px solid var(--rule);white-space:nowrap}
+  td{padding:.62rem .85rem;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td.n{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+  td .k{font-family:var(--mono);font-size:.8rem;color:var(--ink-2)}
+
+  kbd{font-family:var(--mono);font-size:.78rem;background:var(--sunk);border:1px solid var(--rule);
+      border-bottom-width:2px;border-radius:3px;padding:.05rem .35rem}
+  .term{font-family:var(--sans);font-weight:600}
+  dl.gloss{max-width:var(--measure);margin:1.2rem 0}
+  dl.gloss dt{font-family:var(--sans);font-weight:600;font-size:.95rem;margin-top:1.1rem}
+  dl.gloss dd{margin:.25rem 0 0;color:var(--ink-2)}
+
+  .cover{border-bottom:2px solid var(--navy);padding-bottom:2rem;margin-bottom:.5rem}
+  .meta{display:flex;flex-wrap:wrap;gap:1.6rem;margin-top:1.6rem;font-family:var(--sans);font-size:.78rem}
+  .meta div span{display:block;color:var(--ink-3);font-size:.6rem;letter-spacing:.12em;
+                 text-transform:uppercase;margin-bottom:.15rem}
+
+  @media print{
+    .rail{display:none} .shell{display:block;max-width:none}
+    body{background:#fff;color:#000;font-size:11pt}
+    section{break-inside:auto;page-break-inside:auto}
+    h2,h3{break-after:avoid}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="shell">
+<aside class="rail">
+  <div class="mark">WB Group ERP<span>User handbook</span></div>
+  <nav>
+    <div class="grp">Start here</div>
+    <a href="#what">What this system is</a>
+    <a href="#signin">Signing in</a>
+    <a href="#around">Finding your way around</a>
+    <a href="#yourjob">What you will use</a>
+    <div class="grp">Setting up</div>
+    <a href="#firstweek">The first week, in order</a>
+    <div class="grp">Finance</div>
+    <a href="#money-basics">Money, in plain words</a>
+    <a href="#invoicing">Invoicing customers</a>
+    <a href="#bills">Supplier bills</a>
+    <a href="#daybook">Day book &amp; ledgers</a>
+    <a href="#registers">Cheques, retention, bank</a>
+    <a href="#advances">Advances</a>
+    <a href="#jobcosting">Job costing</a>
+    <a href="#wip">Work in progress</a>
+    <a href="#tax">VAT and corporate tax</a>
+    <a href="#einv">Electronic invoicing</a>
+    <div class="grp">People</div>
+    <a href="#people">Employee records</a>
+    <a href="#time">Attendance and leave</a>
+    <a href="#payroll">Payroll and WPS</a>
+    <a href="#leaving">When someone leaves</a>
+    <a href="#hrpolicy">Your HR policy</a>
+    <div class="grp">Winning work</div>
+    <a href="#crm-pipeline">Pipeline &amp; site visits</a>
+    <a href="#estimates">Estimates</a>
+    <a href="#quotations">Quotations</a>
+    <div class="grp">Buying and stores</div>
+    <a href="#stores-setup">Items, stores &amp; bins</a>
+    <a href="#requests">Material requests</a>
+    <a href="#rfq">Enquiries &amp; three quotes</a>
+    <a href="#orders">Purchase orders</a>
+    <a href="#movements">Receiving &amp; issuing</a>
+    <a href="#returns">Returns from site</a>
+    <a href="#equipment">Equipment &amp; calibration</a>
+    <a href="#vendors">Supplier performance</a>
+    <div class="grp">Documents</div>
+    <a href="#documents">Printed documents</a>
+    <a href="#letterhead">Letterhead &amp; templates</a>
+    <div class="grp">Reports</div>
+    <a href="#reports">Finding the right report</a>
+    <a href="#reportlist">What each one answers</a>
+    <div class="grp">Running the system</div>
+    <a href="#approvals">Approvals</a>
+    <a href="#email">Email for quotations</a>
+    <a href="#admin">Users and access</a>
+    <a href="#audit">The audit trail</a>
+    <div class="grp">Reference</div>
+    <a href="#refused">When something is refused</a>
+    <a href="#glossary">Glossary</a>
+  </nav>
+</aside>
+
+<main>
+<div class="col">
+
+<header class="cover">
+  <span class="eyebrow">Handbook</span>
+  <h1>WB Group ERP</h1>
+  <p class="lede">Everything the system does, written for somebody who has never used an ERP before. No accounting background assumed.</p>
+  <div class="meta">
+    <div><span>Companies covered</span>WBE · WBTS · VTS · WBM</div>
+    <div><span>Modules covered</span>Finance · HR · CRM &amp; Estimation · Inventory &amp; SCM · Administration</div>
+    <div><span>Edition</span>September 2026</div>
+    <div><span>Jurisdiction</span>United Arab Emirates</div>
+  </div>
+</header>
+
+<section id="what">
+  <span class="eyebrow">Start here</span>
+  <h2>What this system is</h2>
+  <p>An ERP is one place where the whole business is written down, instead of a folder of spreadsheets that nobody else can open. When a timekeeper records hours on site, the accountant sees the cost on that job and the payroll clerk sees it on the payslip. When the storekeeper issues cable to the same job, its cost lands there too, and the manager sees whether the job is still inside the budget the estimator priced it at. Nobody re-types anything, and there is only ever one version of the truth.</p>
+  <p>This system is built for a UAE engineering and technical-services group. That shapes almost every screen: it knows about the FTA and VAT&nbsp;201, about MOHRE and the WPS file your bank wants, about retention held back on a certificate, about the summer midday break, and about gratuity at the end of service. You will not find generic software wording where a UAE term belongs.</p>
+  <h3>Four companies, one system</h3>
+  <p>The group runs four legal companies, and each keeps its own books, its own employees and its own tax registration. You switch between them with the dropdown at the top-left of every screen. Nothing crosses between them by accident — a voucher posted in WBE can never touch WBTS.</p>
+  <div class="tw"><table>
+    <tr><th>Code</th><th>Company</th></tr>
+    <tr><td class="k">WBE</td><td>WB Engineering</td></tr>
+    <tr><td class="k">WBTS</td><td>WB Technical Services</td></tr>
+    <tr><td class="k">VTS</td><td>Voice Technical Services</td></tr>
+    <tr><td class="k">WBM</td><td>WB Maintenance</td></tr>
+  </table></div>
+  <div class="note"><b>If a screen looks empty</b>Check the company switcher first. You are probably looking at a company that has no records of that kind yet, rather than at a fault.</div>
+</section>
+
+<section id="signin">
+  <h2>Signing in</h2>
+  <p>Open the address your administrator gave you, and enter your email and password. A few things behave deliberately:</p>
+  <ul>
+    <li>After three wrong passwords the account locks itself for fifteen minutes, and every administrator is notified. This is not a punishment — it is what stops somebody guessing their way in.</li>
+    <li>If an administrator has just reset your password, you are asked to choose your own before you can go any further. Nobody else should know your password, including them.</li>
+    <li>Signing in, signing out, and every failed attempt are written into the audit trail with the time and the address you came from.</li>
+  </ul>
+  <div class="note care"><b>Never share a login</b>Everything anybody does is recorded against the name they signed in with. Two people on one login means the record is wrong, and there is no way to untangle it afterwards.</div>
+  <h3>Changing your own password</h3>
+  <p>Open the account menu at the top-right, then <em>My Account &amp; Password</em>. Changing it signs you out of every other device automatically — which is exactly what you want if you think somebody else has been using it.</p>
+</section>
+
+<section id="around">
+  <h2>Finding your way around</h2>
+  <p>Three things are on every screen, always in the same place.</p>
+  <div class="entry">
+    <h4>The left menu</h4>
+    <span class="where">Down the left-hand side</span>
+    <p>Everything you are allowed to open, grouped by area. Click a group heading to collapse it. The arrow at the top shrinks the whole menu to icons when you want more room.</p>
+    <p>If a menu item you expected is not there, you have not lost it — your role does not include it. See <a href="#admin">Users and access</a>.</p>
+  </div>
+  <div class="entry">
+    <h4>The company switcher</h4>
+    <span class="where">Top-left, above the page</span>
+    <p>Changes which company's records you are looking at. It follows you as you move between screens, so you will not find yourself reading the wrong company's figures after a few clicks.</p>
+  </div>
+  <div class="entry">
+    <h4>The tabs across the top</h4>
+    <span class="where">Inside Finance, HR, CRM &amp; Estimation, and Inventory &amp; SCM</span>
+    <p>Each module keeps its screens as tabs along the top. Finance and HR hold a lot of screens, so their tabs come in two levels. The top row is the <em>area</em> — Entry, Registers, Job Costing, Reports, Tax, Setup. When the area you opened has more than one screen in it, a smaller second row appears underneath listing them.</p>
+    <p>At the far right of that row, <em>All reports</em> opens the full list of reports across the whole system.</p>
+  </div>
+  <div class="note do"><b>The quickest way to learn a screen</b>Click the <strong>?</strong> in the top bar. It shows help for the exact page you are looking at, in the same plain English as this handbook.</div>
+  <h3>Small things worth knowing</h3>
+  <ul>
+    <li><strong>Day and night mode.</strong> The toggle in the top bar. Your choice is remembered on that device.</li>
+    <li><strong>Dates are British format</strong> throughout — <span class="mono">31/12/2026</span> is the last day of December, never the twelfth of the month.</li>
+    <li><strong>Printing.</strong> Any report prints properly from the screen: the menus and buttons drop away and the company letterhead appears at the top. Documents that go to customers, suppliers or staff &mdash; quotations, orders, invoices, payslips, store notes &mdash; have their own Print button that produces a PDF. See <a href="#documents">Printed documents</a>.</li>
+    <li><strong>Getting data out.</strong> Most screens have an <em>Export</em> button that gives you a spreadsheet file.</li>
+  </ul>
+</section>
+
+<section id="yourjob">
+  <h2>What you will actually use</h2>
+  <p>Almost nobody uses the whole system. Find your job below and read those sections first; the rest will still be there when you need it.</p>
+  <div class="tw"><table>
+    <tr><th>If you are the…</th><th>You will live in</th></tr>
+    <tr><td>Site timekeeper</td><td>Attendance &amp; Muster. That is all — and the hours you record become the cost on every job. (Your administrator creates this role with Attendance only.)</td></tr>
+    <tr><td>HR officer</td><td>Employees, Onboarding, Leave, Certifications, Compliance &amp; Expiry.</td></tr>
+    <tr><td>Accountant</td><td>Invoices, Day Book, Ledgers, Outstanding, Cheques, VAT.</td></tr>
+    <tr><td>Finance controller</td><td>The above, plus Reports, Cash Flow, Corporate Tax and Finance Settings.</td></tr>
+    <tr><td>Estimator or sales engineer</td><td>Pipeline, Estimates, Quotations.</td></tr>
+    <tr><td>Site engineer</td><td>Material Requests, and Approvals for the first step of a request.</td></tr>
+    <tr><td>Procurement officer</td><td>Enquiries &amp; Quotes, Purchase Orders, Supplier Performance, and Approvals.</td></tr>
+    <tr><td>Storekeeper</td><td>Receive &amp; Issue, Stock on Hand, Returns from Site, Stores.</td></tr>
+    <tr><td>QA/QC inspector</td><td>Receive &amp; Issue for inspections, and Equipment &amp; Calibration.</td></tr>
+    <tr><td>Project manager</td><td>Approvals for material requests and purchase orders; Job Costing, Work in Progress and Manhours where finance access is given.</td></tr>
+    <tr><td>Operations manager or director</td><td>Approvals for quotations and orders, the Dashboard, and the Reports centre.</td></tr>
+  </table></div>
+</section>
+
+<section id="firstweek">
+  <span class="eyebrow">Setting up</span>
+  <h2>The first week, in order</h2>
+  <p>This is the one genuinely sequential part of the system: each step needs the one before it. Work down the list and nothing will refuse you halfway through.</p>
+  <ol class="path">
+    <li><b>Complete each company's details</b>
+      Companies → the pencil icon. Fill in the <strong>VAT registration number (TRN)</strong>, and the address split into line, city and emirate. No invoice can be issued without the TRN — a tax invoice is not valid without it — and the emirate travels as its own field on an electronic invoice.</li>
+    <li><b>Check the chart of accounts</b>
+      Finance → Overview. A standard UAE contracting chart is already there. Mark every bank and petty cash account with <em>Control account → Cash or bank</em>: that is what the Cash Flow Forecast starts from, and a missed one makes the forecast start short.</li>
+    <li><b>Enter opening balances</b>
+      If you are moving from another system, put each account's closing balance in as its opening balance, and set the date those balances are stated as at. Do this before posting anything new.</li>
+    <li><b>Add customers and suppliers</b>
+      Finance → Registers → Parties. Record the TRN and the payment terms in days — the terms decide every due date the system calculates afterwards, so you never type one.</li>
+    <li><b>Set the finance settings</b>
+      Finance → Setup. The VAT rate, the corporate tax band, when a cheque goes stale, and <strong>payday</strong> — the day of the month wages are paid, which the cash flow forecast turns on.</li>
+    <li><b>Write down your HR policy</b>
+      HR → HR Policy. Leave, probation, notice, overtime rates, sick pay, gratuity, the air ticket. The system will not let you set anything below what UAE law requires, and it tells you which article says so.</li>
+    <li><b>Add your people</b>
+      HR → People → Employees. Then their documents — visa, Emirates ID, MOL Person ID, passport — with the expiry dates, so the Compliance report can warn you before anything lapses.</li>
+    <li><b>Set up stores and items</b>
+      Inventory &amp; SCM → Stores, then Items. Each store with its kind and, where it is divided, its bins; each item with its unit, and whether it needs QA/QC inspection. Then record the stock already on the shelves, store by store.</li>
+    <li><b>Set the letterhead and email</b>
+      Settings → Printed Documents for each company: logo or letterhead artwork, contact details and standard terms. Then Settings → Email, so quotations can be sent from the system. Print the sample and send a test before anything real goes out.</li>
+    <li><b>Give people access</b>
+      Users, then Access Control. Grant each role only the screens that role needs. See <a href="#admin">Users and access</a>.</li>
+  </ol>
+  <div class="note care"><b>Do not skip step one</b>Everything to do with invoicing is blocked until each company has its TRN. The system will tell you, but it is a frustrating way to find out on a Thursday afternoon.</div>
+</section>
+
+<section id="money-basics">
+  <span class="eyebrow">Finance</span>
+  <h2>Money, in plain words</h2>
+  <p>You do not need to understand double-entry bookkeeping to use this system, but four words appear everywhere and are worth two minutes.</p>
+  <dl class="gloss">
+    <dt>Voucher</dt>
+    <dd>One transaction, written down. Every entry in the accounts is a voucher, and each gets a number that is never reused — <span class="mono">WBE/SI/26-26/0003</span> means WB Engineering, sales invoice, financial year 26–26, the third one.</dd>
+    <dt>Debit and credit</dt>
+    <dd>Two sides of the same transaction. Every voucher has to have both, and they have to be equal. The system checks this and will not let an unbalanced voucher through, so you cannot create a mess by accident.</dd>
+    <dt>Account</dt>
+    <dd>A named pot that money moves in and out of — Cash at Bank, Accounts Receivable, Salaries &amp; Wages. The full list is your <em>chart of accounts</em>.</dd>
+    <dt>Posting</dt>
+    <dd>Committing a transaction to the books. Before it is posted, nothing has happened. After it is posted, it is part of the record and can be reversed but not quietly edited.</dd>
+  </dl>
+</section>
+
+<section id="invoicing">
+  <h2>Invoicing customers</h2>
+  <p>A tax invoice is a legal document, not a letter. UAE law says what has to be on the face of it, and the system will not let you issue one that is missing anything. That is why there are two stages.</p>
+  <div class="entry">
+    <h4>Stage one: the draft</h4>
+    <span class="where">Finance → Entry → Invoices → New invoice</span>
+    <p>Choose the customer — the payment terms come from their record, so the due date fills itself in. Add a line for each thing you are billing, with a description, a quantity, a unit (metres, hours, lump sum), a rate and a VAT treatment. The totals at the bottom update as you type, broken down by VAT rate.</p>
+    <p><strong>A draft posts nothing.</strong> It is not in the books, it is not on the VAT return, and the customer has not been asked to pay. Save it, check it, come back to it tomorrow.</p>
+  </div>
+  <div class="entry">
+    <h4>Stage two: issuing it</h4>
+    <span class="where">The Issue button at the top of the draft</span>
+    <p>Issuing does three things at once: it posts the transaction to the accounts, it takes the next number in a series that must have no gaps, and it produces a document the customer can reclaim VAT against.</p>
+    <p>Because of that, an issued invoice <strong>cannot be edited</strong>. If it is wrong, raise a credit note against it — that leaves both halves on the record, which is what an auditor expects to see.</p>
+  </div>
+  <h3>Printing it for the customer</h3>
+  <p><em>Print</em> and <em>Download</em> at the top of the invoice produce it as a PDF on your letterhead: titled TAX INVOICE, both TRNs, every line with its quantity, rate, net amount, VAT rate and VAT, the VAT shown <em>rate by rate</em> rather than as one lump — which is what the law requires — and the total in words.</p>
+  <p>A draft prints too, so it can be checked on paper first, but it carries DRAFT across every page and says under the title that it is not a valid tax invoice. Credit and debit notes print the same way, titled as what they are, and name the invoice they adjust.</p>
+  <div class="note"><b>Why a reprint never changes</b>The customer's name, address and TRN are frozen onto the document at the moment you issue it. If they move offices next year, last year's invoice still reads as it was sent.</div>
+  <h3>Credit and debit notes</h3>
+  <p>Choose the document type at the top of a new invoice. A note must name the invoice it adjusts — a note that does not say what it corrects cannot be attributed to anything, and cannot be issued.</p>
+</section>
+
+<section id="bills">
+  <h2>Supplier bills</h2>
+  <p>On the Invoices screen, switch to <em>Suppliers billed us</em>. It works the same way with one difference: you enter <strong>their</strong> invoice number, not one of ours. That is the number an auditor will look for when matching your VAT reclaim to the paperwork.</p>
+  <h3>Reverse charge — buying from abroad</h3>
+  <p>When you buy services from outside the UAE, the supplier charges no VAT and you account for it yourself. Choose <em>Reverse charge</em> as the treatment on those lines. The system then puts the tax on both sides of your books, so it nets to nothing while still being declared in both halves of the VAT return — which is exactly what the FTA requires.</p>
+</section>
+
+<section id="daybook">
+  <h2>Day book and ledgers</h2>
+  <div class="entry">
+    <h4>Day Book</h4>
+    <span class="where">Finance → Entry → Day Book</span>
+    <p>Every voucher in date order — the equivalent of Tally's day book. Filter by voucher type, search by reference, party, narration or an amount. This is where you go when somebody asks "what did we post on the 14th?".</p>
+    <p>You can also raise a new journal entry from here, which is usually where you notice one is missing.</p>
+  </div>
+  <div class="entry">
+    <h4>Ledgers</h4>
+    <span class="where">Finance → Entry → Ledgers</span>
+    <p>Every movement on one account, with a running balance — or one customer's statement, which you can print and send.</p>
+  </div>
+  <div class="note do"><b>Following a figure back</b>Any total on a report can be traced: click through from the report to the account, from the account to the voucher, and from the voucher to the invoice behind it. Nothing in this system is a number you cannot explain.</div>
+</section>
+
+<section id="registers">
+  <h2>Cheques, retention and the bank</h2>
+  <div class="entry">
+    <h4>Cheque Register (post-dated cheques)</h4>
+    <span class="where">Finance → Registers → Cheques</span>
+    <p>A large share of UAE business is settled with cheques dated months ahead. The register tracks each one: the number, the bank, the date it can be banked, who holds the paper, and whether it has cleared or bounced. A post-dated cheque you are holding is not cash yet, and the system treats it that way.</p>
+  </div>
+  <div class="entry">
+    <h4>Retention</h4>
+    <span class="where">Finance → Registers → Retention</span>
+    <p>The money a client holds back on each certificate — typically 5 or 10 per cent, half released at handover and half after the defects liability period. The register records what is held, on which job, and the date it becomes releasable, so nothing is quietly forgotten a year later.</p>
+    <p>It works in both directions: retention a client holds from you, and retention you hold from a subcontractor.</p>
+  </div>
+  <div class="entry">
+    <h4>Bank Reconciliation</h4>
+    <span class="where">Finance → Registers → Bank Rec</span>
+    <p>Tick off each line against the bank statement each month. It is how you prove the cash figure in the accounts is real, rather than assuming it.</p>
+  </div>
+</section>
+
+<section id="advances">
+  <h2>Advances</h2>
+  <p>A mobilisation advance is normal on a UAE contract. Ten or fifteen per cent of the value arrives before anybody is on site, and comes back off the certificates a slice at a time over the year that follows. The same happens in the other direction, because a supplier will not order switchgear against a promise.</p>
+  <div class="note care"><b>An advance is not income</b>Nothing has been supplied when the money moves. Money a customer paid you is owed back until the work is billed. Money you paid a supplier is owed to you until they bill for it. Recording either as income makes one month look wonderful and every month after it look poor.</div>
+  <div class="entry">
+    <h4>Advances</h4>
+    <span class="where">Finance &rarr; Registers &rarr; Advances</span>
+    <p>Record it when the money moves. Say which way it goes, choose the customer or supplier, and pick the bank account it went through. Either type the amount, or give the contract value and the percentage and let the screen work it out.</p>
+    <p><strong>Unlike the retention register, this one posts.</strong> The money really has moved and nothing else is going to record it, so saving an advance puts it straight into your accounts.</p>
+  </div>
+  <h3>Recovering it</h3>
+  <p>Each time an invoice comes round, click <em>Recover</em> and enter the slice that comes off. What is left updates on its own, and the advance closes itself the moment nothing remains. The screen refuses an amount larger than the balance, because recovering more than was advanced would turn what you owe into an apparent asset.</p>
+  <p>Recovering an advance <strong>moves no money</strong>. It reduces what the customer owes, because they have already paid that much. The bank is untouched, because the cash arrived months ago.</p>
+  <div class="note">
+    <b>VAT on an advance</b>
+    Taking money for taxable work creates a tax point under UAE rules, so a tax invoice is due on it. Raise that on the Invoices screen and then recover the advance against it. No VAT is charged on this screen, which is what stops the same tax being declared twice.
+  </div>
+  <h3>The two other endings</h3>
+  <ul>
+    <li><strong>Refund</strong> when the money is genuinely going back. This moves real cash.</li>
+    <li><strong>Write off</strong> when it is not coming back. This takes the balance to the profit and loss, which is a decision rather than a correction.</li>
+  </ul>
+</section>
+
+<section id="jobcosting">
+  <h2>Job costing</h2>
+  <div class="entry">
+    <h4>Job Costing</h4>
+    <span class="where">Finance → Job Costing</span>
+    <p>What each job earned, what it cost, the margin, and how much of its budget is used. Jobs can be nested — a main contract with packages and variations beneath it — and the parent shows a true total without anything being posted against it directly.</p>
+  </div>
+  <h3>Getting labour onto a job</h3>
+  <p>Hours recorded on Attendance against a job are priced at each person's cost rate and charged to that job. Until that happens the margin is missing them, and the screen says so in as many words. The <em>Post labour</em> button does it.</p>
+  <div class="note care"><b>Time booked to no job disappears</b>Hours recorded without a job are not counted against any job's cost. The Manhours report shows them separately so you can see how much is drifting.</div>
+</section>
+
+<section id="wip">
+  <h2>Work in progress</h2>
+  <p>Job Costing tells you what a job earned and cost in a period. This answers a different question, and a cumulative one. How far through is each contract, and has the invoicing kept pace with the work?</p>
+  <div class="entry">
+    <h4>Work in Progress</h4>
+    <span class="where">Finance &rarr; Job Costing &rarr; Work in Progress</span>
+    <p>How far through a contract is, is measured by cost. What has been spent, against what the job was priced to cost. It uses figures already in your ledger and does not depend on anybody&rsquo;s opinion of how far along the site looks.</p>
+    <p>Once you know a contract is sixty per cent complete, you know it has earned sixty per cent of its value. Comparing that with what you have actually invoiced is the whole point of the screen.</p>
+  </div>
+  <h3>Billed ahead, and billed behind</h3>
+  <p>On a long contract these two figures are almost never equal, and both are invisible in a profit and loss that simply totals what was invoiced.</p>
+  <div class="tw"><table>
+    <tr><th>What it says</th><th>What it means</th></tr>
+    <tr><td>Billed ahead of the work</td><td>You have invoiced more than you have earned. That surplus is not profit. It is money held against work you still owe.</td></tr>
+    <tr><td>Done, not yet billed</td><td>You have earned more than you have invoiced. Work is finished and nobody has asked the client to pay for it.</td></tr>
+    <tr><td>In line</td><td>Invoicing has kept pace with the work.</td></tr>
+    <tr><td>Budget not set</td><td>Nothing about this contract can be measured until a budget cost is on the job.</td></tr>
+  </table></div>
+  <p>The two are shown separately and never netted off. One contract a million ahead and another a million behind is not the same business as two sitting exactly on plan.</p>
+  <div class="note care">
+    <b>A contract heading for a loss</b>
+    When a job is expected to cost more than it will ever be paid, the whole loss belongs in this period rather than spread over the months remaining. Those contracts are listed first, under an amber banner. A loss you see in month three is still a decision you can act on. One that surfaces in month eleven is only an explanation.
+  </div>
+  <div class="note do"><b>Why there is no date filter</b>A contract question is cumulative from the day the job started. Filtering to a financial year would report a two-year contract as barely begun every January.</div>
+</section>
+
+<section id="tax">
+  <h2>VAT and corporate tax</h2>
+  <div class="entry">
+    <h4>VAT Return (VAT 201)</h4>
+    <span class="where">Finance → Tax → VAT</span>
+    <p>The return laid out box by box exactly as the FTA form asks for it: standard-rated supplies, zero-rated, exempt, reverse charge, and the tax on each. It is built from the treatment you set on every line, which is why a single invoice can be split across three boxes.</p>
+    <p>Before filing, the screen agrees the return to the two VAT control accounts in your books. If they disagree, something was posted to the wrong account and it says so.</p>
+  </div>
+  <h3>Choosing the VAT treatment</h3>
+  <div class="tw"><table>
+    <tr><th>Treatment</th><th>Use it when</th></tr>
+    <tr><td>Standard</td><td>Normal 5% work billed inside the UAE. Most of what you do.</td></tr>
+    <tr><td>Zero-rated</td><td>0% but still a taxable supply — exports outside the GCC, international transport.</td></tr>
+    <tr><td>Exempt</td><td>No VAT and not recoverable — certain financial services, bare land, local passenger transport.</td></tr>
+    <tr><td>Out of scope</td><td>Outside UAE VAT altogether — supplies made and consumed abroad.</td></tr>
+    <tr><td>Reverse charge</td><td>You account for the tax yourself on an import. It goes on both sides and nets to nil.</td></tr>
+  </table></div>
+  <div class="entry">
+    <h4>Corporate Tax</h4>
+    <span class="where">Finance → Tax → Corporate Tax</span>
+    <p>Nine per cent on taxable profit above AED 375,000, with the return and the payment both due nine months after the period ends. The screen works out the deadline, tracks whether you qualify for Small Business Relief, and carries losses forward within the 75% relief cap.</p>
+    <p>It also shows why taxable profit is not the same as the profit in your accounts, line by line, so the adjustment is explainable rather than magic.</p>
+  </div>
+  <h3>Closing a period</h3>
+  <p>Once a VAT return is filed, set the <em>books locked to</em> date on the company. Nothing can then be posted on or before that date, so the figures behind a return you have already sent cannot move.</p>
+</section>
+
+<section id="einv">
+  <h2>Electronic invoicing</h2>
+  <p>UAE eInvoicing does not work by sending anything to the FTA yourself. It runs through an <strong>Accredited Service Provider</strong>: this system hands them the document, and they validate it, sign it and transmit it. There are five parties involved — you, your provider, your customer's provider, your customer, and the FTA.</p>
+  <div class="entry">
+    <h4>Electronic Invoicing</h4>
+    <span class="where">Finance → Tax → e-Invoicing</span>
+    <p>Every issued invoice with where it has got to. <em>Sent</em>, <em>Accepted</em> and <em>Delivered</em> are separate states rather than one tick, because a document can be accepted by your provider and refused by your customer's hours later — and somebody has to be able to see which happened.</p>
+    <p><strong>Preview before you send.</strong> It shows the exact document that would leave, and lists anything a validator would refuse. A rejection from somebody else's system arrives long after your customer already has the invoice.</p>
+  </div>
+  <div class="note"><b>Switching it on</b>Nothing is transmitted until you name your provider on Finance → Setup, along with the two identifiers they give you. Until then your invoicing is entirely unaffected.</div>
+</section>
+
+<section id="people">
+  <span class="eyebrow">People</span>
+  <h2>Employee records</h2>
+  <div class="entry">
+    <h4>Employees</h4>
+    <span class="where">HR → People → Employees</span>
+    <p>Everyone the group employs. Search by name, employee number, mobile, email, department, or any number from an Emirates ID, passport, visa or MOL Person ID.</p>
+    <p>The profile holds the personal details, the UAE documents with their expiry dates, the contract, the salary and bank details for WPS, and any custom fields your administrator has added.</p>
+  </div>
+  <h3>Supplied labour</h3>
+  <p>Mark a worker as <em>Supplied</em> and name the manpower supplier. They are then kept out of your payroll, out of the WPS file, and out of your workforce mix — because they are sponsored by the supplier and sit on the supplier's establishment, not yours.</p>
+  <div class="note care"><b>The system refuses a duplicate person</b>If an Emirates ID or passport number is already on somebody else's record, it says whose. This is deliberate: the same man on two records means two salaries and a WPS file the bank rejects.</div>
+  <div class="entry">
+    <h4>Onboarding</h4>
+    <span class="where">HR → People → Onboarding</span>
+    <p>Requisition to offer to joining, so a new hire arrives with their file already complete rather than being assembled afterwards.</p>
+  </div>
+  <div class="entry">
+    <h4>Certifications</h4>
+    <span class="where">HR → People → Certifications</span>
+    <p>Trade tickets, medicals and third-party certificates with their renewal dates.</p>
+  </div>
+</section>
+
+<section id="time">
+  <h2>Attendance and leave</h2>
+  <div class="entry">
+    <h4>Attendance &amp; Muster</h4>
+    <span class="where">HR → Time → Attendance</span>
+    <p>The daily muster: who was present, absent, on leave or off. Record the actual in and out times where you have them, because two rules need them — the night overtime rate, and the summer midday ban.</p>
+    <p>Log the hours against a job here as well. That is what puts labour into job costing.</p>
+    <p>If you have a punch machine, its file can be imported rather than typed.</p>
+  </div>
+  <div class="entry">
+    <h4>Leave</h4>
+    <span class="where">HR → Time → Leave</span>
+    <p>Requests, approvals and balances. Annual leave builds up from the join date — two days a month between six months and a year, then the full entitlement — so the balance is earned rather than granted, and it is calculated rather than typed.</p>
+  </div>
+  <h3>The summer midday break</h3>
+  <p>Between 15 June and 15 September, outdoor work is banned between 12:30 and 15:00. The Compliance report reads your attendance records and lists any day where somebody appears to have worked through it. The punch data is the evidence either way.</p>
+</section>
+
+<section id="payroll">
+  <h2>Payroll and WPS</h2>
+  <div class="entry">
+    <h4>Payroll</h4>
+    <span class="where">HR → Payroll</span>
+    <p>Run the month, review every payslip, then approve. The system works out basic and allowances, overtime at both rates, absence and unpaid-leave deductions, salary-advance recovery, and part months for anyone who joined or left partway through.</p>
+    <p>Nothing is a guess: every figure traces back to attendance, to the employee's contract, or to your HR policy.</p>
+  </div>
+  <h3>Payslips</h3>
+  <p>Above a run, <em>Print</em> or <em>Download all payslips</em> produces one PDF with each employee on a page of their own, ready to hand out; <em>Payslip</em> on a row prints just that person. Each shows earnings with the days behind a part month, overtime hours, unpaid days, other deductions, advance recovery, and net pay in words. The bank account is printed as its last four characters only. Until the run is approved every page says DRAFT.</p>
+  <div class="note"><b>Payroll reaches the accounts by itself</b>Approving a run posts the wage cost to the ledger. You do not raise a journal entry for salaries.</div>
+  <h3>"Somebody is not ready"</h3>
+  <p>Payroll will hold a person back rather than pay them wrongly — no salary set, no join date, missing bank details. It names each one and why. Fix the record and run again.</p>
+  <h3>The WPS file for the bank</h3>
+  <p>The SIF file the UAE Wage Protection System requires. The system validates the IBAN with its checksum, the MOL Person ID and the routing code before generating it, and tells you exactly which employee is holding it up — far better than the bank rejecting the whole file.</p>
+  <h3>Overtime, the two rates</h3>
+  <p>Ordinary overtime is 125% of basic. Night work between 22:00 and 04:00, rest days and public holidays are 150%. The hours come from attendance, not from a typed figure, and the Overtime report shows what it is costing and whether anybody has gone over the legal cap of two hours a day.</p>
+</section>
+
+<section id="leaving">
+  <h2>When someone leaves</h2>
+  <div class="entry">
+    <h4>Separation &amp; Settlement</h4>
+    <span class="where">HR → People → Separation</span>
+    <p>The full end-of-service calculation: gratuity at 21 days of basic per year for the first five years and 30 days after, capped at two years' pay; unused leave encashed; pending salary; notice pay; the repatriation ticket. Unpaid leave is excluded from the service period, as the law requires.</p>
+    <p>The <em>Statement</em> button prints it as a PDF for the employee to sign, with the basis of the gratuity, the employee&rsquo;s declaration and signature boxes. Until the settlement is approved it says DRAFT across the page — nobody should sign away their claims against a figure nobody has signed off.</p>
+  </div>
+</section>
+
+<section id="hrpolicy">
+  <h2>Your HR policy</h2>
+  <div class="entry">
+    <h4>HR Policy</h4>
+    <span class="where">HR → HR Policy</span>
+    <p>Your handbook, expressed as the numbers every other screen reads. Leave days, when leave starts accruing, carry-forward, probation and notice periods, working hours, overtime rates and caps, sick pay bands, gratuity, and the air ticket.</p>
+    <p>Set it once per company, and every calculation follows it — leave balances, payslips, overtime, the final settlement.</p>
+  </div>
+  <div class="note care"><b>"That is below what the law allows"</b>The system refuses anything under the statutory minimum and tells you which article of Federal Decree-Law 33/2021 says so. You may always be <em>more</em> generous than the law; you may never be less.</div>
+</section>
+
+<section id="crm-pipeline">
+  <span class="eyebrow">Winning work</span>
+  <h2>The pipeline and site visits</h2>
+  <p>Every price a customer asks for starts here, as an enquiry. The Pipeline is a board with one column for each stage the work moves through, so anybody can see in a glance what is being chased, how far each has got, and what it is really worth.</p>
+  <div class="entry">
+    <h4>Pipeline</h4>
+    <span class="where">CRM &amp; Estimation → Pipeline</span>
+    <p>Click <em>Log an enquiry</em> when a customer asks for a price. Only the title and who it is from are needed at first — the value, the contact and where it came from can follow. Open any card to see where it has got to on a bar like a parcel tracker, and use <em>Move it on</em> as it progresses. The dialog shows what the move does to the chance of winning before you commit to it.</p>
+    <p>The five lamps on each card count what is <em>known</em> about the enquiry: the budget, the decision-maker, the date it is needed, whether the site has been visited, and whether the scope is defined. Few lamps lit is not a bad enquiry. It is one nobody has done the work on yet, which is something you can act on.</p>
+  </div>
+  <h3>What the pipeline is really worth</h3>
+  <p>A million-dirham enquiry that arrived this morning is not a million dirhams. Each stage carries a chance of winning, and the figure at the top is the <strong>weighted</strong> total — each enquiry's value multiplied by its chance. The gross total is shown beside it for comparison, but the weighted one is the number that is true.</p>
+  <div class="tw"><table>
+    <tr><th>Stage</th><th class="n">Chance counted</th></tr>
+    <tr><td>New</td><td class="n">5%</td></tr>
+    <tr><td>Qualifying</td><td class="n">10%</td></tr>
+    <tr><td>Site visit</td><td class="n">20%</td></tr>
+    <tr><td>Estimating</td><td class="n">30%</td></tr>
+    <tr><td>Quoted</td><td class="n">40%</td></tr>
+    <tr><td>Negotiating</td><td class="n">70%</td></tr>
+    <tr><td>Won · Lost</td><td class="n">not in the forecast</td></tr>
+  </table></div>
+  <p>Won work belongs on a job, and lost work is nothing, so neither stays in the forecast.</p>
+  <div class="note care"><b>Losing asks why</b>Moving an enquiry to Lost will not go through without the reason, and asks who won it. That is the only moment anybody still knows, and it is what <em>Where the Work Comes From</em> is built from.</div>
+  <div class="entry">
+    <h4>Site visits and the report</h4>
+    <span class="where">Open the enquiry → Site visits</span>
+    <p>The visit and the report are two events. Click <em>Record</em> to book the visit with its date and who is going — leave the findings empty if it has not happened yet. After the visit, click <em>File the report</em> and write what was found. Only then does the enquiry show <em>Site Report Submitted</em>.</p>
+    <p>An empty report is refused: it would mark the enquiry as reported when nothing was, which is worse than no report at all.</p>
+  </div>
+</section>
+
+<section id="estimates">
+  <h2>Estimates</h2>
+  <p>The price on a quotation is built up from what the work costs, never typed. That is the whole point of an estimate: when somebody asks in six months why a job was priced as it was, the answer is in front of them, line by line.</p>
+  <div class="entry">
+    <h4>Estimates</h4>
+    <span class="where">CRM &amp; Estimation → Estimates</span>
+    <p>Click <em>Start an estimate</em> and set the overhead and the margin straight away — they are the two things nobody goes back to set. Then add each bill-of-quantities item, choosing how it is measured: tonne, metre, piece or lump sum. A lump sum does not ask for a quantity, because the customer is buying an outcome, not a measurement.</p>
+    <p>For each line, fill in the build-up — material, labour hours and rate, plant hours and rate, subcontract — and the unit cost adds itself up as you type.</p>
+  </div>
+  <h3>Taking material off, with wastage</h3>
+  <p>For anything worth measuring, click <em>Add material</em> on the line: how much one unit needs, and the wastage. The takeoff then becomes that line's material cost. Wastage is asked for on each material rather than once at the end, because it differs — five per cent on a cable drum is a rounding error; five per cent on structural steel is a week of somebody's wages.</p>
+  <h3>Margin is not markup</h3>
+  <p>A twenty per cent <em>markup</em> on cost gives a 16.7 per cent <em>margin</em> on the price. They are different numbers, and quoting one while meaning the other is how a job priced at "twenty per cent" makes less than expected. The <em>Overheads and margin</em> panel shows both side by side before you commit. Overheads go on before the margin, not after.</p>
+  <div class="note care"><b>Marking it priced</b><em>Mark it priced</em> refuses an estimate with nothing costed, and one that quotes below cost unless somebody has deliberately marked it as a loss leader. Neither should reach a customer by accident.</div>
+</section>
+
+<section id="quotations">
+  <h2>Quotations</h2>
+  <p>A quotation is a commitment to a price, so three things are true of it: its price comes from the estimate, nothing reaches the customer before management has signed it, and once it has gone out it is revised rather than edited.</p>
+  <div class="entry">
+    <h4>Raising and approving</h4>
+    <span class="where">CRM &amp; Estimation → Quotations</span>
+    <p>Click <em>Raise a quotation</em> and pick the priced estimate — the total follows from it, and there is no box to type a different one. Click <em>Send for approval</em>. It goes to the Operations Manager, then a Director, and to the Managing Director as well when it is AED 500,000 or more. The estimator cannot approve their own work.</p>
+  </div>
+  <div class="entry">
+    <h4>Sending it</h4>
+    <span class="where">The approved quotation → Email it to the customer</span>
+    <p>Tick who it goes to from the customer's contacts and send. The quotation goes as a PDF on your letterhead, attached to the email, from the mailbox set up in <a href="#email">Settings → Email</a>. If no mail server has been set up the button reads <em>Issue to the customer</em>: download the PDF, send it from your own mailbox, and record where it went.</p>
+    <p>The PDF shows the customer, each line with its quantity, unit, rate and amount, the total in words, and your standard terms. It never shows cost, margin or markup — which is exactly why printing the screen is not the same thing.</p>
+  </div>
+  <div class="entry">
+    <h4>Revisions</h4>
+    <span class="where">An issued quotation → Raise a revision</span>
+    <p>The customer is holding a piece of paper, so an issued quotation is never edited. A revision is raised instead, goes through approval again, and prints as <em>Quotation — Revision 2</em>. The old one is kept, marked Superseded, and prints with SUPERSEDED across it, because the conversation will still refer to it.</p>
+  </div>
+  <div class="entry">
+    <h4>When the customer orders</h4>
+    <span class="where">An issued quotation → They ordered it</span>
+    <p>Enter their purchase order number, date and value. If their value differs from the quotation, the difference is shown while you type and has to be confirmed. The job is then created at <strong>their</strong> figure, with a budget in money and hours taken from the estimate. Customers round, trim scope and agree discounts on the phone; taking the quoted number because it is already in the system makes every margin report on that contract wrong from the first day.</p>
+  </div>
+  <div class="note do"><b>The hit rate is by value</b>The quotations list reports how much of what you quote you win by value, not by count. Winning three small quotations and losing the large one is not a good quarter, and a rate by count would report it as one. With fewer than three decided it says "too few to call".</div>
+</section>
+
+<section id="stores-setup">
+  <span class="eyebrow">Buying and stores</span>
+  <h2>Items, stores and bins</h2>
+  <p>Purchasing and stores follow one chain, and each step exists because the next cannot be trusted without it: site asks for material, procurement gets prices and orders it, the store receives it, QA/QC passes it, and the store issues it to the job — which is the moment it becomes that contract's cost.</p>
+  <div class="entry">
+    <h4>Items</h4>
+    <span class="where">Inventory &amp; SCM → Items</span>
+    <p>What you buy and keep, each with a short code people will actually type, like <span class="mono">CBL-4C-16</span>, and the unit it is measured in — the same unit list invoices use, so a metre bought and a metre billed mean the same thing. Untick <em>Keep stock of this</em> for hire and services. Tick <em>needs QA/QC inspection</em> for anything that must be passed before use.</p>
+    <p>Standard cost is for estimating only. Stock is always valued at what was actually paid.</p>
+  </div>
+  <div class="entry">
+    <h4>Stores, zones and bins</h4>
+    <span class="where">Inventory &amp; SCM → Stores</span>
+    <p>A store says the company owns 400 metres of cable. A bin says which rack to walk to. Give each store its kind — main store, site store, plant yard or lay-down area — and add bins where the store is divided, with a zone if it has them.</p>
+    <p>Once a store has bins, receiving into it or issuing from it asks which bin, and shows how much each bin holds. A bin that has ever held anything cannot be deleted; untick <em>still in use</em> so the history stays readable.</p>
+  </div>
+  <div class="entry">
+    <h4>Stock on Hand</h4>
+    <span class="where">Inventory &amp; SCM → Stock on Hand</span>
+    <p>What is on the shelf right now, and what it is worth at average cost. Anything at or below its reorder level is highlighted. A negative balance is never normal: it means something was issued that was never received, so count the shelf and correct it before trusting any other figure.</p>
+  </div>
+</section>
+
+<section id="requests">
+  <h2>Material requests</h2>
+  <p>A material request is how site asks for material without committing any money. It names the job, the store, when it is needed and what — and the moment it is raised it goes for approval.</p>
+  <div class="entry">
+    <h4>Material Requests</h4>
+    <span class="where">Inventory &amp; SCM → Material Requests</span>
+    <p>Click <em>Raise a request</em>, choose the job, the store it should be delivered to and the date it is needed on site, add a line for each item and quantity, and click <em>Send for approval</em>. It goes to a Site Engineer, then the Project Manager, then Procurement. Procurement sits last because it acts on the request rather than outranking it.</p>
+    <p>Each request is checked against what is already on the shelf, and the card says in a sentence what can be issued now and what has to be bought. Once approved, procurement issues what is in stock, raises an enquiry for prices, or clicks <em>Raise an order</em> to turn it straight into a purchase order with the lines filled in.</p>
+  </div>
+  <div class="note"><b>Say when, not just what</b>A request with no date is read as whenever, and material that arrives the day after the pour is material that was not ordered.</div>
+</section>
+
+<section id="rfq">
+  <h2>Enquiries and three quotes</h2>
+  <div class="entry">
+    <h4>Enquiries &amp; Quotes</h4>
+    <span class="where">Inventory &amp; SCM → Enquiries &amp; Quotes</span>
+    <p>Click <em>Raise an enquiry</em> and say what is needed and how much — there is no price box, on purpose. Click <em>Ask suppliers</em> and tick at least three. Each appears as a column on the comparison sheet whether or not they reply.</p>
+    <p>Print the enquiry for each supplier from under their name, or a blank copy from the top for a supplier not yet on file. It carries quantities only, with space for their price, delivery charge, delivery time and how long the price holds — never another supplier's price or what you expect to pay.</p>
+    <p>As each quotation comes in, click <em>Enter price</em> in that supplier's column. Read across a row to compare one line, or down a column to compare a supplier. The cheapest figure on each line is marked green, which is not always the supplier with the cheapest total.</p>
+  </div>
+  <h3>Awarding</h3>
+  <p>Click <em>Award</em> and choose the winner. It is refused until three suppliers have been asked — with fewer there is nothing to compare the price against. If the winner is not the cheapest you are asked why, and the extra cost is shown while you type; a year from now that note is the only record of the decision. A draft purchase order is then raised at the winner's prices, and the enquiry prints as CLOSED.</p>
+  <div class="note"><b>A supplier who never replied</b>keeps their column, greyed. Leaving them off would make a comparison of two quotes look like a comparison of two suppliers, and their silence is worth seeing.</div>
+</section>
+
+<section id="orders">
+  <h2>Purchase orders</h2>
+  <p>The purchase order is the moment money is committed, so it is approved before it counts, and nothing can be received against it until then.</p>
+  <div class="entry">
+    <h4>Purchase Orders</h4>
+    <span class="where">Inventory &amp; SCM → Purchase Orders</span>
+    <p>Click <em>Raise an order</em>, or arrive from an approved request or an awarded enquiry with the lines already in. Choose the supplier, the job, the store to deliver to and the <strong>promised date</strong> — it is what late deliveries and the supplier's on-time record are measured against. Click <em>Send for approval</em>: the Project Manager, the Operations Manager and a Director, with the Managing Director added from AED 50,000.</p>
+    <p>Once approved, click <em>Print</em> or <em>Download</em> at the bottom of the card and send the PDF to the supplier. It shows the supplier and their contact, where to deliver, each line with unit price and amount, the order total excluding VAT in words, your purchase order terms, and who raised and approved it.</p>
+  </div>
+  <div class="entry">
+    <h4>Receiving against the order</h4>
+    <span class="where">The approved order → Record delivery on a line</span>
+    <p>Enter how much actually arrived, into which store and bin, and the supplier's delivery note number. Receive what came, not what was ordered: short deliveries are normal, and the order keeps the balance open by itself. How much has arrived is added up from the deliveries rather than typed, so the order moves itself to <em>Partly received</em> and then <em>Received</em>.</p>
+  </div>
+  <div class="note"><b>No VAT on an order</b>An order posts nothing to the accounts and carries no VAT. It is a commitment to buy; the tax point is the supplier's invoice.</div>
+</section>
+
+<section id="movements">
+  <h2>Receiving, inspecting and issuing</h2>
+  <div class="entry">
+    <h4>Receive &amp; Issue</h4>
+    <span class="where">Inventory &amp; SCM → Receive &amp; Issue → Record a movement</span>
+    <p>Say what happened and the form asks only for what that kind needs. Material arrived: the quantity, what one unit cost, and the delivery note. Material out to a job: the quantity and the job — the price comes from the shelf, not from you. Moved between our stores: the second store, and the bin it goes into.</p>
+    <p>Nothing here is edited afterwards. A correction is a new movement, so the history still explains itself a year later.</p>
+  </div>
+  <h3>What each movement does to the accounts</h3>
+  <div class="tw"><table>
+    <tr><th>Movement</th><th>What it does</th></tr>
+    <tr><td>Delivery received</td><td>Becomes stock, valued at what was paid. Not a cost on any job yet.</td></tr>
+    <tr><td>Issued to a job</td><td>Leaves the shelf at average cost and becomes that job's material cost.</td></tr>
+    <tr><td>Returned from site, reusable</td><td>Back on the shelf; the job is credited with what it cost.</td></tr>
+    <tr><td>Transfer between stores</td><td>Changes where stock is, not what the company owns. Nothing is posted.</td></tr>
+    <tr><td>Adjustment</td><td>Brings the record into line with a count — found or lost stock.</td></tr>
+  </table></div>
+  <div class="note care"><b>An issue must name the job</b>Material walking out of the store to nowhere is the easiest way for a contract to look more profitable than it is, so an issue with no job is refused.</div>
+  <div class="entry">
+    <h4>QA/QC inspection</h4>
+    <span class="where">Receive &amp; Issue → Inspect, on a delivery showing Pending</span>
+    <p>A delivery of an item that needs inspection arrives on the shelf as <em>Pending</em>, and cannot be issued until somebody has looked at it. Pass or fail it and record the certificate number. Passed material is free to issue straight away. Failed material stays on the shelf and in stock value — it is still yours until it physically goes back — and cannot be issued.</p>
+    <p>If someone tries to issue more than is free, the refusal says how much is waiting on inspection or rejected, so nobody stares at a full shelf wondering why the system says there is none. An inspection is recorded once and cannot be changed afterwards.</p>
+  </div>
+  <p>Every delivery, issue, transfer and return to a supplier has a printable note — see <a href="#documents">Printed documents</a>.</p>
+</section>
+
+<section id="returns">
+  <h2>Returns from site</h2>
+  <div class="entry">
+    <h4>Returns from Site</h4>
+    <span class="where">Inventory &amp; SCM → Returns from Site → Record a return</span>
+    <p>Choose the job it is coming back from, the store it goes into, and who handed it over. Add a line for each item and set each to <em>Reusable</em> or <em>Scrap</em>. The sentence at the bottom says, before you save, how much goes back on the shelf and what the job is credited.</p>
+    <p>The form shows what the job still has out, and refuses more than that — returning material a job never had would quietly improve its margin for no reason anybody could later find.</p>
+  </div>
+  <div class="note"><b>Split mixed lines</b>Sixty metres reusable and forty of offcuts on the same note is normal. Enter them as two lines rather than rounding to whichever is bigger: reusable credits the job, scrap keeps its cost on the job because the job caused it.</div>
+</section>
+
+<section id="equipment">
+  <h2>Equipment and calibration</h2>
+  <div class="entry">
+    <h4>Equipment &amp; Calibration</h4>
+    <span class="where">Inventory &amp; SCM → Equipment &amp; Calibration</span>
+    <p>Stock is quantities; this register is individual tools with serial numbers, and the question asked of each is whether this one can still be trusted. Tick the certificate box for anything that needs calibrating — a torque wrench does, a shovel does not — and click <em>Calibrate</em> when it comes back from the lab, with the date, the result and the certificate number.</p>
+    <p>The expiry is worked out from the calibration date, not from today, so a postal delay does not quietly extend it.</p>
+  </div>
+  <div class="note care"><b>Blocked from use</b>A tool out of calibration, never calibrated, away for calibration, under repair or withdrawn cannot be put on a job. A reading taken with an instrument whose certificate lapsed last month is not a reading, it is a number.</div>
+</section>
+
+<section id="vendors">
+  <h2>Supplier performance</h2>
+  <div class="entry">
+    <h4>Supplier Performance</h4>
+    <span class="where">Inventory &amp; SCM → Supplier Performance</span>
+    <p>How each supplier has actually performed — on time and in full, rejections at inspection, replies to enquiries, and price — read back out of what happened, never typed in. The small grey number under each figure is how many orders, inspections or enquiries it is out of, and where there are too few it says so instead of showing a percentage.</p>
+    <p>The same figures appear beside the prices on each enquiry's comparison sheet, so past performance is in front of you at the moment you choose.</p>
+  </div>
+  <div class="note do"><b>Making the figures work</b>Put a promised date on purchase orders and record inspections. An order with no promised date is left out rather than counted as on time, and an order still running is not late until its date has passed.</div>
+</section>
+
+<section id="documents">
+  <span class="eyebrow">Documents</span>
+  <h2>Printed documents</h2>
+  <p>Every document that leaves the building, or gets signed, is drawn by the system as a PDF on the company's letterhead. <em>Print</em> opens it in a new tab, where your browser's printer button prints it exactly as drawn; <em>Download</em> saves the same file. The copy you print, the copy you save and the copy that is emailed are one file, so they cannot disagree.</p>
+  <div class="tw"><table>
+    <tr><th>Document</th><th>Where the button is</th></tr>
+    <tr><td>Quotation</td><td>Top of the quotation</td></tr>
+    <tr><td>Request for quotation</td><td>Under each supplier's name on the comparison sheet; a blank copy at the top</td></tr>
+    <tr><td>Purchase order</td><td>Bottom of the order's card</td></tr>
+    <tr><td>Material request</td><td>Top right of the request's card</td></tr>
+    <tr><td>Goods received, issue, transfer and return-to-supplier notes</td><td><em>Note</em> beside the reference on Receive &amp; Issue</td></tr>
+    <tr><td>Material return note</td><td><em>Note</em> beside the return's number</td></tr>
+    <tr><td>Tax invoice, credit note, debit note</td><td>Top of the invoice (customer invoices only)</td></tr>
+    <tr><td>Payslips</td><td>Payroll: <em>Payslip</em> on one employee&rsquo;s row, or <em>Print</em> / <em>Download all payslips</em> above the run, a page per employee</td></tr>
+    <tr><td>Full and final settlement</td><td><em>Statement</em> on the separation</td></tr>
+  </table></div>
+  <h3>A store note is the whole delivery</h3>
+  <p>A lorry carrying five items is recorded as five movements. The goods received note gathers every item recorded against the same delivery note, on the same day, into the same store from the same supplier — so it matches the paper the driver handed over. Issue, transfer and return notes work the same way.</p>
+  <h3>What the mark across the page means</h3>
+  <div class="tw"><table>
+    <tr><th>Mark</th><th>Meaning</th></tr>
+    <tr><td>DRAFT</td><td>Not yet sent for approval, or a payroll run or settlement not yet approved. Not to be sent or signed.</td></tr>
+    <tr><td>NOT APPROVED</td><td>Waiting for approval. A supplier must not deliver against it.</td></tr>
+    <tr><td>REJECTED · CANCELLED</td><td>Turned down or called off.</td></tr>
+    <tr><td>SUPERSEDED</td><td>A quotation replaced by a revision.</td></tr>
+    <tr><td>CLOSED</td><td>An enquiry already awarded — not to be sent out for prices.</td></tr>
+  </table></div>
+  <p>The mark disappears by itself once the record is approved or issued. A status the system has not been told is final is marked, never printed clean.</p>
+  <ul>
+    <li><strong>Figures are the record's own</strong>, fixed when it was raised or issued, so a reprint next year still says what was sent.</li>
+    <li><strong>Documents that go outside show no internal figures</strong> — no cost or margin on a quotation, no other supplier's price on an enquiry, no prices on a goods received note.</li>
+    <li><strong>Payslips show only the last four characters of the bank account.</strong></li>
+    <li><strong>A supplier's bill is never printed as our tax invoice.</strong> Print is offered on customer invoices only.</li>
+  </ul>
+  <div class="note care"><b>Ctrl+P is not the same thing</b>Printing the screen prints what the screen shows, including cost, margin and other suppliers' prices. Use the Print button.</div>
+</section>
+
+<section id="letterhead">
+  <h2>Your letterhead and templates</h2>
+  <div class="entry">
+    <h4>Printed Documents</h4>
+    <span class="where">Settings → Printed Documents</span>
+    <p>One screen per company decides how every document looks. Out of the box the system draws a letterhead from the company record: logo, name, address and TRN, with a coloured rule in your accent colour. When your designer produces a proper letterhead, upload the top band as <em>Header artwork</em> and it replaces the generated one on every page of every document at once — nobody waits for a new release. A <em>Footer artwork</em> band works the same way at the bottom.</p>
+    <p>Also set here: the phone, email and website under the name; a footer line such as the trade licence number; whether signature boxes print; and the standard terms printed on quotations, purchase orders and enquiries. A quotation with terms of its own uses those instead.</p>
+    <p>Click <em>Print</em> next to <em>See it on paper</em> to check the saved settings on an invented document before a customer sees a real one.</p>
+  </div>
+  <div class="note care"><b>PNG or JPEG only</b>PDFs cannot draw SVG, WebP or GIF images, so artwork in those formats is refused, and a company logo in one of them is left off with a yellow warning. About 2000 pixels wide is plenty for a band across an A4 page. Check the sample in print preview: artwork that looks fine on screen is often too tall once it repeats across the top of every page.</div>
+  <p>Each company has its own settings, so a WBTS quotation never goes out on WBE paper. A template that changes the <em>layout</em> of a document, rather than its letterhead, is a change the project team makes. Arabic text is not yet supported on the PDFs.</p>
+</section>
+
+<section id="reports">
+  <span class="eyebrow">Reports</span>
+  <h2>Finding the right report</h2>
+  <p>Open <strong>Reports</strong> in the left menu, or click <strong>All reports</strong> at the right-hand end of a module&rsquo;s tabs. Every report you are allowed to open is there, grouped by subject, and each card says the <em>question it answers</em> rather than only its official name.</p>
+  <p>Search using the plain word you would say out loud. Typing <span class="mono">owes</span> finds Outstanding &amp; Ageing; <span class="mono">expire</span> finds the visa and Emirates ID renewals; <span class="mono">bounced</span> finds returned cheques; <span class="mono">late</span> finds purchase orders past their promised date; <span class="mono">scrap</span> finds returns from site.</p>
+</section>
+
+<section id="reportlist">
+  <h2>What each report answers</h2>
+  <div class="tw"><table>
+    <tr><th>Report</th><th>The question it answers</th></tr>
+    <tr><td>Cash Flow Forecast</td><td>Will there be enough in the bank to cover the next payroll?</td></tr>
+    <tr><td>Outstanding &amp; Ageing</td><td>Who owes us money, who do we owe, and how overdue is it?</td></tr>
+    <tr><td>Cheque Register</td><td>Which post-dated cheques clear this month, and which have bounced?</td></tr>
+    <tr><td>Retention Register</td><td>How much of our money is held back, and when is it released?</td></tr>
+    <tr><td>Advances Register</td><td>How much have we taken up front, and how much is still to be earned?</td></tr>
+    <tr><td>Bank Reconciliation</td><td>Does our cash book agree with the bank statement?</td></tr>
+    <tr><td>Profit &amp; Loss / Balance Sheet</td><td>Did we make money this period, and what do we own and owe?</td></tr>
+    <tr><td>Trial Balance</td><td>Do the books balance, account by account?</td></tr>
+    <tr><td>Cost Centres</td><td>What is each department or site costing us?</td></tr>
+    <tr><td>Job Costing</td><td>What did each job earn and cost, and is it inside its budget?</td></tr>
+    <tr><td>Work in Progress</td><td>How far through is each contract, and have we billed ahead of the work?</td></tr>
+    <tr><td>Manhours</td><td>How many hours has each job eaten, against how many it was priced for?</td></tr>
+    <tr><td>Overtime</td><td>What is overtime costing, and is anybody over the legal cap?</td></tr>
+    <tr><td>Workforce Mix</td><td>How mixed are the nationalities, and what would change the balance?</td></tr>
+    <tr><td>Compliance &amp; Expiry</td><td>Whose visa, Emirates ID, labour card or passport is about to expire?</td></tr>
+    <tr><td>Payroll &amp; Payslips</td><td>What was paid last month, to whom, and what went to the bank?</td></tr>
+    <tr><td>VAT Return</td><td>What do we owe the FTA this quarter, box by box?</td></tr>
+    <tr><td>Corporate Tax</td><td>What corporate tax is due, and by when?</td></tr>
+    <tr><td>Day Book</td><td>Everything posted, in date order.</td></tr>
+    <tr><td>Ledgers &amp; Statements</td><td>Every movement on one account, or one customer's statement.</td></tr>
+    <tr><td colspan="2" style="font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);background:var(--sunk)">Winning work</td></tr>
+    <tr><td>Enquiry Pipeline</td><td>What work are we chasing, at what stage, and what is the pipeline really worth once weighted for its chances?</td></tr>
+    <tr><td>Estimates &amp; Margins</td><td>What margin is each job being priced at before it goes to the customer?</td></tr>
+    <tr><td>Quotations &amp; Hit Rate</td><td>How much of what we quote do we actually win, and which quotes are still waiting on an answer?</td></tr>
+    <tr><td>Where the Work Comes From</td><td>Which sources bring in work we actually win, and why do we lose the rest?</td></tr>
+    <tr><td colspan="2" style="font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);background:var(--sunk)">Buying and stores</td></tr>
+    <tr><td>Purchase Orders</td><td>What have we committed to suppliers, what is still to arrive, and which deliveries are late?</td></tr>
+    <tr><td>Supplier Performance</td><td>Which suppliers deliver on time and in full, and whose material fails inspection?</td></tr>
+    <tr><td>Material Requests</td><td>What has site asked for, and what is still waiting for approval or short on the shelf?</td></tr>
+    <tr><td>Supplier Enquiries (RFQ)</td><td>Have enough suppliers been asked for a price, who has not replied, and who won?</td></tr>
+    <tr><td>Receipts, Issues &amp; Transfers</td><td>What came in, what went out to which job, and what is still waiting for inspection?</td></tr>
+    <tr><td>Returns from Site</td><td>What material came back from site, and how much of it was scrap?</td></tr>
+    <tr><td>Stock on Hand</td><td>What material is on the shelf, and what is it worth?</td></tr>
+    <tr><td>Equipment &amp; Calibration</td><td>Which tools are out of calibration, and which lapse next month?</td></tr>
+  </table></div>
+  <h3>Two reports worth a closer look</h3>
+  <div class="entry">
+    <h4>Cash Flow Forecast</h4>
+    <span class="where">Finance → Reports → Cash Flow</span>
+    <p>Every other finance report looks backwards. This one looks forward: what is in the bank today, then thirteen weeks of everything already dated to move — cheques you hold and cheques you have written, invoices on their due dates, retention on its release date, and wages on payday.</p>
+    <p>The sentence at the top says in one line whether you are fine, getting tight, or heading for an overdraft — and in which week. Any week that closes below zero is shaded red.</p>
+    <p>Turn on <strong>Cautious view</strong> before promising anybody anything. It removes money you are owed but cannot be sure of, while keeping every payment you must make. If the answer is still yes, it is a real yes.</p>
+  </div>
+  <div class="entry">
+    <h4>Workforce Mix</h4>
+    <span class="where">HR → Reports → Workforce Mix</span>
+    <p>The nationality mix of your own employees, measured against the share you are working to. Where you are over, it gives three ways to close the gap: hires needed, the equivalent reduction, and how many of those visas fall due within ninety days.</p>
+    <p>Supplied labour is excluded — those workers sit on the supplier's establishment, not yours.</p>
+  </div>
+</section>
+
+<section id="approvals">
+  <span class="eyebrow">Running the system</span>
+  <h2>Approvals</h2>
+  <p>Anything that needs a second pair of eyes goes through the approvals inbox. An administrator sets the routes: which kinds of request need approving, and by whom, based on the approval level of each role.</p>
+  <ul>
+    <li><strong>Raising one:</strong> the request goes to whoever the route names, and they are notified.</li>
+    <li><strong>Acting on one:</strong> open Approvals, read it, approve or reject with a reason. The reason is kept.</li>
+    <li>The bell in the top bar shows how many things are waiting on you.</li>
+    <li>A step can be decided by the role it names or anyone with a higher approval level. A role below that level does not see the step in its queue.</li>
+  </ul>
+  <h3>The routes that ship with the system</h3>
+  <div class="tw"><table>
+    <tr><th>What</th><th>Who signs, in order</th></tr>
+    <tr><td>Material request</td><td>Site Engineer / Planner → Project Manager → Procurement Officer</td></tr>
+    <tr><td>Purchase order</td><td>Project Manager → Operations Manager → Director, and the Managing Director from AED 50,000</td></tr>
+    <tr><td>Sales quotation</td><td>Operations Manager → Director, and the Managing Director from AED 500,000</td></tr>
+  </table></div>
+  <p>An administrator can change the routes under Approvals → Configure routes.</p>
+  <div class="note care"><b>Seeing is not approving</b>Being able to open the inbox and being able to approve in it are separate grants in Access Control. If your role has the level but not the grant, the inbox says so instead of offering buttons that do nothing — ask an administrator.</div>
+</section>
+
+<section id="email">
+  <h2>Email for quotations</h2>
+  <div class="entry">
+    <h4>Email</h4>
+    <span class="where">Settings → Email</span>
+    <p>Nothing about your mail server is written into the system. The server, port, security and mailbox are set here, per company, so each company sends as itself. Choosing Microsoft 365 fills in the server, port and security. The settings that catch people out are the server (<span class="mono">smtp.office365.com</span>, not outlook.com) and the port (587 with STARTTLS). Microsoft switches SMTP sign-in off on newer tenants, so IT may need to enable it for the mailbox, and an app password is needed where multi-factor sign-in is on.</p>
+    <p>Save, then <em>Send a test</em> — it goes to you, not to a customer. If it fails, the message underneath is what your mail server actually said, which is the line to give IT. The password is encrypted and never shown back; leaving the box empty when you change something else keeps the saved one.</p>
+    <p>Every quotation sent is listed at the bottom of the screen. The result says <em>Accepted</em> rather than <em>Delivered</em>, because whether the customer received it, read it or found it in junk is beyond anything a sending system can know.</p>
+  </div>
+</section>
+
+<section id="admin">
+  <h2>Users and access</h2>
+  <p>Access is granted <strong>per screen</strong>, and separately for viewing, creating, editing, deleting and approving. A site storekeeper might see only Inventory; an accountant sees Finance. If a screen is not granted, it is not in the menu at all — and typing its address simply returns you to your dashboard.</p>
+  <p>That is also why a button can be missing rather than present-and-refusing: being allowed to <em>see</em> a screen and being allowed to <em>change</em> it are two different grants.</p>
+  <h3>The roles that ship with the system</h3>
+  <div class="tw"><table>
+    <tr><th>Role</th><th class="n">Approval level</th></tr>
+    <tr><td>Group Admin</td><td class="n">100</td></tr>
+    <tr><td>Managing Director</td><td class="n">90</td></tr>
+    <tr><td>Director</td><td class="n">80</td></tr>
+    <tr><td>Operations Manager</td><td class="n">70</td></tr>
+    <tr><td>Finance Controller</td><td class="n">60</td></tr>
+    <tr><td>Project Manager</td><td class="n">50</td></tr>
+    <tr><td>Finance / Accounts · HSE Officer · Procurement Officer</td><td class="n">45</td></tr>
+    <tr><td>Estimation / Sales Engineer · QA/QC &amp; Calibration</td><td class="n">40</td></tr>
+    <tr><td>Site Engineer / Planner</td><td class="n">35</td></tr>
+    <tr><td>HR Officer</td><td class="n">30</td></tr>
+    <tr><td>Storekeeper</td><td class="n">20</td></tr>
+  </table></div>
+  <p>Roles your administrator creates — a site timekeeper with Attendance only, for example — sit alongside these with whatever level and screens they are given.</p>
+  <div class="note do"><b>Your changes are kept</b>Changes made in Access Control to any role, built-in or your own, stay as you set them when the system is updated. A screen added in a later release is given to the roles it is meant for, without undoing anything you removed.</div>
+  <h3>Managing users</h3>
+  <ul>
+    <li><strong>Reset a password:</strong> the key icon. A temporary password is shown once — hand it over, and the user must set their own on first sign-in.</li>
+    <li><strong>Lock or unlock:</strong> the lock icon. Accounts also lock themselves for fifteen minutes after three wrong passwords.</li>
+    <li><strong>Master data:</strong> the dropdown lists used across the system — departments, designations, grades, leave types, nationalities. Keeping these tidy keeps every dropdown clean.</li>
+    <li><strong>Custom fields:</strong> anything the standard employee profile does not capture. It then appears on every profile.</li>
+  </ul>
+</section>
+
+<section id="audit">
+  <h2>The audit trail</h2>
+  <div class="entry">
+    <h4>Audit Log</h4>
+    <span class="where">Administration → Audit Log</span>
+    <p>A permanent record of who did what and when — created, updated, approved, deleted, posted — together with the address and device it came from. Sign-ins, sign-outs, failed attempts and lock-outs are recorded here too.</p>
+    <p>Nothing here can be edited or deleted by anybody, including an administrator. Entries older than the period you set move to an <em>Archive</em> tab, which is never emptied, and both tabs show their counts so nothing ever looks lost.</p>
+  </div>
+  <h3>Finding something in it</h3>
+  <p>A year of entries cannot be scrolled, so the trail can be questioned directly. The search box looks at what was done and who did it. <em>More filters</em> adds one person, one kind of action, one kind of record, and a date range. They combine, so everything one person deleted in a single week is three clicks.</p>
+  <ul>
+    <li>The sentence above the list always says what you are looking at, so a filtered list is never mistaken for the whole trail.</li>
+    <li>Dates include the whole of the last day. Asking up to the 14th includes everything done on the 14th.</li>
+    <li>Switching between Recent and Archive keeps your filters rather than throwing them away.</li>
+  </ul>
+  <div class="note do"><b>Sending somebody what you found</b>The address bar carries the filters. Copy the link and send it, and they open exactly the view you were looking at.</div>
+  <div class="note"><b>Names you do not recognise</b>A failed sign-in against an unknown email address is ordinary background noise on any site facing the internet. A run of them against one of your real accounts is not.</div>
+</section>
+
+<section id="refused">
+  <span class="eyebrow">Reference</span>
+  <h2>When something is refused</h2>
+  <p>The system prefers to refuse clearly rather than accept something wrong quietly. Here is what the common refusals mean.</p>
+  <div class="tw"><table>
+    <tr><th>What it says</th><th>What to do</th></tr>
+    <tr><td>Your own VAT registration number is missing</td><td>Companies → edit the company → VAT registration number. A tax invoice is not valid without it.</td></tr>
+    <tr><td>This customer has no TRN on file</td><td>Finance → Registers → Parties. A standard-rated invoice to a registered business needs one — or confirm they are not registered.</td></tr>
+    <tr><td>The books are closed up to…</td><td>The period has been locked after a filing. Post on a later date, or ask an administrator to move the lock.</td></tr>
+    <tr><td>An issued invoice cannot be changed</td><td>Raise a credit note against it. Both halves stay on the record, which is what an auditor expects.</td></tr>
+    <tr><td>That document has already been posted</td><td>Somebody has already issued it — possibly you, in another tab. Refresh and check before trying again.</td></tr>
+    <tr><td>Somebody is not ready for payroll</td><td>The screen names each person and the missing detail. Fix the employee record and run again.</td></tr>
+    <tr><td>That Emirates ID is already on someone else</td><td>The same person exists twice. Find the older record and deactivate it rather than creating a second.</td></tr>
+    <tr><td>That is below what the law allows</td><td>An HR policy figure is under the statutory minimum. The message names the article.</td></tr>
+    <tr><td>That is more than is left on this advance</td><td>Recovering more than was advanced would turn what you owe into an apparent asset. The message names what remains.</td></tr>
+    <tr><td>No account is marked as cash or bank</td><td>Open Ledgers and set the control type on your bank and petty cash accounts. Advances and the cash flow forecast both need it.</td></tr>
+    <tr><td>Has records — deactivate instead</td><td>A company or record with transactions behind it is never deleted, because that would leave a hole. Deactivate it.</td></tr>
+    <tr><td>Nothing has been costed yet, so there is no price to quote</td><td>Add the build-up to the estimate&rsquo;s lines before marking it priced.</td></tr>
+    <tr><td>This quotes … below what the work costs</td><td>Put the price up, or mark it deliberately as a loss leader if that is the decision.</td></tr>
+    <tr><td>Send it for approval first</td><td>Nothing goes to a customer unapproved. Send the quotation for approval and wait for it to be signed.</td></tr>
+    <tr><td>Ask at least 3 suppliers before awarding</td><td>Ask more suppliers on the enquiry. With fewer there is nothing to compare the price against.</td></tr>
+    <tr><td>… is dearer than the lowest quote. Say why</td><td>Give the reason for choosing a supplier who is not the cheapest. It is the only record of the decision.</td></tr>
+    <tr><td>Choose the job this material is going to</td><td>An issue must name a job, or the cost lands on nothing.</td></tr>
+    <tr><td>Only … can be issued — waiting on inspection</td><td>QA/QC has not passed the rest of it yet. Ask them to inspect the delivery.</td></tr>
+    <tr><td>There is none of … in this store</td><td>Receive it first, or issue from the store that has it.</td></tr>
+    <tr><td>… cannot be issued. Its calibration expired</td><td>Send the tool for calibration and record the new certificate before it goes to a job.</td></tr>
+    <tr><td>Your role can see approvals but not approve them</td><td>An administrator can grant Approve on Approvals in Access Control.</td></tr>
+    <tr><td>The header artwork must be a PNG or JPEG</td><td>Ask your designer for a PNG export of the letterhead. PDFs cannot draw other image types.</td></tr>
+  </table></div>
+</section>
+
+<section id="glossary">
+  <h2>Glossary</h2>
+  <dl class="gloss">
+    <dt>Advance</dt><dd>Money that changes hands before any work is supplied. One received is owed back until the work is billed; one paid is owed to you until the supplier bills for it. Neither is income.</dd>
+    <dt>Ageing</dt><dd>Sorting what you are owed by how old it is — not yet due, 1–30 days, 31–60, 61–90, over 90.</dd>
+    <dt>Bin</dt><dd>A numbered place inside a store — a rack, shelf or bay — so the record says where material is, not just that you have it.</dd>
+    <dt>Corporate Tax (CT)</dt><dd>UAE tax on business profit, 9% above AED 375,000. Separate from VAT, with its own registration number.</dd>
+    <dt>Cost centre</dt><dd>A part of your own business you want to measure — a department, a workshop, a site office. Different from a job, which is work you sell.</dd>
+    <dt>Credit note</dt><dd>A document that cancels or reduces an invoice already issued.</dd>
+    <dt>Defects liability period</dt><dd>The months after handover during which you must return and fix defects. The second half of retention is usually released at the end of it.</dd>
+    <dt>DRAFT, NOT APPROVED</dt><dd>Marks printed across a document that is not final. They disappear by themselves once it is approved or issued.</dd>
+    <dt>Estimate</dt><dd>The build-up of what a piece of work will cost — material, labour, plant, subcontract — with the overhead and margin on top, from which the quotation&rsquo;s price comes.</dd>
+    <dt>FTA</dt><dd>Federal Tax Authority — VAT and corporate tax.</dd>
+    <dt>Gratuity</dt><dd>End-of-service pay, earned after one completed year: 21 days of basic per year for the first five, 30 days a year after that.</dd>
+    <dt>GRN (goods received note)</dt><dd>The record of what actually arrived on a delivery, against the purchase order, signed by the store and the driver.</dd>
+    <dt>Hit rate</dt><dd>How much of what you quote you win. Measured here by value, not by count.</dd>
+    <dt>ILOE</dt><dd>Involuntary Loss of Employment insurance. A small compulsory scheme; the fine for not subscribing is AED 400.</dd>
+    <dt>Job</dt><dd>A piece of work you sell — a contract, a project, a service call. Costs and revenue are tagged to it so you can see whether it made money.</dd>
+    <dt>Loss leader</dt><dd>A price deliberately set below cost, usually to win a customer. The system only allows it when somebody has said so.</dd>
+    <dt>Margin and markup</dt><dd>Markup is added to cost; margin is the share of the price that is profit. A 20% markup is a 16.7% margin.</dd>
+    <dt>Material request</dt><dd>Site asking for material for a job. It commits no money and is approved before anything is bought.</dd>
+    <dt>MOHRE</dt><dd>Ministry of Human Resources and Emiratisation — labour law, work permits and establishment classification.</dd>
+    <dt>MOL Person ID</dt><dd>The unique number identifying a worker to the Ministry. It goes in the WPS file. Formerly called the labour card number.</dd>
+    <dt>Muster</dt><dd>The daily attendance record on site.</dd>
+    <dt>Nafis / Emiratisation</dt><dd>The requirement to employ a share of UAE nationals, and the programme supporting it.</dd>
+    <dt>Onerous contract</dt><dd>One expected to cost more than it will ever be paid. The whole expected loss is taken now rather than spread over the months remaining.</dd>
+    <dt>OTIF</dt><dd>On time in full — a delivery that arrived by the promised date with everything ordered.</dd>
+    <dt>PDC</dt><dd>Post-dated cheque — a cheque that cannot be banked until the date written on it.</dd>
+    <dt>Purchase order (PO)</dt><dd>The company&rsquo;s commitment to buy from a supplier, approved before anything can be received against it.</dd>
+    <dt>Reverse charge</dt><dd>When you buy from abroad and account for the VAT yourself instead of the supplier charging it.</dd>
+    <dt>Retention</dt><dd>Money a client holds back from each payment as security, released in stages.</dd>
+    <dt>RFQ (request for quotation)</dt><dd>An enquiry asking several suppliers to price the same material, so the prices can be compared before an order is placed.</dd>
+    <dt>Small Business Relief</dt><dd>Relief from corporate tax for businesses under AED 3,000,000 of revenue, available for periods ending on or before 31 December 2029.</dd>
+    <dt>Takeoff</dt><dd>Measuring how much material each unit of work needs, with its wastage, so the estimate&rsquo;s material cost is counted rather than guessed.</dd>
+    <dt>TRN</dt><dd>Tax Registration Number — the 15-digit number the FTA issues on VAT registration. It must appear on every tax invoice.</dd>
+    <dt>VAT 201</dt><dd>The FTA's VAT return form.</dd>
+    <dt>Voucher</dt><dd>One transaction recorded in the accounts, with its own permanent number.</dd>
+    <dt>Weighted pipeline</dt><dd>The value of open enquiries, each multiplied by its chance of being won at its stage. Smaller than the gross total, and more honest.</dd>
+    <dt>WPS</dt><dd>Wage Protection System. Salaries must be paid through it, using a SIF file sent to your bank.</dd>
+    <dt>Work in progress (WIP)</dt><dd>The gap between what a contract has earned and what has been invoiced for it. Billed ahead of the work is a liability; work done and not billed is an asset.</dd>
+    <dt>Zero-rated vs exempt</dt><dd>Both charge no VAT, but zero-rated is still a taxable supply and lets you reclaim your input tax. Exempt does not.</dd>
+  </dl>
+</section>
+
+</div>
+</main>
+</div>

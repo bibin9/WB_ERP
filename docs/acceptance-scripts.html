@@ -1,0 +1,698 @@
+<title>WB Group ERP Acceptance Scripts</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  :root{
+    --ground:#F2F5F4; --panel:#FFFFFF; --sunk:#E7ECEA;
+    --ink:#15201D; --ink-2:#41504B; --ink-3:#6E7B77;
+    --rule:#D2DAD7; --rule-soft:#E4E9E7;
+    --accent:#0B5F6B; --accent-bg:#DFEEF0; --on-accent:#FFFFFF;
+    --pass:#1C7747; --pass-bg:#E2F2E8;
+    --fail:#B3261E; --fail-bg:#FBE6E3;
+    --block:#935800; --block-bg:#F9EED8;
+    --disp:'Barlow Semi Condensed','Arial Narrow',system-ui,sans-serif;
+    --body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0D1312; --panel:#141C1A; --sunk:#1C2624;
+      --ink:#E5ECE9; --ink-2:#AEBAB6; --ink-3:#7E8B87;
+      --rule:#29342F; --rule-soft:#1F2926;
+      --accent:#62B9C5; --accent-bg:#11292D; --on-accent:#0D1312;
+      --pass:#55C28B; --pass-bg:#10291C;
+      --fail:#F28B81; --fail-bg:#35160F;
+      --block:#DCA852; --block-bg:#2D2310;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0D1312; --panel:#141C1A; --sunk:#1C2624;
+    --ink:#E5ECE9; --ink-2:#AEBAB6; --ink-3:#7E8B87;
+    --rule:#29342F; --rule-soft:#1F2926;
+    --accent:#62B9C5; --accent-bg:#11292D; --on-accent:#0D1312;
+    --pass:#55C28B; --pass-bg:#10291C;
+    --fail:#F28B81; --fail-bg:#35160F;
+    --block:#DCA852; --block-bg:#2D2310;
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--ground);color:var(--ink);font-family:var(--body);font-size:15.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:62rem;margin:0 auto;padding-inline:16px;padding-block:2rem 5rem}
+  h1,h2,h3{font-family:var(--disp);line-height:1.1;margin:0;text-wrap:balance}
+  p{margin:.6rem 0;max-width:68ch}
+  button,select,input,textarea{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .mono{font-family:var(--mono)}
+
+  /* ---------- masthead ---------- */
+  .kicker{font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+  h1{font-size:clamp(2rem,5vw,2.9rem);font-weight:700;letter-spacing:-.01em;margin-top:.4rem}
+  .lede{font-size:1.08rem;color:var(--ink-2);max-width:60ch}
+
+  .tester{display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:.75rem;margin-top:1.4rem}
+  .field label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-bottom:.25rem;font-weight:600}
+  .field input,.field select{width:100%;background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:.5rem .6rem}
+
+  /* ---------- progress ---------- */
+  .progress{margin-top:1.4rem;background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:1rem 1.1rem}
+  .bar{display:flex;height:.7rem;border-radius:99px;overflow:hidden;background:var(--sunk)}
+  .bar span{display:block;height:100%}
+  .bar .p{background:var(--pass)} .bar .f{background:var(--fail)} .bar .b{background:var(--block)}
+  .counts{display:flex;flex-wrap:wrap;gap:.4rem 1.2rem;margin-top:.7rem;font-size:.9rem;font-variant-numeric:tabular-nums}
+  .counts b{font-family:var(--disp);font-size:1.15rem;margin-right:.2rem}
+  .counts .p b{color:var(--pass)} .counts .f b{color:var(--fail)} .counts .b b{color:var(--block)} .counts .n b{color:var(--ink-2)}
+  .actions{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.9rem;align-items:center}
+  .btn{border:1px solid var(--rule);background:var(--panel);border-radius:4px;padding:.45rem .8rem;cursor:pointer;font-weight:500}
+  .btn:hover{background:var(--sunk)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+  .btn.primary:hover{filter:brightness(1.07)}
+  .msg{font-size:.85rem;color:var(--ink-2)}
+  .warn{font-size:.85rem;color:var(--block);background:var(--block-bg);border-radius:4px;padding:.5rem .7rem;margin-top:.8rem}
+  textarea.csv{width:100%;min-height:8rem;margin-top:.7rem;font-family:var(--mono);font-size:.75rem;background:var(--sunk);border:1px solid var(--rule);border-radius:4px;padding:.5rem}
+
+  /* ---------- guidance ---------- */
+  details.guide{margin-top:1.4rem;background:var(--panel);border:1px solid var(--rule);border-radius:6px}
+  details.guide>summary{cursor:pointer;padding:.85rem 1.1rem;font-family:var(--disp);font-weight:600;font-size:1.08rem;list-style:none}
+  details.guide>summary::-webkit-details-marker{display:none}
+  details.guide>summary::after{content:"Show";float:right;font-family:var(--body);font-size:.8rem;color:var(--accent);font-weight:500}
+  details.guide[open]>summary::after{content:"Hide"}
+  .guide .in{padding:0 1.1rem 1.1rem;border-top:1px solid var(--rule-soft)}
+  .guide h3{font-size:1rem;margin-top:1.1rem;color:var(--ink-2);text-transform:uppercase;letter-spacing:.06em;font-size:.8rem}
+  .guide ul,.guide ol{margin:.5rem 0;padding-left:1.2rem;max-width:68ch} .guide li{margin:.3rem 0}
+  .tw{overflow-x:auto;margin:.6rem 0;border:1px solid var(--rule);border-radius:4px}
+  table{border-collapse:collapse;width:100%;font-size:.86rem}
+  th{text-align:left;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);background:var(--sunk);padding:.5rem .65rem;white-space:nowrap}
+  td{padding:.5rem .65rem;border-top:1px solid var(--rule-soft);vertical-align:top}
+  .flow{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;margin:.5rem 0}
+  .flow span{background:var(--sunk);border-radius:3px;padding:.15rem .45rem;font-size:.82rem}
+  .flow i{color:var(--ink-3);font-style:normal}
+
+  /* ---------- role tabs ---------- */
+  .tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--ground);margin-top:1.6rem;padding-block:.6rem;border-bottom:1px solid var(--rule)}
+  .tabrow{display:flex;gap:.4rem;overflow-x:auto;padding-bottom:.2rem;scrollbar-width:thin}
+  .tab{flex:0 0 auto;border:1px solid var(--rule);background:var(--panel);border-radius:99px;padding:.35rem .75rem;cursor:pointer;font-size:.88rem;white-space:nowrap;display:flex;gap:.45rem;align-items:center}
+  .tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+  .tab .ct{font-family:var(--mono);font-size:.7rem;opacity:.85}
+  .tab .dot{width:.5rem;height:.5rem;border-radius:50%;background:var(--fail)}
+  .filters{display:flex;gap:.35rem;margin-top:.55rem;flex-wrap:wrap}
+  .chip{border:1px solid var(--rule);background:transparent;border-radius:3px;padding:.2rem .55rem;font-size:.8rem;cursor:pointer}
+  .chip[aria-pressed="true"]{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+
+  /* ---------- role header ---------- */
+  .role{margin-top:1.5rem}
+  .role h2{font-size:1.7rem;font-weight:700}
+  .login{display:inline-flex;gap:.4rem;align-items:baseline;margin-top:.5rem;background:var(--accent-bg);color:var(--ink);border-radius:4px;padding:.3rem .6rem;font-size:.88rem}
+  .login b{font-weight:600}
+
+  /* ---------- cases ---------- */
+  .cases{display:flex;flex-direction:column;gap:.7rem;margin-top:1.1rem}
+  .case{background:var(--panel);border:1px solid var(--rule);border-left:4px solid var(--rule);border-radius:5px}
+  .case.pass{border-left-color:var(--pass)} .case.fail{border-left-color:var(--fail)} .case.blocked{border-left-color:var(--block)}
+  .case>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:auto 1fr auto;gap:.3rem .8rem;align-items:baseline;padding:.75rem .95rem}
+  .case>summary::-webkit-details-marker{display:none}
+  .cid{font-family:var(--mono);font-size:.76rem;color:var(--accent);font-weight:600;white-space:nowrap}
+  .ctitle{font-weight:600}
+  .ctitle small{display:block;font-weight:400;color:var(--ink-3);font-size:.8rem;margin-top:.1rem}
+  .pill{font-family:var(--mono);font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;padding:.15rem .45rem;border-radius:3px;white-space:nowrap;background:var(--sunk);color:var(--ink-3)}
+  .pill.pass{background:var(--pass-bg);color:var(--pass)} .pill.fail{background:var(--fail-bg);color:var(--fail)} .pill.blocked{background:var(--block-bg);color:var(--block)}
+  .cbody{padding:0 .95rem .95rem 1rem;border-top:1px solid var(--rule-soft)}
+  .grid2{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:1rem;margin-top:.8rem}
+  @media (max-width:44rem){ .grid2{grid-template-columns:1fr} .case>summary{grid-template-columns:1fr auto} .cid{grid-column:1/-1} }
+  .lab{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin-bottom:.3rem}
+  ol.steps{margin:0;padding-left:1.25rem} ol.steps li{margin:.28rem 0}
+  .expect{background:var(--sunk);border-radius:4px;padding:.6rem .75rem;font-size:.94rem}
+  .needs{font-size:.82rem;color:var(--ink-3);margin-top:.5rem}
+  .record{margin-top:.9rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+  .seg{display:inline-flex;border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+  .seg button{border:0;background:var(--panel);padding:.4rem .75rem;cursor:pointer;font-size:.88rem;border-right:1px solid var(--rule)}
+  .seg button:last-child{border-right:0}
+  .seg button[aria-pressed="true"].pass{background:var(--pass);color:var(--panel)}
+  .seg button[aria-pressed="true"].fail{background:var(--fail);color:var(--panel)}
+  .seg button[aria-pressed="true"].blocked{background:var(--block);color:var(--panel)}
+  .seg button[aria-pressed="true"].none{background:var(--ink-3);color:var(--panel)}
+  .record select{background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:.38rem .5rem;font-size:.88rem}
+  .note{width:100%;margin-top:.5rem;min-height:2.6rem;background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:.45rem .6rem;font-size:.9rem;resize:vertical}
+  .empty{padding:2rem;text-align:center;color:var(--ink-3);background:var(--panel);border:1px dashed var(--rule);border-radius:5px}
+  footer{margin-top:3rem;font-size:.82rem;color:var(--ink-3);max-width:68ch}
+  @media print{ .tabs,.actions,.record,.filters{display:none} .case{break-inside:avoid} body{background:#fff} }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="kicker">User acceptance testing · Pre-Prod</div>
+    <h1>WB Group ERP Acceptance Scripts</h1>
+    <p class="lede">Step-by-step checks for each person who will use the system, covering Finance, HR, CRM &amp; Estimation, Inventory &amp; SCM, and the printed documents. Sign in as your role, follow the steps, and record what actually happened.</p>
+
+    <div class="tester">
+      <div class="field"><label for="t-name">Your name</label><input id="t-name" autocomplete="name" placeholder="e.g. Ahmed Khan"></div>
+      <div class="field"><label for="t-org">Company / department</label><input id="t-org" placeholder="e.g. WB Engineering — Stores"></div>
+      <div class="field"><label for="t-build">Build shown in Pre-Prod</label><input id="t-build" placeholder="optional"></div>
+    </div>
+
+    <section class="progress" aria-label="Progress">
+      <div class="bar" id="bar" role="img" aria-label="Results so far"><span class="p"></span><span class="f"></span><span class="b"></span></div>
+      <div class="counts" id="counts"></div>
+      <div class="actions">
+        <button class="btn primary" id="export" type="button">Download results (CSV)</button>
+        <button class="btn" id="show-csv" type="button">Show results as text</button>
+        <button class="btn" id="clear" type="button">Start again</button>
+        <span class="msg" id="msg" role="status"></span>
+      </div>
+      <div id="storage-warn" class="warn" hidden>This browser is not keeping your results. Download them before you close the tab.</div>
+      <textarea class="csv" id="csv" readonly hidden aria-label="Results as CSV"></textarea>
+    </section>
+
+    <details class="guide" id="guide">
+      <summary>Before you start</summary>
+      <div class="in">
+        <h3>Where and how</h3>
+        <ul>
+          <li>Open Pre-Prod at <span class="mono">wberp-pre-prod.up.railway.app</span>. Never test in the live system.</li>
+          <li>Sign in with the login made for your role. Ask the administrator if you do not have one. Do not share a login — every action is recorded against the name that did it.</li>
+          <li>Pick <b>WBE — WB Engineering</b> in the company switcher unless a step says otherwise. The test records are there.</li>
+          <li>Test records are clearly marked: items and stores start with <span class="mono">T-</span>, and notes say <i>[test data]</i>. Examples: supplier <i>Emirates Cable Trading LLC</i>, customer <i>Deep Port Logistics FZC</i>, item <span class="mono">T-CBL-4C16</span> (4-core cable), store <span class="mono">T-MAIN</span> (Main store, Mussafah, with bins A-01 to E-02).</li>
+          <li>Anything you create, name it with your initials, e.g. <i>"AK test — cable for pump house"</i>, so it can be found later.</li>
+          <li>The <b>?</b> button in the top bar explains the screen you are on. Use it before marking something failed because it seems strange.</li>
+        </ul>
+
+        <h3>Recording a result</h3>
+        <div class="tw"><table>
+          <tr><th>Result</th><th>Use it when</th></tr>
+          <tr><td><span class="pill pass">Pass</span></td><td>What happened matches the expected result.</td></tr>
+          <tr><td><span class="pill fail">Fail</span></td><td>It did something different, showed an error, or showed a wrong figure. Say exactly what you saw in the note — the screen, the figure, the message word for word.</td></tr>
+          <tr><td><span class="pill blocked">Blocked</span></td><td>You could not run it — missing login, missing access, or an earlier step failed.</td></tr>
+        </table></div>
+        <div class="tw"><table>
+          <tr><th>Severity</th><th>Meaning</th></tr>
+          <tr><td>Critical</td><td>Wrong money, wrong tax, data lost, or someone can see or do what they must not. Stops go-live.</td></tr>
+          <tr><td>Major</td><td>The task cannot be done, or can only be done with a workaround a normal user would not find.</td></tr>
+          <tr><td>Minor</td><td>The task can be done but something is confusing, slow, or badly worded.</td></tr>
+          <tr><td>Suggestion</td><td>Works as designed, but you would like it to work differently.</td></tr>
+        </table></div>
+        <p>Your results stay in this browser on this device. When you finish a session, press <b>Download results</b> and send the file to the project team.</p>
+
+        <h3>The two flows the roles hand to each other</h3>
+        <p>Some checks depend on another person finishing theirs first. The note under each check says which.</p>
+        <div class="flow"><span>Site Engineer raises a material request</span><i>→</i><span>Site Engineer, Project Manager, Procurement approve</span><i>→</i><span>Procurement gets 3 quotes and awards</span><i>→</i><span>PM, Operations, Director approve the order</span><i>→</i><span>Storekeeper receives</span><i>→</i><span>QA/QC inspects</span><i>→</i><span>Storekeeper issues to the job</span><i>→</i><span>Finance sees the cost on the job</span></div>
+        <div class="flow"><span>Estimator logs an enquiry and prices it</span><i>→</i><span>Estimator raises the quotation</span><i>→</i><span>Operations Manager, Director approve</span><i>→</i><span>Estimator emails it</span><i>→</i><span>Customer orders: job created</span><i>→</i><span>Finance invoices</span></div>
+      </div>
+    </details>
+  </header>
+
+  <nav class="tabs" aria-label="Roles">
+    <div class="tabrow" id="tabs" role="tablist"></div>
+    <div class="filters" id="filters">
+      <button class="chip" type="button" data-f="all" aria-pressed="true">All checks</button>
+      <button class="chip" type="button" data-f="open" aria-pressed="false">Not run yet</button>
+      <button class="chip" type="button" data-f="issues" aria-pressed="false">Failed or blocked</button>
+    </div>
+  </nav>
+
+  <main id="main"></main>
+
+  <footer>
+    Every expected result on this page was checked against the system's own rules and screens before it was written. If the system and this page disagree, record it as a failure and say so in the note — either the system or the page is wrong, and both matter.
+  </footer>
+</div>
+
+<script>
+(() => {
+  /* ------------------------------------------------------------ roles */
+  const ROLES = [
+    { id: "ADM", name: "Administrator", login: "Group Admin", intro: "Sets up the companies, the letterhead on printed documents, email, users and who may approve what. Run these first: several other roles depend on them." },
+    { id: "EST", name: "Estimator / Sales", login: "Estimation / Sales Engineer", intro: "Takes an enquiry from first call to a priced, approved quotation, and records what the customer ordered." },
+    { id: "APR", name: "Operations & Directors", login: "Operations Manager, then Director", intro: "Signs quotations and purchase orders, and reads the reports that say how the business is doing. Some checks need a second login at the next level." },
+    { id: "SITE", name: "Site Engineer", login: "Site Engineer / Planner", intro: "Asks the store for material for a job, and is the first to approve a material request." },
+    { id: "PM", name: "Project Manager", login: "Project Manager", intro: "Approves material requests and purchase orders for the jobs they run." },
+    { id: "PRC", name: "Procurement", login: "Procurement Officer", intro: "Turns approved requests into enquiries and orders: three quotes, a reasoned award, and an order the supplier receives on the company letterhead." },
+    { id: "STR", name: "Storekeeper", login: "Storekeeper", intro: "Receives deliveries against orders, issues material to jobs, moves it between stores, and takes back what returns from site." },
+    { id: "QA", name: "QA/QC & Calibration", login: "QA/QC & Calibration", intro: "Passes or fails deliveries that need inspection, and keeps calibrated equipment in date." },
+    { id: "FIN", name: "Accounts", login: "Finance / Accounts", intro: "Invoices customers, records supplier bills, and checks that stores and payroll reach the books correctly." },
+    { id: "FC", name: "Finance Controller", login: "Finance Controller", intro: "Owns the reports, the tax returns and the period lock." },
+    { id: "HR", name: "HR", login: "HR Officer", intro: "Employees, attendance, leave, payroll and payslips, and the final settlement when someone leaves." },
+  ];
+
+  /* ------------------------------------------------------------ checks
+     p: phase ("1" Finance & HR, "2" CRM, Inventory, documents)
+     s: steps · e: expected result · n: depends on */
+  const CASES = [
+    // ================= Administrator
+    { id:"ADM-01", r:"ADM", p:"1", t:"Complete a company's legal details",
+      s:["Open Companies and edit WBE.","Enter the VAT registration number (TRN) with spaces, as printed on the certificate.","Enter the address line and city, and choose the emirate.","Save, then open the record again."],
+      e:"The details are kept. The TRN is stored without the spaces. The emirate is chosen from the seven, not typed." },
+    { id:"ADM-02", r:"ADM", p:"2", t:"Set the letterhead for printed documents",
+      s:["Open Settings → Printed Documents and choose WBE at the top.","Set the accent colour, phone, email and website, and a footer line such as the trade licence number.","Paste standard terms into Quotation terms, Purchase order terms and Enquiry (RFQ) terms.","Save.","Click Print next to “See it on paper”."],
+      e:"A PDF opens with SAMPLE across the page, your contact details under the company name, the TRN, the accent colour on the title and rules, your quotation terms, the footer line at the bottom and “Page 1 of 1”." },
+    { id:"ADM-03", r:"ADM", p:"2", t:"Use the company's own letterhead artwork",
+      s:["On Settings → Printed Documents, choose a PNG or JPEG of the letterhead band as Header artwork.","Save and print the sample again.","Now try choosing an SVG, GIF or PDF file as the artwork."],
+      e:"The sample shows the artwork across the top instead of the name and logo. The SVG, GIF or PDF is refused with a message asking for a PNG or JPEG." },
+    { id:"ADM-04", r:"ADM", p:"2", t:"Warnings for missing company details",
+      s:["On Settings → Printed Documents, switch to a company with no TRN or no address recorded."],
+      e:"A yellow warning says what is missing and links to Companies. Documents for that company still print, with the name only." },
+    { id:"ADM-05", r:"ADM", p:"2", t:"Connect the mail server",
+      s:["Open Settings → Email and choose the provider.","Enter the mailbox, its password or app password, and the send-as name and address.","Save, then Send a test to your own address."],
+      e:"The test email arrives. If it does not, the screen shows the mail server's own message, which can be given to IT. The password is not shown again after saving.",
+      n:"Needs a real mailbox from IT. Mark Blocked if there is none yet." },
+    { id:"ADM-06", r:"ADM", p:"1", t:"Create a login for each tester",
+      s:["Open Users and add a user for each role on this page, giving each the role and the companies they work in.","Note the temporary password shown.","Sign in as one of them in a private window."],
+      e:"The temporary password is shown once. The new user must set their own password before they can go any further." },
+    { id:"ADM-07", r:"ADM", p:"1", t:"Access follows the role",
+      s:["Sign in as the Storekeeper.","Look at the menu, then type /finance at the end of the address and press Enter."],
+      e:"Finance is not in the menu. Typing the address returns you to the dashboard without showing any of the Finance screen." },
+    { id:"ADM-08", r:"ADM", p:"2", t:"Changing a role's access survives the next release",
+      s:["Open Access Control and remove one screen from the Storekeeper role, e.g. Returns from Site.","Ask the project team to note it, and re-check after the next update is deployed to Pre-Prod."],
+      e:"After the update the Storekeeper still does not have that screen. Changes made here are never reset by a new release.",
+      n:"Needs a deployment between the two halves. Leave as Not run until then." },
+    { id:"ADM-09", r:"ADM", p:"2", t:"Approval routes are as agreed",
+      s:["Open Approvals → Configure routes."],
+      e:"Material Request: Site Engineer / Planner → Project Manager → Procurement Officer. Purchase Order: Project Manager → Operations Manager → Director, plus Managing Director from AED 50,000. Sales Quotation: Operations Manager → Director, plus Managing Director from AED 500,000." },
+    { id:"ADM-10", r:"ADM", p:"1", t:"The audit trail shows who changed what",
+      s:["Open Audit Log and search for “Printed document settings”.","Search for your own name."],
+      e:"Your change is listed with the time and your name. The artwork itself is not dumped into the log. Nothing in the log can be edited or deleted." },
+
+    // ================= Estimator
+    { id:"EST-01", r:"EST", p:"2", t:"Log a new enquiry",
+      s:["Open CRM & Estimation → Pipeline and click Log an enquiry.","Enter a title, choose the customer Deep Port Logistics FZC, the estimated value and where it came from.","Save."],
+      e:"The card appears in the first column. The column's weighted total goes up by less than the full value, because a new enquiry is unlikely to be won yet." },
+    { id:"EST-02", r:"EST", p:"2", t:"Move an enquiry on",
+      s:["Open your enquiry and click Move it on.","Choose the next stage and read the dialog before confirming."],
+      e:"Before you confirm, the dialog shows what the move does to the chance of winning. After it, the card is in the new column and the tracker bar has moved." },
+    { id:"EST-03", r:"EST", p:"2", t:"Book a site visit, then file the report",
+      s:["On the enquiry click Record beside Site visits. Enter the date and who is going; leave findings empty. Save.","Click File the report and save it empty.","File it again with what was found."],
+      e:"After booking, the visit shows as booked and the report as still to come. The empty report is refused. With findings, the enquiry shows Site Report Submitted." },
+    { id:"EST-04", r:"EST", p:"2", t:"Build up an estimate",
+      s:["Open Estimates and click Start an estimate for your enquiry. Set overhead and margin.","Add a line measured in metres: material cost, labour hours and rate, plant hours and rate.","Add a lump-sum line."],
+      e:"The unit cost adds itself up as you type. The lump-sum line does not ask for a quantity. There is no box to type the selling price." },
+    { id:"EST-05", r:"EST", p:"2", t:"Take material off with wastage",
+      s:["On the metre line click Add material. Enter how much one metre needs and a wastage of 5%.","Save."],
+      e:"The line's material cost now comes from the takeoff, including the 5% wastage." },
+    { id:"EST-06", r:"EST", p:"2", t:"An estimate with nothing costed cannot be priced",
+      s:["Start a second estimate, add a line with no material, labour, plant or subcontract cost.","Click Mark it priced."],
+      e:"Refused: nothing has been costed yet, so there is no price to quote. (A price below cost is also refused unless it is deliberately marked as a loss leader.)" },
+    { id:"EST-07", r:"EST", p:"2", t:"Raise a quotation and check the draft PDF",
+      s:["Open Quotations and click Raise a quotation, choosing your priced estimate.","Click Print."],
+      e:"The total comes from the estimate, with no box to change it. The PDF shows DRAFT across every page, the customer, each line with quantity, unit, rate and amount, the total in words and your quotation terms. It shows no cost, margin or markup." },
+    { id:"EST-08", r:"EST", p:"2", t:"Send a quotation for approval",
+      s:["Click Send for approval.","Try to issue it before anyone has approved."],
+      e:"The status is Awaiting approval and the PDF still says DRAFT. It cannot be sent to the customer until management has signed it." },
+    { id:"EST-09", r:"EST", p:"2", t:"Email the approved quotation",
+      s:["Once approved, click Email it to the customer.","Tick the customer contact, and send."],
+      e:"The status becomes Issued. The customer contact receives an email with the quotation PDF attached. The PDF no longer says DRAFT. The send is listed on Settings → Email.",
+      n:"Needs APR-01 approved, and ADM-05 for real email. Without a mail server the button reads “Issue to the customer” and only records where it went." },
+    { id:"EST-10", r:"EST", p:"2", t:"Revise an issued quotation",
+      s:["On the issued quotation click Raise a revision.","Print the old one, then the new one."],
+      e:"The old quotation is marked Superseded and its PDF says SUPERSEDED. The new one is titled Quotation — Revision 2 and goes for approval again." },
+    { id:"EST-11", r:"EST", p:"2", t:"Record the customer's order",
+      s:["On an issued quotation click They ordered it.","Enter their PO number and date, and a value slightly different from the quote.","Confirm."],
+      e:"The difference is shown while you type and must be confirmed. A job is created at the customer's value, not the quoted one, with a budget taken from the estimate." },
+    { id:"EST-12", r:"EST", p:"2", t:"Record a lost enquiry, and see why work is lost",
+      s:["Move an enquiry to Lost. Give the reason and who won it.","Open All reports → Where the Work Comes From."],
+      e:"You cannot mark it lost without a reason. The report groups lost work by reason, ordered by value, and lists who took it." },
+
+    // ================= Operations & Directors
+    { id:"APR-01", r:"APR", p:"2", t:"Approve a quotation through the route",
+      s:["As Operations Manager, open Approvals and approve the estimator's quotation with a comment.","As Director, approve it."],
+      e:"After the Operations Manager it waits for the Director. After the Director it is Approved and the estimator can send it. A quotation of AED 500,000 or more also needs the Managing Director.",
+      n:"Needs EST-08." },
+    { id:"APR-02", r:"APR", p:"2", t:"Approve a purchase order through the route",
+      s:["As Operations Manager, approve the order after the Project Manager has.","As Director, approve it."],
+      e:"The order becomes Approved and the storekeeper can now record deliveries against it. An order of AED 50,000 or more also needs the Managing Director.",
+      n:"Needs PRC-07 and PM-02." },
+    { id:"APR-03", r:"APR", p:"2", t:"Reject with a reason",
+      s:["Reject a pending purchase order or quotation with a comment."],
+      e:"It is Rejected, the comment is kept, and a rejected purchase order prints with REJECTED across the page." },
+    { id:"APR-04", r:"APR", p:"2", t:"Nobody approves a step above their level",
+      s:["Sign in as the Project Manager and open Approvals while a purchase order is waiting for the Director."],
+      e:"The order is not in the Project Manager's pending list and there is no Approve button for it." },
+    { id:"APR-05", r:"APR", p:"2", t:"Find a report by what you want to know",
+      s:["Open Reports. Search for “late”, then “scrap”, then “win”."],
+      e:"“late” finds Purchase Orders; “scrap” finds Returns from Site; “win” finds Quotations & Hit Rate. The Buying and stores section lists purchase orders, supplier performance, material requests, enquiries, receipts and issues, and returns." },
+    { id:"APR-06", r:"APR", p:"2", t:"The quotation hit rate is by value",
+      s:["Open CRM & Estimation → Quotations."],
+      e:"The hit rate is worked out by value, not by count. With fewer than three decided quotations it says “too few to call” instead of a percentage." },
+    { id:"APR-07", r:"APR", p:"2", t:"The pipeline is weighted honestly",
+      s:["Open CRM & Estimation → Pipeline."],
+      e:"The headline figure is the weighted pipeline, smaller than the gross value shown beside it. Each column shows its own weighted total and chance of winning." },
+
+    // ================= Site Engineer
+    { id:"SITE-01", r:"SITE", p:"2", t:"Ask for material for a job",
+      s:["Open Inventory & SCM → Material Requests and click Raise a request.","Choose an open job, deliver to T-MAIN, and a needed-by date.","Add T-CBL-4C16 × 300 metres, T-GLD-M25 × 50, and one line described in words with no item.","Click Send for approval."],
+      e:"The request is Submitted. Its card says in a sentence what can be issued from the shelf and what is short." },
+    { id:"SITE-02", r:"SITE", p:"2", t:"Print the request before it is approved",
+      s:["On the request card click Print."],
+      e:"The PDF says NOT APPROVED across the page, lists job, store, needed-by date and lines, and shows no prices." },
+    { id:"SITE-03", r:"SITE", p:"2", t:"Approve the first step of a request",
+      s:["Open Approvals and approve a material request waiting for Site Engineer / Planner."],
+      e:"The Approve button works and the request moves on to the Project Manager. If your role cannot approve, the screen says so rather than doing nothing." },
+    { id:"SITE-04", r:"SITE", p:"2", t:"A request must ask for something",
+      s:["Start a new request, remove every line, and click Send for approval."],
+      e:"It is refused, asking for at least one line saying what is needed and how much." },
+
+    // ================= Project Manager
+    { id:"PM-01", r:"PM", p:"2", t:"Approve a material request",
+      s:["Open Approvals and approve the request waiting for Project Manager."],
+      e:"The request moves on to Procurement.", n:"Needs SITE-03." },
+    { id:"PM-02", r:"PM", p:"2", t:"Approve a purchase order",
+      s:["Open Approvals and approve the purchase order waiting for Project Manager."],
+      e:"The order moves on to the Operations Manager. It still cannot be received against.", n:"Needs PRC-07." },
+    { id:"PM-03", r:"PM", p:"2", t:"Raise your own request",
+      s:["Raise a material request for one of your jobs as in SITE-01."],
+      e:"The request is Submitted and appears in the approvals route starting with the Site Engineer / Planner." },
+
+    // ================= Procurement
+    { id:"PRC-01", r:"PRC", p:"2", t:"Final approval of a material request",
+      s:["Open Approvals and approve the request waiting for Procurement Officer."],
+      e:"The request is Approved. On Material Requests its card now offers Raise an order.", n:"Needs PM-01." },
+    { id:"PRC-02", r:"PRC", p:"2", t:"Raise an enquiry and ask suppliers",
+      s:["Open Enquiries & Quotes and click Raise an enquiry for the cable and glands.","Click Ask suppliers and tick Emirates Cable Trading LLC, Al Masaood Industrial Supplies and Gulf Pipe & Fittings FZE."],
+      e:"There is no price box on the enquiry. All three suppliers appear as columns on the comparison sheet." },
+    { id:"PRC-03", r:"PRC", p:"2", t:"Print the enquiry for each supplier",
+      s:["Click Enquiry under one supplier's name. Then click Print → blank enquiry at the top."],
+      e:"The addressed PDF shows that supplier's name and contact, quantities only, and empty columns for their price, delivery charge, delivery time and validity. The blank copy has an empty To box. Neither shows any price." },
+    { id:"PRC-04", r:"PRC", p:"2", t:"Award needs three suppliers asked",
+      s:["On an enquiry with only two suppliers asked, enter a price for one and try to Award."],
+      e:"Award is not possible, and the screen says three suppliers must be asked first." },
+    { id:"PRC-05", r:"PRC", p:"2", t:"Compare quotations",
+      s:["Enter prices for two of the three suppliers, including carriage, lead time and validity. Leave the third without a reply."],
+      e:"The cheapest price on each line is marked green, which may be a different supplier from the cheapest total. The supplier who did not reply keeps a greyed column." },
+    { id:"PRC-06", r:"PRC", p:"2", t:"Award to a supplier who is not the cheapest",
+      s:["Click Award and choose the more expensive supplier."],
+      e:"You must give a reason, and the extra cost is shown while you type. A draft purchase order is raised at that supplier's prices. The enquiry becomes Awarded and its PDF says CLOSED." },
+    { id:"PRC-07", r:"PRC", p:"2", t:"Check and send the order for approval",
+      s:["Open Purchase Orders and find the draft order raised by the award.","Click Print, then Send for approval."],
+      e:"The draft PDF says DRAFT. After sending it is Awaiting approval, the PDF says NOT APPROVED, and there is no Record delivery button yet." },
+    { id:"PRC-08", r:"PRC", p:"2", t:"The approved order as the supplier receives it",
+      s:["After approval, click Print on the order."],
+      e:"The PDF has no mark across it. It shows the supplier with contact, deliver-to store, job, lines with unit price and amount, order total excluding VAT with the amount in words, your purchase order terms, and raised by / approved by with the approval date.",
+      n:"Needs APR-02." },
+    { id:"PRC-09", r:"PRC", p:"2", t:"Raise an order straight from a request",
+      s:["On an approved material request click Raise an order."],
+      e:"The order form opens with the request's job, store and lines already filled in." },
+    { id:"PRC-10", r:"PRC", p:"2", t:"Read supplier performance",
+      s:["Open Supplier Performance."],
+      e:"Each supplier shows on-time-in-full, rejections, replies and price, each with how many orders or inspections it is out of. Where there are too few, it says so rather than showing a percentage." },
+
+    // ================= Storekeeper
+    { id:"STR-01", r:"STR", p:"2", t:"Receive a delivery against an approved order",
+      s:["Open Purchase Orders, find the approved order and click Record delivery on the cable line.","Enter 200 of the 300 metres, store T-MAIN, bin A-01, and the supplier's delivery note number."],
+      e:"The line shows 200 arrived and 100 outstanding. The order becomes Partly received on its own.", n:"Needs APR-02." },
+    { id:"STR-02", r:"STR", p:"2", t:"A binned store needs a bin",
+      s:["Record another delivery into T-MAIN without choosing a bin."],
+      e:"It is refused until a bin is chosen." },
+    { id:"STR-03", r:"STR", p:"2", t:"Print the goods received note",
+      s:["Open Receive & Issue and click Note beside the delivery's reference."],
+      e:"A GOODS RECEIVED NOTE shows the supplier, the store, every item received on that delivery note that day with bin and quantity, the purchase order number, the inspection status, and signature boxes for store, QA/QC and driver. It shows no prices." },
+    { id:"STR-04", r:"STR", p:"2", t:"Material waiting for inspection cannot be issued",
+      s:["Before QA/QC has inspected, try to issue the delivered cable to a job from Receive & Issue."],
+      e:"Refused. The message says how much can be issued and how much is on the shelf waiting on inspection." },
+    { id:"STR-05", r:"STR", p:"2", t:"Issue material to a job",
+      s:["After QA/QC passes the cable, record an Issue of 150 metres from T-MAIN, bin A-01, to the job.","Try another issue without choosing a job."],
+      e:"The issue is saved and priced from the shelf, not typed. The one with no job is refused because it would put the cost on nothing.", n:"Needs QA-01." },
+    { id:"STR-06", r:"STR", p:"2", t:"Print the issue note",
+      s:["Click Note beside the issue."],
+      e:"A MATERIAL ISSUE NOTE shows the store, the job it was issued to, the items with value at cost and the total, and signatures for issued by, received by (site) and checked by." },
+    { id:"STR-07", r:"STR", p:"2", t:"Move stock between stores",
+      s:["Record a Transfer of glands from T-MAIN (bin B-01) to T-SITE1 (bin S-01).","Click Note beside it."],
+      e:"Stock on Hand shows the glands moved. Nothing is posted to the accounts. A STOCK TRANSFER NOTE shows both stores." },
+    { id:"STR-08", r:"STR", p:"2", t:"Cannot issue what is not there",
+      s:["Try to issue an item from a store that holds none of it."],
+      e:"Refused, saying there is none in this store and to receive it first or issue from the store that has it." },
+    { id:"STR-09", r:"STR", p:"2", t:"Take material back from site",
+      s:["Open Returns from Site and click Record a return for the job.","Add the cable twice: 40 metres Reusable and 10 metres Scrap.","Read the sentence at the bottom, then save and post it.","Try a return of more than the job has out."],
+      e:"The sentence says how much goes back on the shelf and what the job is credited; scrap credits nothing. Returning more than the job has out is refused." },
+    { id:"STR-10", r:"STR", p:"2", t:"Print the return note",
+      s:["Click Note beside the return."],
+      e:"A MATERIAL RETURN NOTE lists reusable and scrap in separate tables and states the credit to the job once posted. A draft says DRAFT and that nothing has been credited." },
+    { id:"STR-11", r:"STR", p:"2", t:"Stock on hand and its value",
+      s:["Open Stock on Hand and look at T-CBL-4C16 in T-MAIN."],
+      e:"The quantity equals received minus issued plus reusable returns. Anything at or below its reorder level is highlighted. No balance is negative." },
+
+    // ================= QA/QC
+    { id:"QA-01", r:"QA", p:"2", t:"Pass a delivery",
+      s:["Open Receive & Issue, find the delivery showing Pending, click Inspect.","Pass it and record the certificate number in the notes."],
+      e:"It shows Accepted and the material becomes free to issue straight away.", n:"Needs STR-01, on an item set to need inspection." },
+    { id:"QA-02", r:"QA", p:"2", t:"Fail a delivery",
+      s:["Inspect another pending delivery and fail it."],
+      e:"It shows Rejected. It stays on the shelf and in stock value but cannot be issued. The inspection cannot be changed afterwards." },
+    { id:"QA-03", r:"QA", p:"2", t:"Record a calibration",
+      s:["Open Equipment & Calibration and click Calibrate on the torque wrench.","Enter a calibration date last month, the result and the certificate number."],
+      e:"The expiry date is worked out from the calibration date, not from today. The sentence at the top updates." },
+    { id:"QA-04", r:"QA", p:"2", t:"Out-of-calibration equipment cannot go to a job",
+      s:["On Equipment & Calibration, edit a tool that needs calibration and set its status to Out for calibration (or give it a calibration that has already expired).","In the same form, choose a job under On job, and save."],
+      e:"Refused, with the reason — away for calibration, or calibration expired. The same tool in date and In service can be put on the job." },
+
+    // ================= Accounts
+    { id:"FIN-01", r:"FIN", p:"1", t:"Draft a tax invoice and print the draft",
+      s:["Open Finance → Invoices → New invoice. Choose a customer with payment terms.","Add two lines with different VAT treatments. Save as draft.","Click Print."],
+      e:"Totals update as you type, split by VAT rate, and the due date comes from the customer's terms. The PDF says DRAFT across the page and “not a valid tax invoice” under the title." },
+    { id:"FIN-02", r:"FIN", p:"1", t:"Issue it and print the tax invoice",
+      s:["Click Issue. Then Print."],
+      e:"The invoice takes the next number with no gap. The PDF is titled TAX INVOICE with no mark across it, shows both TRNs, every line with quantity, rate, net, VAT rate and VAT, VAT by rate in the totals, and the total including VAT in words. It cannot now be edited." },
+    { id:"FIN-03", r:"FIN", p:"1", t:"Credit note against the invoice",
+      s:["Raise a Credit Note, first without naming the invoice, then naming it. Issue and print."],
+      e:"Without the invoice it is refused. The PDF is titled CREDIT NOTE and shows which invoice it adjusts and its date." },
+    { id:"FIN-04", r:"FIN", p:"1", t:"A supplier's bill is not printed as our invoice",
+      s:["Switch to supplier bills and open one."],
+      e:"There is no Print button to produce it as our tax invoice." },
+    { id:"FIN-05", r:"FIN", p:"2", t:"Material issued to a job reaches job costing",
+      s:["Open Finance → Job Costing for the job the storekeeper issued cable to."],
+      e:"The material cost includes the issue at its shelf value, less any reusable material returned.", n:"Needs STR-05 and STR-09." },
+    { id:"FIN-06", r:"FIN", p:"2", t:"A delivery is stock, not cost",
+      s:["Open the Day Book and find the voucher for the storekeeper's delivery."],
+      e:"The delivery increases inventory against goods received not invoiced. It is not a cost on any job until issued." },
+    { id:"FIN-07", r:"FIN", p:"1", t:"Reverse charge on a bill from abroad",
+      s:["Enter a supplier bill for an overseas service with the Reverse charge treatment and issue it."],
+      e:"VAT is posted on both sides and nets to nil, and appears in both halves of the VAT return." },
+    { id:"FIN-08", r:"FIN", p:"1", t:"Who owes us and how late",
+      s:["Open Outstanding & Ageing."],
+      e:"Balances sit in not yet due, 1–30, 31–60, 61–90 and over 90 days, and agree to the customer's statement in Ledgers." },
+
+    // ================= Finance Controller
+    { id:"FC-01", r:"FC", p:"1", t:"The books balance",
+      s:["Open Reports → Trial Balance for this year."],
+      e:"Total debits equal total credits." },
+    { id:"FC-02", r:"FC", p:"1", t:"VAT return agrees to the ledger",
+      s:["Open Tax → VAT for the current quarter."],
+      e:"Supplies and tax sit in the right boxes, and the return agrees to the two VAT control accounts, or the difference is shown." },
+    { id:"FC-03", r:"FC", p:"1", t:"Lock a period",
+      s:["Set the company's books locked to the last day of a past month.","Try to post a journal dated inside it."],
+      e:"The back-dated entry is refused." },
+    { id:"FC-04", r:"FC", p:"1", t:"Cash flow forecast",
+      s:["Open Cash Flow Forecast. Turn on Cautious view."],
+      e:"Thirteen weeks from today, opening with the current bank balance, with payroll on payday. Cautious view removes uncertain money coming in and keeps every payment." },
+    { id:"FC-05", r:"FC", p:"1", t:"Work in progress",
+      s:["Open Job Costing → Work in Progress."],
+      e:"Each contract shows how far through it is by cost against budget, and whether billing is ahead or behind. A job with no budget says “budget not set” rather than 0%." },
+
+    // ================= HR
+    { id:"HR-01", r:"HR", p:"1", t:"Refuse a duplicate person",
+      s:["Add an employee with an Emirates ID already on another employee's record."],
+      e:"Refused, naming the existing record." },
+    { id:"HR-02", r:"HR", p:"1", t:"Attendance against a job",
+      s:["Record a day's attendance with in and out times against a job for an employee."],
+      e:"The hours are saved and available to job costing." },
+    { id:"HR-03", r:"HR", p:"1", t:"Run payroll",
+      s:["Open Payroll and run the month."],
+      e:"Every employee has basic, allowances, overtime, deductions and net pay. Anyone missing a salary or bank details is held back and named." },
+    { id:"HR-04", r:"HR", p:"2", t:"Print payslips for the whole run",
+      s:["Before approving, click Print → all payslips.","Approve the run, then print again."],
+      e:"Before approval every page says DRAFT. After approval there is no mark. Each employee is on a page of their own with earnings, deductions, net pay in words, and the bank shown as the bank name and the last four characters of the account only." },
+    { id:"HR-05", r:"HR", p:"2", t:"Print one employee's payslip",
+      s:["Click Payslip on one employee's row, ideally someone who joined part-way through the month."],
+      e:"One page for that employee. A part month shows the days behind the figure, e.g. “12 of 30 days on 3,000.00”." },
+    { id:"HR-06", r:"HR", p:"1", t:"Payroll reaches the accounts",
+      s:["After approving, ask Accounts to find the payroll voucher in the Day Book."],
+      e:"The wage cost is posted without anyone typing a journal." },
+    { id:"HR-07", r:"HR", p:"1", t:"WPS file for the bank",
+      s:["Generate the WPS file for the approved run."],
+      e:"The IBAN, MOL Person ID and routing code are checked first, and anyone who would make the bank reject the file is named." },
+    { id:"HR-08", r:"HR", p:"2", t:"Final settlement statement",
+      s:["Open Separation, record a resignation for an employee with over five years' service.","Click Statement while it is Draft, then approve it and click Statement again."],
+      e:"Gratuity is 21 days' basic a year for the first five years and 30 days after, capped at two years' pay. The draft PDF says DRAFT; the approved one does not. It carries the employee's declaration and signature boxes." },
+    { id:"HR-09", r:"HR", p:"1", t:"Document expiry warnings",
+      s:["Open Compliance & Expiry."],
+      e:"Visas, Emirates IDs, passports and labour cards due to expire are listed before they lapse." },
+  ];
+
+  /* ------------------------------------------------------------ state */
+  const KEY = "wb-erp-uat-v1";
+  let storageOk = true;
+  const load = () => {
+    try { const v = JSON.parse(localStorage.getItem(KEY) || "{}"); return v && typeof v === "object" ? v : {}; }
+    catch { storageOk = false; return {}; }
+  };
+  const state = Object.assign({ tester: {}, results: {}, role: "ADM", filter: "all" }, load());
+  const save = () => {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); }
+    catch { if (storageOk) { storageOk = false; $("#storage-warn").hidden = false; } }
+  };
+  const $ = (s) => document.querySelector(s);
+  if (!storageOk) $("#storage-warn").hidden = false;
+
+  const resultOf = (id) => state.results[id]?.status || "none";
+  const LABEL = { pass: "Pass", fail: "Fail", blocked: "Blocked", none: "Not run" };
+
+  /* ------------------------------------------------------------ tester fields */
+  for (const [id, key] of [["#t-name", "name"], ["#t-org", "org"], ["#t-build", "build"]]) {
+    const el = $(id);
+    el.value = state.tester[key] || "";
+    el.addEventListener("input", () => { state.tester[key] = el.value; save(); });
+  }
+
+  /* ------------------------------------------------------------ progress */
+  function renderProgress() {
+    const n = { pass: 0, fail: 0, blocked: 0, none: 0 };
+    for (const c of CASES) n[resultOf(c.id)]++;
+    const total = CASES.length;
+    const spans = $("#bar").children;
+    spans[0].style.width = (n.pass / total * 100) + "%";
+    spans[1].style.width = (n.fail / total * 100) + "%";
+    spans[2].style.width = (n.blocked / total * 100) + "%";
+    $("#bar").setAttribute("aria-label", `${n.pass} passed, ${n.fail} failed, ${n.blocked} blocked, ${n.none} not run, of ${total}`);
+    $("#counts").innerHTML = "";
+    for (const [k, cls, label] of [["pass", "p", "passed"], ["fail", "f", "failed"], ["blocked", "b", "blocked"], ["none", "n", "not run"]]) {
+      const s = document.createElement("span"); s.className = cls;
+      const b = document.createElement("b"); b.textContent = n[k];
+      s.append(b, document.createTextNode(label)); $("#counts").append(s);
+    }
+    const t = document.createElement("span"); t.className = "n"; t.textContent = `of ${total} checks`; $("#counts").append(t);
+  }
+
+  /* ------------------------------------------------------------ tabs */
+  function renderTabs() {
+    const row = $("#tabs"); row.innerHTML = "";
+    for (const r of ROLES) {
+      const mine = CASES.filter((c) => c.r === r.id);
+      const done = mine.filter((c) => resultOf(c.id) !== "none").length;
+      const issues = mine.some((c) => ["fail", "blocked"].includes(resultOf(c.id)));
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "tab"; b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", String(state.role === r.id));
+      b.append(document.createTextNode(r.name));
+      const ct = document.createElement("span"); ct.className = "ct"; ct.textContent = `${done}/${mine.length}`; b.append(ct);
+      if (issues) { const d = document.createElement("span"); d.className = "dot"; d.title = "Has failed or blocked checks"; b.append(d); }
+      b.addEventListener("click", () => { state.role = r.id; save(); renderAll(); window.scrollTo({ top: $("#main").offsetTop - 120 }); });
+      row.append(b);
+    }
+    for (const chip of document.querySelectorAll("#filters .chip")) chip.setAttribute("aria-pressed", String(chip.dataset.f === state.filter));
+  }
+  for (const chip of document.querySelectorAll("#filters .chip")) {
+    chip.addEventListener("click", () => { state.filter = chip.dataset.f; save(); renderAll(); });
+  }
+
+  /* ------------------------------------------------------------ cases */
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+  function caseCard(c) {
+    const res = state.results[c.id] || {};
+    const status = res.status || "none";
+    const d = el("details", `case ${status === "none" ? "" : status}`);
+    d.open = status !== "pass";
+    const sum = el("summary");
+    sum.append(el("span", "cid", c.id));
+    const title = el("span", "ctitle", c.t);
+    title.append(el("small", null, c.p === "1" ? "Finance & HR" : "CRM, Inventory & documents"));
+    sum.append(title, el("span", `pill ${status === "none" ? "" : status}`, LABEL[status]));
+    d.append(sum);
+
+    const body = el("div", "cbody");
+    const g = el("div", "grid2");
+    const left = el("div"); left.append(el("div", "lab", "Steps"));
+    const ol = el("ol", "steps"); for (const s of c.s) ol.append(el("li", null, s)); left.append(ol);
+    if (c.n) left.append(el("div", "needs", c.n));
+    const right = el("div"); right.append(el("div", "lab", "Expected result"), el("div", "expect", c.e));
+    g.append(left, right); body.append(g);
+
+    const rec = el("div", "record");
+    const seg = el("div", "seg"); seg.setAttribute("role", "group"); seg.setAttribute("aria-label", `Result for ${c.id}`);
+    for (const k of ["pass", "fail", "blocked", "none"]) {
+      const b = el("button", k, LABEL[k]); b.type = "button"; b.setAttribute("aria-pressed", String(status === k));
+      b.addEventListener("click", () => {
+        const cur = state.results[c.id] || {};
+        if (k === "none") { delete cur.status; delete cur.at; } else { cur.status = k; cur.at = new Date().toISOString(); }
+        // A severity belongs to a problem; a pass has none.
+        if (k === "pass") delete cur.severity;
+        state.results[c.id] = cur; save(); renderAll(c.id);
+      });
+      seg.append(b);
+    }
+    rec.append(seg);
+    if (status === "fail" || status === "blocked") {
+      const sel = el("select"); sel.id = `sev-${c.id}`; sel.setAttribute("aria-label", `Severity for ${c.id}`);
+      for (const o of ["", "Critical", "Major", "Minor", "Suggestion"]) { const op = el("option", null, o || "Severity…"); op.value = o; sel.append(op); }
+      sel.value = res.severity || "";
+      sel.addEventListener("change", () => { state.results[c.id] = { ...(state.results[c.id] || {}), severity: sel.value }; save(); });
+      rec.append(sel);
+    }
+    body.append(rec);
+    const note = el("textarea", "note"); note.id = `note-${c.id}`;
+    note.placeholder = status === "fail" ? "What happened instead — the screen, the figure, the message word for word" : "Notes (optional)";
+    note.value = res.note || "";
+    note.setAttribute("aria-label", `Notes for ${c.id}`);
+    note.addEventListener("input", () => { state.results[c.id] = { ...(state.results[c.id] || {}), note: note.value }; save(); });
+    body.append(note);
+    d.append(body);
+    return d;
+  }
+
+  function renderMain(focusId) {
+    const main = $("#main"); main.innerHTML = "";
+    const role = ROLES.find((r) => r.id === state.role) || ROLES[0];
+    const sec = el("section", "role");
+    sec.append(el("h2", null, role.name), el("p", null, role.intro));
+    const login = el("div", "login"); login.append(el("span", null, "Sign in as"), el("b", null, role.login)); sec.append(login);
+    let list = CASES.filter((c) => c.r === role.id);
+    if (state.filter === "open") list = list.filter((c) => resultOf(c.id) === "none");
+    if (state.filter === "issues") list = list.filter((c) => ["fail", "blocked"].includes(resultOf(c.id)));
+    const wrap = el("div", "cases");
+    if (!list.length) wrap.append(el("div", "empty", state.filter === "issues" ? "Nothing failed or blocked for this role." : "Every check for this role has a result."));
+    for (const c of list) wrap.append(caseCard(c));
+    sec.append(wrap); main.append(sec);
+    if (focusId) { const b = main.querySelector(`[aria-label="Result for ${focusId}"] [aria-pressed="true"]`); b?.focus({ preventScroll: true }); }
+  }
+
+  function renderAll(focusId) { renderProgress(); renderTabs(); renderMain(focusId); }
+
+  /* ------------------------------------------------------------ export */
+  const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  function csv() {
+    const head = ["Check", "Role", "Area", "Title", "Result", "Severity", "Notes", "Recorded at", "Tester", "Company / department", "Build"];
+    const rows = CASES.map((c) => {
+      const r = state.results[c.id] || {};
+      return [c.id, ROLES.find((x) => x.id === c.r).name, c.p === "1" ? "Finance & HR" : "CRM, Inventory & documents", c.t,
+        LABEL[r.status || "none"], r.severity || "", r.note || "", r.at || "", state.tester.name || "", state.tester.org || "", state.tester.build || ""];
+    });
+    return "﻿" + [head, ...rows].map((row) => row.map(q).join(",")).join("\r\n");
+  }
+  const say = (t) => { $("#msg").textContent = t; };
+
+  let downloads = null;
+  $("#export").addEventListener("click", async () => {
+    const who = (state.tester.name || "tester").trim().replace(/[^\w-]+/g, "-").slice(0, 40) || "tester";
+    const file = `WB-ERP-UAT-${who}-${new Date().toISOString().slice(0, 10)}.csv`;
+    if (downloads) {
+      try { await downloads.save({ filename: file, data: csv() }); say("Saved. Send the file to the project team."); return; }
+      catch (e) {
+        if (e && e.code === "declined") { say("Not saved."); return; }
+        if (e && e.code === "rate_limited") { say("A save is already waiting for your answer."); return; }
+      }
+    }
+    showCsv(); say("Downloads are not available here. Copy the text below into an email or a spreadsheet.");
+  });
+  function showCsv() { const t = $("#csv"); t.hidden = false; t.value = csv().replace(/^﻿/, ""); t.focus(); t.select(); }
+  $("#show-csv").addEventListener("click", () => { showCsv(); say("Select all and copy."); });
+
+  let armed = false;
+  $("#clear").addEventListener("click", () => {
+    if (!armed) { armed = true; $("#clear").textContent = "Click again to clear every result"; setTimeout(() => { armed = false; $("#clear").textContent = "Start again"; }, 4000); return; }
+    state.results = {}; save(); armed = false; $("#clear").textContent = "Start again"; $("#csv").hidden = true; say("Cleared."); renderAll();
+  });
+
+  renderAll();
+  if (!Object.keys(state.results).length) $("#guide").open = true;
+
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("downloads").then((ns) => { downloads = ns; }).catch(() => {});
+  }
+})();
+</script>

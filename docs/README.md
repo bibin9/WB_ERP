@@ -11,6 +11,11 @@ Project and end-user documentation for the White & Bright Group ERP.
 | **White_and_Bright_ERP_Technical_Proposal.docx** | Client | One-page technical proposal. |
 | **White_and_Bright_ERP_Pilot_SOW.docx** | Client | Pilot statement of work (no cost). |
 
+| **handbook.html** | End users | Source of the online Handbook (claude.ai artifact 1J7JvDYZF6UbFXPfgWy7iH). Covers Finance, HR, CRM & Estimation, Inventory & SCM, printed documents. September 2026 edition. |
+| **acceptance-scripts.html** | Client testers | Source of the online Acceptance Scripts (claude.ai artifact U5vN4ae8eNzA6mzyvBRyKb): 83 role-by-role UAT checks with expected results; each tester records Pass / Fail / Blocked and downloads a CSV. |
+
+Edit these two files and republish to the same artifact addresses; do not publish a new copy, or the link the client has goes stale.
+
 See also **/DEPLOY.md** in the repo root for the Railway deployment guide.
 
 ## What changed in this revision
