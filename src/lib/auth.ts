@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { db } from "./db";
-import { SESSION_COOKIE } from "./session-token";
+import { SESSION_COOKIE, SESSION_SECONDS } from "./session-token";
 import { mergePerms, parsePerms } from "./rbac";
 
 export { signSession, verifyToken, SESSION_COOKIE } from "./session-token";
@@ -53,6 +53,12 @@ async function loadSession() {
   if (user.passwordChangedAt && typeof t.iat === "number") {
     if (t.iat * 1000 < user.passwordChangedAt.getTime() - 1000) return null;
   }
+  // Signing out ends every session issued before it, on every device — a
+  // copied cookie no longer outlives the sign-out that was meant to end it.
+  // Read from the same row, so it costs nothing.
+  if (user.sessionsEndedAt && typeof t.iat === "number") {
+    if (t.iat * 1000 < user.sessionsEndedAt.getTime() - 1000) return null;
+  }
 
   const isAdmin = user.memberships.some((m) => m.role.approvalLevel >= 80 || m.role.name === "Group Admin");
   const perms = mergePerms(user.memberships.map((m) => parsePerms(m.role.permissions)));
@@ -79,7 +85,7 @@ export async function setSessionCookie(token: string) {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: SESSION_SECONDS,
   });
 }
 

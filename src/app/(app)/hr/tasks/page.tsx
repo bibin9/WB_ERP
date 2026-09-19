@@ -8,6 +8,8 @@ import { deleteJob } from "@/app/(app)/hr/actions";
 import { db } from "@/lib/db";
 import { activeTenant } from "@/config/tenant";
 import { requireAccess } from "@/lib/guard";
+import CompanyPicker from "@/components/CompanyPicker";
+import { companyScope } from "@/lib/company-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -22,13 +24,16 @@ const prioColor: Record<string, string> = {
   Low: "text-muted/70",
 };
 
-export default async function TasksPage() {
-  await requireAccess("hr.tasks");
+export default async function TasksPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
+  const session = await requireAccess("hr.tasks");
   const tenant = await db.tenant.findUnique({ where: { key: activeTenant.key } });
+  // Only the companies this user belongs to. It used to be every company in
+  // the group, so a task in a company you have no access to was listed here.
   const companies = tenant
-    ? await db.company.findMany({ where: { tenantId: tenant.id }, orderBy: { code: "asc" } })
+    ? await db.company.findMany({ where: { tenantId: tenant.id, id: { in: session.companies.map((c) => c.id) } }, orderBy: { code: "asc" } })
     : [];
-  const companyIds = companies.map((c) => c.id);
+  const scoped = companyScope(companies, (await searchParams).c);
+  const companyIds = scoped.ids;
   const jobs = await db.jobAssignment.findMany({
     where: { companyId: { in: companyIds } },
     include: { company: true },
@@ -51,6 +56,7 @@ export default async function TasksPage() {
         <JobForm companies={companies.map((c) => ({ id: c.id, code: c.code, name: c.name }))} departments={departments} people={people} />
       </PageHeader>
       <HrTabs />
+      <div className="mb-5"><CompanyPicker companies={companies.map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={scoped.current} allowAll label="Company:" /></div>
 
       <div className="mb-4 flex items-center gap-2 text-sm text-muted">
         <AlertCircle className="h-4 w-4 text-brand-blue-600" />

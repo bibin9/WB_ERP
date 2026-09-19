@@ -67,7 +67,9 @@ for (const f of actionFiles) {
   for (const b of bodies) {
     const name = b.slice(0, b.indexOf("("));
     const head = b.slice(0, 900);
-    if (!/await allow\(|await allowIn\(|canAdminister\(\)|await guard\(\)/.test(head)) gaps.push(`${f}:${name}`);
+    // An admin() helper counts only if it is the one that asks canAdminister().
+    const viaAdminHelper = /await admin\(\)/.test(head) && /async function admin\(\)[\s\S]{0,200}canAdminister\(\)/.test(src);
+    if (!/await allow\(|await allowIn\(|canAdminister\(\)|await guard\(\)/.test(head) && !viaAdminHelper) gaps.push(`${f}:${name}`);
   }
 }
 ok("every server action checks permissions", gaps.length === 0, gaps.join(", ") || `${actionFiles.length} files checked`);

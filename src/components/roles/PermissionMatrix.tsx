@@ -20,9 +20,9 @@ export default function PermissionMatrix({ roleId, perms }: { roleId: string; pe
   });
 
   const toggleScreen = (screenKey: string, action: string, current: boolean) =>
-    start(() => setRolePermission(roleId, screenKey, action, !current));
+    start(async () => { const res = await setRolePermission(roleId, screenKey, action, !current); if (!res.ok && res.error) window.alert(res.error); });
   const toggleModule = (moduleKey: string, action: string, allOn: boolean) =>
-    start(() => setModulePermission(roleId, moduleKey, action, !allOn));
+    start(async () => { const res = await setModulePermission(roleId, moduleKey, action, !allOn); if (!res.ok && res.error) window.alert(res.error); });
 
   return (
     <div className="space-y-2">

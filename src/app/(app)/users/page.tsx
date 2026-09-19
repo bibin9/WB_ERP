@@ -1,6 +1,7 @@
 import { ShieldCheck } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import UserForm from "@/components/UserForm";
+import { levelOf, outranks } from "@/lib/rank";
 import ActiveToggle from "@/components/ActiveToggle";
 import GuardedDelete from "@/components/GuardedDelete";
 import UserSecurityControls from "@/components/UserSecurityControls";
@@ -27,6 +28,10 @@ export default async function UsersPage() {
   const roles = tenant
     ? await db.role.findMany({ where: { tenantId: tenant.id }, orderBy: { approvalLevel: "desc" } })
     : [];
+  // Only the roles this administrator may hand out (lib/rank.ts). The server
+  // refuses anything else anyway; this keeps the list honest.
+  const myLevel = levelOf((session?.companies ?? []).map((c) => c.approvalLevel));
+  const grantable = roles.filter((r) => outranks(myLevel, r.approvalLevel));
   const companies = tenant
     ? await db.company.findMany({ where: { tenantId: tenant.id }, orderBy: { code: "asc" } })
     : [];
@@ -39,7 +44,7 @@ export default async function UsersPage() {
       >
         <UserForm
           companies={companies.map((c) => ({ id: c.id, label: `${c.code} — ${c.name}` }))}
-          roles={roles.map((r) => ({ id: r.id, label: r.name }))}
+          roles={grantable.map((r) => ({ id: r.id, label: r.name }))}
         />
       </PageHeader>
 
@@ -79,7 +84,7 @@ export default async function UsersPage() {
                   <ActiveToggle isActive={u.isActive} action={setUserActive.bind(null, u.id)} />
                   <UserForm
                     companies={companies.map((c) => ({ id: c.id, label: `${c.code} — ${c.name}` }))}
-                    roles={roles.map((r) => ({ id: r.id, label: r.name }))}
+                    roles={grantable.map((r) => ({ id: r.id, label: r.name }))}
                     user={{ id: u.id, name: u.name, roleId: u.memberships[0]?.role.id }}
                   />
                   <GuardedDelete screen="users.list" action={deleteUser.bind(null, u.id)} label={`Delete user ${u.name}?`} />

@@ -20,7 +20,7 @@ export default function ChangePasswordForm() {
       </div>
       <div>
         <label className="mb-1.5 block text-sm font-medium text-ink">New password</label>
-        <input name="next" type="password" className="input" placeholder="At least 6 characters" autoComplete="new-password" required />
+        <input name="next" type="password" className="input" placeholder="At least 10 characters — a short sentence works well" minLength={10} autoComplete="new-password" required />
       </div>
       <div>
         <label className="mb-1.5 block text-sm font-medium text-ink">Confirm new password</label>

@@ -10,6 +10,8 @@ import { listDocTypes } from "@/lib/approval-engine";
 import { requireAccess } from "@/lib/guard";
 import { can } from "@/lib/rbac";
 import { money } from "@/lib/money";
+import CompanyPicker from "@/components/CompanyPicker";
+import { companyScope } from "@/lib/company-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -31,10 +33,12 @@ function amountWithCurrency(a: number | null, c: string) {
   return a == null ? "—" : `${c} ${money(a)}`;
 }
 
-export default async function ApprovalsPage() {
+export default async function ApprovalsPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
   await requireAccess("approvals.inbox");
   const session = await getSession();
-  const companyIds = session?.companies.map((c) => c.id) ?? [];
+  // All your companies, or the one picked in the filter (lib/company-scope.ts).
+  const scoped = companyScope(session?.companies ?? [], (await searchParams).c);
+  const companyIds = scoped.ids;
 
   const requests = await db.approvalRequest.findMany({
     where: { companyId: { in: companyIds } },
@@ -68,6 +72,7 @@ export default async function ApprovalsPage() {
         </Link>
         <RaiseRequestForm companies={companyOpts} docTypes={docTypes} />
       </PageHeader>
+      <div className="mb-5"><CompanyPicker companies={(session?.companies ?? []).map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={scoped.current} allowAll label="Company:" /></div>
 
       {/* My queue */}
       <div className="card mb-6">

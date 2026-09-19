@@ -1,4 +1,6 @@
 import "server-only";
+import { lookup } from "node:dns/promises";
+import { hostProblem, cleanPort, isPrivateAddress } from "./net-guard";
 
 /**
  * Tally (TallyPrime / Tally.ERP 9) connector — talks to Tally's built-in
@@ -9,6 +11,15 @@ import "server-only";
 
 /** POST an XML request to Tally and return the raw XML response. Fails fast if unreachable. */
 export async function tallyRequest(host: string, port: number, xml: string, timeoutMs = 8000): Promise<string> {
+  // Checked on every request, not only when saved: a stored name can later be
+  // pointed at a private address (lib/net-guard.ts).
+  const problem = hostProblem(host) ?? (cleanPort(port) ? null : "That is not a port number.");
+  if (problem) throw new Error(problem);
+  const resolved = await lookup(host.trim(), { all: true }).catch(() => []);
+  if (resolved.length === 0) throw new Error("Could not find that address. Check the host name.");
+  if (resolved.some((r) => isPrivateAddress(r.address))) {
+    throw new Error("That name leads to a private address, which this server cannot be pointed at. Use Tally's public address.");
+  }
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {

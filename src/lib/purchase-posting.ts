@@ -62,6 +62,8 @@ export type RequestLineInput = { itemId?: string | null; description: string; un
 export type RequestInput = {
   companyId: string;
   requestedBy: string;
+  /** The account raising it, so it cannot be approved by the same person. */
+  requestedById?: string;
   jobId?: string | null;
   storeId?: string | null;
   neededBy?: string | null;
@@ -112,7 +114,7 @@ export async function createRequest(
       });
       // INV-03: straight into the approval route, so a request is seen by the
       // people the client named rather than landing in procurement unreviewed.
-      if (input.tenantId) await submitRequest(created.id, input.tenantId, input.requestedBy);
+      if (input.tenantId) await submitRequest(created.id, input.tenantId, input.requestedBy, input.requestedById);
       return { ok: true, requestId: created.id, number };
     } catch (e) {
       // Somebody numbered without the lock. Take the next one rather than fail.
@@ -132,7 +134,7 @@ export async function createRequest(
  *
  * A request carries no value, so no threshold applies and every step is taken.
  */
-export async function submitRequest(requestId: string, tenantId: string, by: string): Promise<Outcome> {
+export async function submitRequest(requestId: string, tenantId: string, by: string, byId?: string): Promise<Outcome> {
   const request = await db.materialRequest.findUnique({ where: { id: requestId }, include: { lines: true } });
   if (!request) return { ok: false, error: "Not found" };
   if (request.status !== "Draft") {
@@ -147,6 +149,7 @@ export async function submitRequest(requestId: string, tenantId: string, by: str
       docType: "Material Request",
       title: `${request.number} — ${request.lines.length} line${request.lines.length === 1 ? "" : "s"}`,
       requestedBy: by,
+      requestedById: byId ?? null,
       status: "Pending",
       currentStep: 1,
       steps: {
@@ -274,7 +277,7 @@ export async function createOrder(input: OrderInput): Promise<Result<{ orderId: 
  * before this, which is what stops the required approver changing under the
  * person being asked to approve.
  */
-export async function submitOrder(orderId: string, tenantId: string, by: string): Promise<Result<{ approvalId: string }>> {
+export async function submitOrder(orderId: string, tenantId: string, by: string, byId?: string): Promise<Result<{ approvalId: string }>> {
   const order = await db.purchaseOrder.findUnique({ where: { id: orderId }, include: { lines: true } });
   if (!order) return { ok: false, error: "Not found" };
   if (order.status !== "Draft") {
@@ -291,6 +294,7 @@ export async function submitOrder(orderId: string, tenantId: string, by: string)
       amount: order.total,
       currency: order.currency,
       requestedBy: by,
+      requestedById: byId ?? null,
       status: "Pending",
       currentStep: 1,
       steps: {

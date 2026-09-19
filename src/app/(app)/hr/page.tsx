@@ -15,6 +15,8 @@ import { money } from "@/lib/money";
 import Pager from "@/components/Pager";
 import { readPaging, pageInfo } from "@/lib/paging";
 import SearchBox from "@/components/SearchBox";
+import CompanyPicker from "@/components/CompanyPicker";
+import { companyScope } from "@/lib/company-scope";
 import { readSearch, matchAny, like, looksLikePhone, normalisePhone } from "@/lib/search";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +39,7 @@ const typeColor: Record<string, string> = {
 export default async function EmployeesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ p?: string; per?: string; q?: string }>;
+  searchParams: Promise<{ p?: string; per?: string; q?: string; c?: string }>;
 }) {
   const session = await requireAccess("hr.employees");
   const sp = await searchParams;
@@ -47,6 +49,8 @@ export default async function EmployeesPage({
   const companies = tenant
     ? await db.company.findMany({ where: { tenantId: tenant.id, id: { in: scope } }, orderBy: { code: "asc" } })
     : [];
+  // The company filter: all of yours, or the one picked (lib/company-scope.ts).
+  const scoped = companyScope(companies, sp.c);
   // An employee list is one of the few here that reaches four figures, so it
   // is searched and paged rather than rendered whole. The fields are the ones
   // somebody actually has to hand: a name, a mobile number, or the number on a
@@ -60,7 +64,7 @@ export default async function EmployeesPage({
     "emiratesIdNo", "passportNo", "visaNo", "labourCardNo",
   ]);
   const empWhere = {
-    companyId: { in: companies.map((c) => c.id) },
+    companyId: { in: scoped.ids },
     ...(term
       ? {
           OR: [
@@ -71,7 +75,13 @@ export default async function EmployeesPage({
       : {}),
   };
   const paging = readPaging(sp);
-  const empTotal = await db.employee.count({ where: empWhere });
+  // The tiles describe everyone matching, not the page on screen: they used to
+  // add up only the fifty rows shown, so 305 employees read as 50.
+  const [empTotal, activeTotal, pay] = await Promise.all([
+    db.employee.count({ where: empWhere }),
+    db.employee.count({ where: { ...empWhere, status: "Active" } }),
+    db.employee.aggregate({ where: empWhere, _sum: { basicSalary: true, allowances: true } }),
+  ]);
   const info = pageInfo(paging, empTotal);
   const employees = await db.employee.findMany({
     where: empWhere,
@@ -87,8 +97,8 @@ export default async function EmployeesPage({
     Grade: mi.filter((m) => m.type === "Grade").map((m) => m.value),
   };
 
-  const active = employees.filter((e) => e.status === "Active").length;
-  const totalPayroll = employees.reduce((s, e) => s + e.basicSalary + e.allowances, 0);
+  const active = activeTotal;
+  const totalPayroll = (pay._sum.basicSalary ?? 0) + (pay._sum.allowances ?? 0);
 
   return (
     <div>
@@ -106,7 +116,7 @@ export default async function EmployeesPage({
       {/* Summary */}
       <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
         <div className="stat-card">
-          <div className="text-2xl font-bold text-ink">{employees.length}</div>
+          <div className="text-2xl font-bold text-ink">{empTotal}</div>
           <div className="text-sm text-muted">Employees</div>
         </div>
         <div className="stat-card">
@@ -119,7 +129,8 @@ export default async function EmployeesPage({
         </div>
       </div>
 
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-start gap-3">
+        <CompanyPicker companies={companies.map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={scoped.current} allowAll label="Company:" />
         <SearchBox
           placeholder="Search employees…"
           hint="Name, employee number, mobile, email, department, or a number from their Emirates ID, passport, visa or MOL Person ID."

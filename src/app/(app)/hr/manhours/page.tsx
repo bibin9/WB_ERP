@@ -10,6 +10,8 @@ import { requireAccess } from "@/lib/guard";
 import { can } from "@/lib/rbac";
 import { resolvePeriod } from "@/lib/period";
 import { summariseManhours, manhoursVerdict, type TimesheetLine, type JobBudget } from "@/lib/manhours";
+import CompanyPicker from "@/components/CompanyPicker";
+import { companyScope } from "@/lib/company-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -19,12 +21,13 @@ const h = (v: number) => `${v.toLocaleString(undefined, { maximumFractionDigits:
 export default async function ManhoursPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; c?: string }>;
 }) {
   await requireAccess("hr.manhours");
   const session = await getSession();
   const sp = await searchParams;
-  const companyIds = (session?.companies ?? []).map((c) => c.id);
+  const scoped = companyScope(session?.companies ?? [], sp.c);
+  const companyIds = scoped.ids;
   const period = resolvePeriod(sp, 1);
   const mayOpenJobs = can(session, "finance.jobs", "view");
 
@@ -87,6 +90,7 @@ export default async function ManhoursPage({
       />
 
       <HrTabs />
+      <div className="mb-5"><CompanyPicker companies={(session?.companies ?? []).map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={scoped.current} allowAll label="Company:" /></div>
 
       <div className="mb-5">
         <PeriodPicker from={period.fromStr} to={period.toStr} label={period.label} />

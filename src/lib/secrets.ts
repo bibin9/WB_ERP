@@ -1,4 +1,5 @@
 import "server-only";
+import { authSecret } from "./session-token";
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
 /**
@@ -38,7 +39,8 @@ const VERSION = "v1";
 let cached: Buffer | null = null;
 function key(): Buffer {
   if (cached) return cached;
-  const secret = process.env.AUTH_SECRET || "dev-secret-change-me";
+  // The same rule as sessions: no written-in fallback on a production server.
+  const secret = authSecret();
   cached = scryptSync(secret, "wb-erp-secret-box", 32);
   return cached;
 }

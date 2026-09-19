@@ -275,6 +275,7 @@ export async function saveRequest(formData: FormData): Promise<Result> {
     companyId,
     tenantId: session.tenant.id,
     requestedBy: session.user.name,
+    requestedById: session.user.id,
     jobId: orNull(formData, "jobId"),
     storeId: orNull(formData, "storeId"),
     neededBy: orNull(formData, "neededBy", 10),
@@ -608,7 +609,7 @@ export async function sendOrderForApproval(orderId: string): Promise<Result> {
   const session = await scoped(order.companyId);
   if (!session) return { ok: false, error: "No access" };
 
-  const res = await submitOrder(orderId, session.tenant.id, session.user.name);
+  const res = await submitOrder(orderId, session.tenant.id, session.user.name, session.user.id);
   if (!res.ok) return res;
 
   await audit({

@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { activeTenant } from "@/config/tenant";
 import { probationState } from "@/lib/leave";
 import { emiratisation, isEmirati, iloeStatus, iloeCategory, middayBreach, inMiddayBanSeason } from "@/lib/compliance";
+import CompanyPicker from "@/components/CompanyPicker";
+import { companyScope } from "@/lib/company-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +23,13 @@ function statusOf(expiry: Date | null): { label: string; days: number | null; cl
   return { label: `${days}d left`, days, cls: "bg-brand-green/10 text-brand-green-700" };
 }
 
-export default async function HrReportsPage() {
+export default async function HrReportsPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
   const session = await requireAccess("hr.reports");
   const tenant = await db.tenant.findUnique({ where: { key: activeTenant.key } });
   // Only the companies this user is a member of — never the whole tenant.
-  const scope = session.companies.map((c) => c.id);
+  // Narrowed further by the company filter (lib/company-scope.ts).
+  const scoped = companyScope(session.companies, (await searchParams).c);
+  const scope = scoped.ids;
   const companies = tenant ? await db.company.findMany({ where: { tenantId: tenant.id, id: { in: scope } } }) : [];
   const companyMap = new Map(companies.map((c) => [c.id, c.code]));
 
@@ -126,6 +130,7 @@ export default async function HrReportsPage() {
     <div>
       <PageHeader title="HR — Compliance & Expiry" subtitle="Visa, Emirates ID, Labour Card, Passport & certification expiry — plus manpower summary." />
       <HrTabs />
+      <div className="mb-5"><CompanyPicker companies={session.companies.map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={scoped.current} allowAll label="Company:" /></div>
 
       {/* Alert cards */}
       <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-5">

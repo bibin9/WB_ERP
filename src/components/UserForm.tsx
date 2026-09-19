@@ -9,6 +9,7 @@ export type EditingUser = { id: string; name: string; roleId?: string };
 
 export default function UserForm({ companies, roles, user }: { companies: Opt[]; roles: Opt[]; user?: EditingUser }) {
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const editing = !!user;
 
   const trigger = editing ? (
@@ -34,10 +35,15 @@ export default function UserForm({ companies, roles, user }: { companies: Opt[];
           onSubmit={async (e) => {
             e.preventDefault();
             const form = e.currentTarget;
-            const fd = new FormData(form); editing ? await updateUser(fd) : await createUser(fd); setOpen(false); }}
+            const fd = new FormData(form);
+            const res = editing ? await updateUser(fd) : await createUser(fd);
+            // Said on the form, rather than closing as if it had worked.
+            if (!res.ok) { setError(res.error ?? "That did not save."); return; }
+            setError(null); setOpen(false); }}
           className="space-y-4 p-5"
         >
           {editing && <input type="hidden" name="id" value={user!.id} />}
+          {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium text-ink">Full name</label>
@@ -65,7 +71,8 @@ export default function UserForm({ companies, roles, user }: { companies: Opt[];
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-ink">Temp password</label>
-                  <input name="password" className="input" placeholder="Set a password" required />
+                  <input name="password" className="input" placeholder="At least 10 characters" minLength={10} required />
+                  <p className="mt-1 text-xs text-muted">They will be asked to choose their own the first time they sign in.</p>
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-ink">Role</label>

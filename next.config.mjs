@@ -25,23 +25,11 @@
 
 const isProd = process.env.NODE_ENV === "production";
 
-const CSP = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'" + (isProd ? "" : " 'unsafe-eval'"),
-  "style-src 'self' 'unsafe-inline'",
-  // Company letterheads are stored as data: URIs, so images need it.
-  "img-src 'self' data: blob:",
-  "font-src 'self' data:",
-  "connect-src 'self'",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'none'",
-  ...(isProd ? ["upgrade-insecure-requests"] : []),
-].join("; ");
+// The Content-Security-Policy is set per request by middleware, because it
+// carries a fresh nonce each time — see src/lib/csp.ts.
+
 
 const SECURITY_HEADERS = [
-  { key: "Content-Security-Policy", value: CSP },
   // The browser must not guess a content type. With the document route this is
   // what stops a file being reinterpreted as something executable.
   { key: "X-Content-Type-Options", value: "nosniff" },

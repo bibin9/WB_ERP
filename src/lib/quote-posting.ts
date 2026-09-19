@@ -159,7 +159,7 @@ export async function createQuotation(
  * one the client configured rather than a second set of rules living here.
  * The value rides along, because who has to sign depends on how big it is.
  */
-export async function submitQuotation(quotationId: string, tenantId: string, by: string): Promise<Outcome> {
+export async function submitQuotation(quotationId: string, tenantId: string, by: string, byId?: string): Promise<Outcome> {
   const quote = await db.quotation.findUnique({ where: { id: quotationId } });
   if (!quote) return { ok: false, error: "Not found" };
   if (quote.status !== "Draft") {
@@ -175,6 +175,7 @@ export async function submitQuotation(quotationId: string, tenantId: string, by:
       title: `${quote.number} — ${quote.customerName}`,
       amount: quote.total,
       requestedBy: by,
+      requestedById: byId ?? null,
       status: "Pending",
       currentStep: 1,
       steps: {

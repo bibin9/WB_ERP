@@ -1,11 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession, canAdminister } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { tallyRequest, companyListXml, ledgersExportXml, parseLedgers, parseCompanyNames, mapGroupToType } from "@/lib/tally";
 import { allow } from "@/lib/guard";
+import { hostProblem, cleanPort } from "@/lib/net-guard";
 
 async function scoped(companyId: string) {
   const session = await getSession();
@@ -18,13 +20,16 @@ export async function saveTallyConfig(formData: FormData) {
   const companyId = String(formData.get("companyId") || "");
   const session = await scoped(companyId);
   if (!session || !(await canAdminister())) return;
-  const host = String(formData.get("host") || "localhost").trim();
-  const port = Number(formData.get("port")) || 9000;
+  const host = String(formData.get("host") || "").trim().toLowerCase();
+  const port = cleanPort(formData.get("port") || 9000);
+  // Refused here as well as at connection time, and the screen says why.
+  const problem = hostProblem(host) ?? (port ? null : "The port must be a number from 1 to 65535.");
+  if (problem) redirect(`/finance/tally?c=${encodeURIComponent(companyId)}&e=${encodeURIComponent(problem)}`);
   const tallyCompany = String(formData.get("tallyCompany") || "").trim() || null;
   await db.tallyConfig.upsert({
     where: { companyId },
-    update: { host, port, tallyCompany },
-    create: { companyId, host, port, tallyCompany },
+    update: { host, port: port!, tallyCompany },
+    create: { companyId, host, port: port!, tallyCompany },
   });
   revalidatePath("/finance/tally");
 }

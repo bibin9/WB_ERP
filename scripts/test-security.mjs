@@ -157,7 +157,9 @@ ok("the size ceiling is unchanged at 10MB", MAX_UPLOAD_BYTES === 10 * 1024 * 102
 
 /* ============ MIN-2 · the headers that were missing ====================== */
 {
-  const cfg = read("next.config.mjs");
+  // The policy moved to middleware in September 2026 so it can carry a nonce;
+  // the other headers stay in next.config.mjs.
+  const cfg = read("next.config.mjs") + read("src/lib/csp.ts") + read("src/middleware.ts");
   for (const [name, why] of [
     ["Content-Security-Policy", "limits where script and forms may go"],
     ["X-Content-Type-Options", "stops the browser guessing a type"],
@@ -178,6 +180,12 @@ ok("the size ceiling is unchanged at 10MB", MAX_UPLOAD_BYTES === 10 * 1024 * 102
     !/script-src[^;]*https?:\/\//.test(cfg));
   ok("eval is allowed in development only, where Next needs it",
     /isProd \? "" : " 'unsafe-eval'"/.test(cfg));
+  ok("inline scripts run only with this request's nonce, not 'unsafe-inline'",
+    /script-src[^"`]*'nonce-\$\{nonce\}'/.test(cfg) && !/script-src[^"`]*'unsafe-inline'/.test(cfg));
+  ok("middleware sends the policy on the response and hands the nonce to Next",
+    /res\.headers\.set\("Content-Security-Policy"/.test(cfg) && /forward\.set\("x-nonce"/.test(cfg));
+  ok("the root layout's own inline script carries the nonce",
+    /nonce=\{nonce\}/.test(read("src/app/layout.tsx")));
 }
 
 /* ============ what the audit confirmed, still true ======================= */
@@ -281,14 +289,25 @@ ok("the size ceiling is unchanged at 10MB", MAX_UPLOAD_BYTES === 10 * 1024 * 102
 
   // Every way of failing to sign in has to leave a trace, or the log answers
   // "nobody tried" when somebody did.
-  const failures = (login.match(/AUTH_ACTIONS\.failed/g) ?? []).length;
-  ok("all five ways of failing are recorded", failures === 5,
-    `${failures} — unknown email, no password set, deactivated, locked, wrong password`);
+  const reasons = ["matches no account", "has no password set", "Wrong password.", "deactivated account", "locked account", "too many recent wrong tries"];
+  const missing = reasons.filter((r) => !login.includes(r));
+  ok("every way of failing is recorded, each with its own reason", missing.length === 0 && login.includes("AUTH_ACTIONS.failed"),
+    missing.length ? `missing: ${missing.join(", ")}` : "unknown email, no password, wrong password, deactivated, locked, paused");
 
+  // September 2026: the screen used to say "2 attempts left" for a real account
+  // and something else for an unknown one, and "deactivated" or "locked" to
+  // anybody. Now every wrong answer gets the same sentence, and an account's
+  // state is only told to someone who has just given its password.
+  const wrongAt = login.indexOf("return WRONG;");
+  const compareAt = login.indexOf("bcrypt.compare(password");
   ok("the visitor is still told nothing about whether the account exists",
-    (login.match(/return "Invalid email or password\.";/g) ?? []).length === 1 &&
-    /matches no account/.test(login),
-    "same sentence on screen, the real reason in the log");
+    (login.match(/return WRONG;/g) ?? []).length === 1 && !/attempts? left/.test(login) && /matches no account/.test(login),
+    "one sentence for every wrong answer; the real reason only in the log");
+  ok("deactivated and locked are only said after the password was right",
+    login.indexOf("This account is deactivated") > wrongAt && login.indexOf("Your account is locked") > wrongAt && wrongAt > compareAt);
+  ok("an address with no account takes as long to refuse as a real one",
+    /bcrypt\.compare\(password, user\?\.passwordHash \|\| NOBODY\)/.test(login));
+
   ok("an attacker-supplied email is bounded before it is written",
     /typedEmailLabel\(email\)/.test(login));
 

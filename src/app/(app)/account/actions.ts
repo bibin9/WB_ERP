@@ -3,8 +3,12 @@
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { getSession, signSession, SESSION_COOKIE } from "@/lib/auth";
+import { SESSION_SECONDS } from "@/lib/session-token";
+import { passwordProblem } from "@/lib/password-policy";
+import { keysFor, reserveAttempt, releaseAttempt, PAUSED } from "@/lib/signin-throttle";
+import { clientIp } from "@/lib/auditmeta";
 import { audit } from "@/lib/audit";
 
 export async function changePassword(_prev: string | undefined, formData: FormData): Promise<string | undefined> {
@@ -16,15 +20,22 @@ export async function changePassword(_prev: string | undefined, formData: FormDa
   const confirm = String(formData.get("confirm") || "");
 
   if (!current || !next) return "Please fill in all fields.";
-  if (next.length < 6) return "New password must be at least 6 characters.";
   if (next === current) return "New password must be different from the current one.";
   if (next !== confirm) return "New passwords do not match.";
+  const weak = passwordProblem(next, { email: session.user.email, name: session.user.name });
+  if (weak) return weak;
 
   const user = await db.user.findUnique({ where: { id: session.user.id } });
   if (!user?.passwordHash) return "No password is set on this account.";
 
+  // The current password is checked under the same limits as signing in, so
+  // somebody holding an unlocked screen cannot use this form to guess it.
+  const keys = keysFor(user.id, clientIp(await headers()));
+  const turn = await reserveAttempt(keys);
+  if (!turn.allowed) return PAUSED;
   const ok = await bcrypt.compare(current, user.passwordHash);
   if (!ok) return "Your current password is incorrect.";
+  await releaseAttempt(keys);
 
   const passwordHash = await bcrypt.hash(next, 10);
   const changedAt = new Date();
@@ -45,7 +56,7 @@ export async function changePassword(_prev: string | undefined, formData: FormDa
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: SESSION_SECONDS,
   });
 
   await audit({

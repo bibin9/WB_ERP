@@ -10,7 +10,7 @@ export default function CreateRoleForm() {
     <form ref={ref} onSubmit={async (e) => {
             e.preventDefault();
             const form = e.currentTarget;
-            const fd = new FormData(form); await createRole(fd); ref.current?.reset(); }} className="flex items-end gap-2">
+            const fd = new FormData(form); const res = await createRole(fd); if (!res.ok) { window.alert(res.error ?? "That did not save."); return; } ref.current?.reset(); }} className="flex items-end gap-2">
       <div>
         <label className="mb-1 block text-xs font-medium text-muted">Role name</label>
         <input name="name" className="input h-9 w-56 py-1.5" placeholder="e.g. Draughtsman" required />

@@ -10,7 +10,7 @@ import { getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export default async function TallyPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
+export default async function TallyPage({ searchParams }: { searchParams: Promise<{ c?: string; e?: string }> }) {
   await requireAccess("finance.tally");
   const session = await getSession();
   const sp = await searchParams;
@@ -31,12 +31,13 @@ export default async function TallyPage({ searchParams }: { searchParams: Promis
           <div className="mb-4 flex items-center gap-2 text-heading">
             <RefreshCw className="h-5 w-5" /><h2 className="font-semibold">Connection settings</h2>
           </div>
+          {sp.e && <p role="alert" className="mb-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{String(sp.e).slice(0, 300)}</p>}
           <form action={saveTallyConfig} className="space-y-3">
             <input type="hidden" name="companyId" value={companyId} />
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
                 <label className="mb-1 block text-sm font-medium text-ink">Tally host / IP</label>
-                <input name="host" className="input" defaultValue={cfg?.host ?? "localhost"} placeholder="e.g. 192.168.1.20" />
+                <input name="host" className="input" defaultValue={cfg?.host ?? ""} placeholder="Tally's public address, e.g. tally.yourcompany.ae" />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-ink">Port</label>

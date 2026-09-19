@@ -34,6 +34,7 @@ export async function createApprovalRequest(formData: FormData) {
       amount,
       currency: "AED",
       requestedBy: session.user.name,
+      requestedById: session.user.id,
       status: "Pending",
       currentStep: 1,
       steps: {
@@ -96,17 +97,38 @@ export async function decideStep(stepId: string, decision: "Approved" | "Rejecte
     return { ok: false, error: `This step needs ${step.roleName} or above in ${membership ? "this company" : "a company you do not have access to"}.` };
   }
 
-  await db.approvalStep.update({
-    where: { id: stepId },
-    data: { status: decision, decidedBy: session.user.name, decidedAt: new Date(), comment: comment || null },
+  // Four eyes. Whoever raised a request does not approve it, and nobody
+  // decides two steps of the same one — otherwise one senior person could
+  // raise a purchase order and walk it through every level alone. Older
+  // requests recorded only a name, so the name is the fallback.
+  const me = session.user;
+  const raisedIt = request.requestedById ? request.requestedById === me.id : request.requestedBy === me.name;
+  if (raisedIt) {
+    return { ok: false, error: "You raised this request, so someone else has to approve it." };
+  }
+  const decidedBefore = request.steps.some(
+    (s) => s.id !== stepId && s.status !== "Pending" && (s.decidedById ? s.decidedById === me.id : s.decidedBy === me.name),
+  );
+  if (decidedBefore) {
+    return { ok: false, error: "You have already decided an earlier step of this request. The next step needs a different person." };
+  }
+
+  // Recorded only if the step is still waiting, in one statement: two approvers
+  // pressing at the same moment used to both get through.
+  const taken = await db.approvalStep.updateMany({
+    where: { id: stepId, status: "Pending" },
+    data: { status: decision, decidedBy: me.name, decidedById: me.id, decidedAt: new Date(), comment: comment || null },
   });
+  if (taken.count === 0) {
+    return { ok: false, error: "Somebody has already decided this step. Refresh to see where it has got to." };
+  }
 
   if (decision === "Rejected") {
     await db.approvalRequest.update({ where: { id: request.id }, data: { status: "Rejected" } });
   } else {
     const isLast = step.order >= request.steps.length;
-    await db.approvalRequest.update({
-      where: { id: request.id },
+    await db.approvalRequest.updateMany({
+      where: { id: request.id, status: "Pending", currentStep: request.currentStep },
       data: isLast ? { status: "Approved" } : { currentStep: request.currentStep + 1 },
     });
     // Notify the next level's approvers

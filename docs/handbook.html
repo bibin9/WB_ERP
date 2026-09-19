@@ -225,8 +225,11 @@
   <h2>Signing in</h2>
   <p>Open the address your administrator gave you, and enter your email and password. A few things behave deliberately:</p>
   <ul>
-    <li>After three wrong passwords the account locks itself for fifteen minutes, and every administrator is notified. This is not a punishment — it is what stops somebody guessing their way in.</li>
-    <li>If an administrator has just reset your password, you are asked to choose your own before you can go any further. Nobody else should know your password, including them.</li>
+    <li>After three wrong passwords from your computer, sign-in pauses there for fifteen minutes. Someone guessing from elsewhere does not lock you out; only a spread attack from many places pauses the account for everybody, and then every administrator is told. It is what stops somebody guessing their way in.</li>
+    <li>A wrong email and a wrong password get the same message on purpose, so the screen cannot be used to find out who works here.</li>
+    <li>A password needs at least ten characters. A short sentence you will remember is easiest — “Green tea at 7 on Friday” — and much harder to guess than a short word with symbols.</li>
+    <li>If an administrator has just set or reset your password, you are asked to choose your own before you can go any further. Nobody else should know your password, including them.</li>
+    <li>A sign-in lasts twelve hours. <em>Sign out</em> ends it on every device at once, so use it on a shared computer.</li>
     <li>Signing in, signing out, and every failed attempt are written into the audit trail with the time and the address you came from.</li>
   </ul>
   <div class="note care"><b>Never share a login</b>Everything anybody does is recorded against the name they signed in with. Two people on one login means the record is wrong, and there is no way to untangle it afterwards.</div>
@@ -247,6 +250,7 @@
     <h4>The company switcher</h4>
     <span class="where">Top-left, above the page</span>
     <p>Changes which company's records you are looking at. It follows you as you move between screens, so you will not find yourself reading the wrong company's figures after a few clicks.</p>
+    <p>Screens that bring every company together — People, Approvals, the Dashboard, Overtime, Man-hours, Compliance &amp; Expiry, Separation and HR Tasks — have their own <em>Company</em> filter above the list. It starts on <em>All my companies</em>; pick one to see only that company. You only ever see the companies you belong to.</p>
   </div>
   <div class="entry">
     <h4>The tabs across the top</h4>
@@ -899,6 +903,7 @@
     <li><strong>Acting on one:</strong> open Approvals, read it, approve or reject with a reason. The reason is kept.</li>
     <li>The bell in the top bar shows how many things are waiting on you.</li>
     <li>A step can be decided by the role it names or anyone with a higher approval level. A role below that level does not see the step in its queue.</li>
+    <li><strong>Four eyes.</strong> Nobody approves a request they raised, and nobody decides two steps of the same request — a senior person may act for a junior step, but then the next step needs someone else. The screen says so if you try.</li>
   </ul>
   <h3>The routes that ship with the system</h3>
   <div class="tw"><table>
@@ -945,8 +950,9 @@
   <div class="note do"><b>Your changes are kept</b>Changes made in Access Control to any role, built-in or your own, stay as you set them when the system is updated. A screen added in a later release is given to the roles it is meant for, without undoing anything you removed.</div>
   <h3>Managing users</h3>
   <ul>
-    <li><strong>Reset a password:</strong> the key icon. A temporary password is shown once — hand it over, and the user must set their own on first sign-in.</li>
-    <li><strong>Lock or unlock:</strong> the lock icon. Accounts also lock themselves for fifteen minutes after three wrong passwords.</li>
+    <li><strong>Who you can manage:</strong> people and roles below your own approval level. A Director can manage a Finance Controller but not another Director or the Group Admin; only the Group Admin manages everyone. Nobody changes their own role.</li>
+    <li><strong>Reset a password:</strong> the key icon. A temporary password is shown once — hand it over, and the user must set their own on first sign-in. A password you type when adding a user works the same way: it is only for their first sign-in.</li>
+    <li><strong>Lock or unlock:</strong> the lock icon. Unlocking also lifts any sign-in pause on the account.</li>
     <li><strong>Master data:</strong> the dropdown lists used across the system — departments, designations, grades, leave types, nationalities. Keeping these tidy keeps every dropdown clean.</li>
     <li><strong>Custom fields:</strong> anything the standard employee profile does not capture. It then appears on every profile.</li>
   </ul>
@@ -998,6 +1004,11 @@
     <tr><td>There is none of … in this store</td><td>Receive it first, or issue from the store that has it.</td></tr>
     <tr><td>… cannot be issued. Its calibration expired</td><td>Send the tool for calibration and record the new certificate before it goes to a job.</td></tr>
     <tr><td>Your role can see approvals but not approve them</td><td>An administrator can grant Approve on Approvals in Access Control.</td></tr>
+    <tr><td>You raised this request, so someone else has to approve it</td><td>Nobody approves their own request. Ask another person at that level or above.</td></tr>
+    <tr><td>You have already decided an earlier step of this request</td><td>One person never approves two levels of the same request. The next step needs someone else.</td></tr>
+    <tr><td>You can only manage people and roles below your own level</td><td>Ask someone more senior. Only the Group Admin can manage everyone, and nobody changes their own role.</td></tr>
+    <tr><td>Too many wrong tries, so sign-in is paused for 15 minutes</td><td>Wait, or ask an administrator to reset your password or unlock the account.</td></tr>
+    <tr><td>Use at least 10 characters</td><td>Choose a longer password. A short sentence you will remember is easiest.</td></tr>
     <tr><td>The header artwork must be a PNG or JPEG</td><td>Ask your designer for a PNG export of the letterhead. PDFs cannot draw other image types.</td></tr>
   </table></div>
 </section>

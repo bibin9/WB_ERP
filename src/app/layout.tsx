@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 import { activeTenant, themeToCssVars } from "@/config/tenant";
 
@@ -16,7 +17,10 @@ export const metadata: Metadata = {
   icons: { icon: activeTenant.logo },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Set by middleware for this request (lib/csp.ts). Reading it also makes
+  // every page render per request, which a per-request nonce requires.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   // suppressHydrationWarning on <html>: the script below adds the "dark" class
   // to it before React hydrates. That is deliberate — it is what stops the page
   // flashing the wrong theme — so server and client markup are expected to
@@ -29,6 +33,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Applies the saved day/night choice before first paint, so the page
             never flashes the wrong theme. Falls back to the device setting. */}
         <script
+          nonce={nonce}
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html:
               "try{var t=localStorage.getItem('wb-erp.theme');" +

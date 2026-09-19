@@ -155,6 +155,8 @@ model User {
   lockedUntil       DateTime? // account is locked while this is in the future
   mustReset         Boolean             @default(false) // force a password change on next sign-in
   passwordChangedAt DateTime?
+  /// Signing out ends every session issued before this moment (lib/auth.ts).
+  sessionsEndedAt   DateTime?
   memberships       CompanyMembership[]
   notifications     Notification[]
   createdAt         DateTime            @default(now())
@@ -231,6 +233,8 @@ model ApprovalRequest {
   amount      Float?
   currency    String         @default("AED")
   requestedBy String
+  /// Who raised it, by account: the name alone cannot stop them approving it.
+  requestedById String?
   status      String         @default("Pending") // Pending | Approved | Rejected
   currentStep Int            @default(1)
   steps       ApprovalStep[]
@@ -251,6 +255,7 @@ model ApprovalStep {
   requiredLevel Int // minimum approval level required to act
   status        String          @default("Pending") // Pending | Approved | Rejected
   decidedBy     String?
+  decidedById String?
   decidedAt     DateTime?
   comment       String?
 
@@ -2673,4 +2678,16 @@ model DocumentSettings {
   updatedBy String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Failed sign-ins, counted per address, per account and per account-and-
+/// address, so guessing is limited however many requests arrive at once and
+/// one stranger cannot lock everybody out. See lib/signin-throttle.ts.
+model SignInThrottle {
+  key         String    @id
+  failures    Int       @default(0)
+  windowStart DateTime  @default(now())
+  lockedUntil DateTime?
+
+  @@index([windowStart])
 }

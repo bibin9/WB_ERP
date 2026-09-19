@@ -67,7 +67,7 @@ export async function sendForApproval(quotationId: string): Promise<Result> {
   const session = await scoped(await companyOf(quotationId));
   if (!session) return { ok: false, error: "No access" };
 
-  const res = await submitQuotation(quotationId, session.tenant.id, session.user.name);
+  const res = await submitQuotation(quotationId, session.tenant.id, session.user.name, session.user.id);
   if (!res.ok) return res;
 
   await audit({ action: "Updated", entity: "Quotation", entityId: quotationId, summary: "Sent for approval" });

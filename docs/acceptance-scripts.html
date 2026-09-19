@@ -193,7 +193,7 @@
 
         <h3>The two flows the roles hand to each other</h3>
         <p>Some checks depend on another person finishing theirs first. The note under each check says which.</p>
-        <div class="flow"><span>Site Engineer raises a material request</span><i>→</i><span>Site Engineer, Project Manager, Procurement approve</span><i>→</i><span>Procurement gets 3 quotes and awards</span><i>→</i><span>PM, Operations, Director approve the order</span><i>→</i><span>Storekeeper receives</span><i>→</i><span>QA/QC inspects</span><i>→</i><span>Storekeeper issues to the job</span><i>→</i><span>Finance sees the cost on the job</span></div>
+        <div class="flow"><span>Site Engineer raises a material request</span><i>→</i><span>Site Engineer / Planner, Project Manager and Procurement approve — never the person who raised it, and never one person for two steps</span><i>→</i><span>Procurement gets 3 quotes and awards</span><i>→</i><span>PM, Operations, Director approve the order</span><i>→</i><span>Storekeeper receives</span><i>→</i><span>QA/QC inspects</span><i>→</i><span>Storekeeper issues to the job</span><i>→</i><span>Finance sees the cost on the job</span></div>
         <div class="flow"><span>Estimator logs an enquiry and prices it</span><i>→</i><span>Estimator raises the quotation</span><i>→</i><span>Operations Manager, Director approve</span><i>→</i><span>Estimator emails it</span><i>→</i><span>Customer orders: job created</span><i>→</i><span>Finance invoices</span></div>
       </div>
     </details>
@@ -324,6 +324,10 @@
     { id:"APR-04", r:"APR", p:"2", t:"Nobody approves a step above their level",
       s:["Sign in as the Project Manager and open Approvals while a purchase order is waiting for the Director."],
       e:"The order is not in the Project Manager's pending list and there is no Approve button for it." },
+    { id:"APR-08", r:"APR", p:"2", t:"Approve the Project Manager step of material requests",
+      s:["As Operations Manager, open Approvals and approve the two material requests waiting for Project Manager (from SITE-01 and PM-03)."],
+      e:"Both move on to Procurement. A senior role may act for a junior step, but the person who raised a request, or already decided one of its steps, cannot.",
+      n:"Needs PM-01 and SITE-03." },
     { id:"APR-05", r:"APR", p:"2", t:"Find a report by what you want to know",
       s:["Open Reports. Search for “late”, then “scrap”, then “win”."],
       e:"“late” finds Purchase Orders; “scrap” finds Returns from Site; “win” finds Quotations & Hit Rate. The Buying and stores section lists purchase orders, supplier performance, material requests, enquiries, receipts and issues, and returns." },
@@ -341,17 +345,19 @@
     { id:"SITE-02", r:"SITE", p:"2", t:"Print the request before it is approved",
       s:["On the request card click Print."],
       e:"The PDF says NOT APPROVED across the page, lists job, store, needed-by date and lines, and shows no prices." },
-    { id:"SITE-03", r:"SITE", p:"2", t:"Approve the first step of a request",
-      s:["Open Approvals and approve a material request waiting for Site Engineer / Planner."],
-      e:"The Approve button works and the request moves on to the Project Manager. If your role cannot approve, the screen says so rather than doing nothing." },
+    { id:"SITE-03", r:"SITE", p:"2", t:"Approve someone else's request, not your own",
+      s:["Open Approvals. Find the request you raised in SITE-01 and click Approve.","Now approve the Project Manager's request from PM-03, which is waiting for Site Engineer / Planner."],
+      e:"Your own request is refused with “You raised this request, so someone else has to approve it.” The Project Manager's request is approved and moves on to the Project Manager step. If your role cannot approve at all, the screen says so rather than doing nothing.",
+      n:"Needs PM-03. Nobody approves what they raised — the same rule as a cheque needing a second signature." },
     { id:"SITE-04", r:"SITE", p:"2", t:"A request must ask for something",
       s:["Start a new request, remove every line, and click Send for approval."],
       e:"It is refused, asking for at least one line saying what is needed and how much." },
 
     // ================= Project Manager
-    { id:"PM-01", r:"PM", p:"2", t:"Approve a material request",
-      s:["Open Approvals and approve the request waiting for Project Manager."],
-      e:"The request moves on to Procurement.", n:"Needs SITE-03." },
+    { id:"PM-01", r:"PM", p:"2", t:"Approve a material request, one step only",
+      s:["Open Approvals and approve the Site Engineer's request from SITE-01 at its Site Engineer / Planner step — a Project Manager may act for a more junior role.","Now try to approve the same request again at the Project Manager step."],
+      e:"The first approval goes through. The second is refused with “You have already decided an earlier step of this request. The next step needs a different person.” It waits for the Operations Manager (APR-08).",
+      n:"Needs SITE-01. One person never walks a request through two levels." },
     { id:"PM-02", r:"PM", p:"2", t:"Approve a purchase order",
       s:["Open Approvals and approve the purchase order waiting for Project Manager."],
       e:"The order moves on to the Operations Manager. It still cannot be received against.", n:"Needs PRC-07." },
@@ -361,8 +367,8 @@
 
     // ================= Procurement
     { id:"PRC-01", r:"PRC", p:"2", t:"Final approval of a material request",
-      s:["Open Approvals and approve the request waiting for Procurement Officer."],
-      e:"The request is Approved. On Material Requests its card now offers Raise an order.", n:"Needs PM-01." },
+      s:["Open Approvals and approve both material requests waiting for Procurement Officer."],
+      e:"Both requests are Approved. On Material Requests their cards now offer Raise an order.", n:"Needs APR-08." },
     { id:"PRC-02", r:"PRC", p:"2", t:"Raise an enquiry and ask suppliers",
       s:["Open Enquiries & Quotes and click Raise an enquiry for the cable and glands.","Click Ask suppliers and tick Emirates Cable Trading LLC, Al Masaood Industrial Supplies and Gulf Pipe & Fittings FZE."],
       e:"There is no price box on the enquiry. All three suppliers appear as columns on the comparison sheet." },

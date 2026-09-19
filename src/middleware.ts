@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyToken, SESSION_COOKIE } from "@/lib/session-token";
+import { contentSecurityPolicy, makeNonce } from "@/lib/csp";
 
 // Protect the app; allow the login page and Next internals/assets through.
 const PUBLIC = ["/login"];
@@ -21,7 +22,16 @@ export async function middleware(req: NextRequest) {
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
   }
-  return NextResponse.next();
+  // A fresh nonce per page. Next reads it from the request's policy and puts
+  // it on every script it renders; the response carries the same policy.
+  const nonce = makeNonce();
+  const csp = contentSecurityPolicy(nonce, process.env.NODE_ENV === "production");
+  const forward = new Headers(req.headers);
+  forward.set("x-nonce", nonce);
+  forward.set("Content-Security-Policy", csp);
+  const res = NextResponse.next({ request: { headers: forward } });
+  res.headers.set("Content-Security-Policy", csp);
+  return res;
 }
 
 export const config = {

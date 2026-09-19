@@ -1310,7 +1310,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
       "Review the details and choose Approve or Reject.",
       "On approval it moves to the next approver; when the last one approves, it's fully approved.",
     ],
-    tip: "You'll get a notification when something needs your sign-off — click it to jump straight here.",
+    tip: "You'll get a notification when something needs your sign-off — click it to jump straight here. Four eyes: you cannot approve a request you raised, or decide two steps of the same request — the screen tells you if you try.",
   },
   {
     id: "approvals-routes", category: "Approvals", screens: ["/settings/approvals"],
@@ -1335,7 +1335,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     id: "users-security", category: "Administration & Security", screens: ["/users"],
     title: "Managing users: reset, lock, unlock",
     summary: "Add users and handle password/lock issues.",
-    body: "On the Users screen, admins can add users, reset a password (a temporary one is shown to hand over — the user must set their own on next sign-in), and lock or unlock an account. Accounts also auto-lock for 15 minutes after 3 wrong passwords.",
+    body: "On the Users screen, admins can add users, reset a password (a temporary one is shown to hand over — the user must set their own on next sign-in), and lock or unlock an account. You can only manage people and roles below your own approval level; the Group Admin manages everyone, and nobody changes their own role. Passwords need at least 10 characters. Three wrong passwords pause sign-in on that computer for 15 minutes; unlocking the account lifts any pause.",
     steps: [
       "Reset password: click the key icon — copy the temporary password and give it to the user.",
       "Lock/unlock: click the lock icon. A red 'Locked' badge shows blocked accounts.",
@@ -1469,7 +1469,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     id: "audit-signins", category: "Administration & Security", screens: ["/audit", "/users"],
     title: "Reading the sign-in records",
     summary: "Every sign-in, sign-out, failed password and lock-out is written down.",
-    body: "Four kinds of entry appear alongside the normal ones. 'Signed in' and 'Signed out' are somebody arriving and leaving. 'Sign-in failed' is an attempt that did not work — a wrong password, a deactivated account, or an email address that has no account at all. 'Locked out' is the account being frozen for 15 minutes after three wrong passwords in a row.",
+    body: "Four kinds of entry appear alongside the normal ones. 'Signed in' and 'Signed out' are somebody arriving and leaving. 'Sign-in failed' is an attempt that did not work — a wrong password, a deactivated account, or an email address that has no account at all. 'Locked out' is sign-in to an account being paused for everybody for 15 minutes, after ten wrong passwords from different places — a sign that someone is guessing. Three wrong passwords from one computer only pause that computer, and are recorded as 'Sign-in failed'.",
     steps: [
       "Somebody says they did not do something: find their name, check the time and the 'From' column against where they actually were.",
       "A user is being locked out repeatedly: look at the addresses. All the same one is usually a saved old password on a phone. Lots of different ones is somebody guessing.",

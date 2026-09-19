@@ -4,6 +4,8 @@ import {
   Receipt, Users, IdCard, BadgeCheck, ClipboardList, Building2,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
+import CompanyPicker from "@/components/CompanyPicker";
+import { companyScope } from "@/lib/company-scope";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
@@ -16,10 +18,12 @@ const toneMap: Record<string, string> = {
   blue: "bg-brand-blue/10 text-brand-blue-600", gold: "bg-brand-gold/15 text-brand-gold",
 };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
   const session = await getSession();
   if (!session) return null;
-  const companyIds = session.companies.map((c) => c.id);
+  // Every company you belong to, or the one picked in the filter (lib/company-scope.ts).
+  const scoped = companyScope(session.companies, (await searchParams).c);
+  const companyIds = scoped.ids;
   const roles = Array.from(new Set(session.companies.map((c) => c.role)));
   const isAdmin = session.isAdmin;
 
@@ -155,6 +159,7 @@ export default async function DashboardPage() {
         title={`Welcome to ${title === "Group Dashboard" ? activeTenant.productName + " ERP" : title}`}
         subtitle={`Signed in as ${session.user.name}${roles.length ? " · " + roles.join(", ") : ""}. Your view is tailored to your access.`}
       />
+      <div className="mb-5"><CompanyPicker companies={session.companies.map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={scoped.current} allowAll label="Figures for:" /></div>
 
       {STATS.length > 0 && (
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

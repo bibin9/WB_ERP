@@ -9,6 +9,8 @@ import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
 import { resolvePeriod } from "@/lib/period";
 import { withDefaults, STATUTORY_POLICY } from "@/lib/hrpolicy";
+import CompanyPicker from "@/components/CompanyPicker";
+import { companyScope } from "@/lib/company-scope";
 import {
   summariseOvertime, dailyBreaches, rollingBreaches, overtimeVerdict,
   type PayslipOt, type AttendanceDay,
@@ -23,12 +25,13 @@ const fmt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit
 export default async function OvertimePage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; c?: string }>;
 }) {
   await requireAccess("hr.overtime");
   const session = await getSession();
   const sp = await searchParams;
-  const companyIds = (session?.companies ?? []).map((c) => c.id);
+  const scoped = companyScope(session?.companies ?? [], sp.c);
+  const companyIds = scoped.ids;
   const period = resolvePeriod(sp, 1);
 
   // Payslips say what it cost. Attendance says whether it was legal. The two
@@ -130,6 +133,7 @@ export default async function OvertimePage({
       </PageHeader>
 
       <HrTabs />
+      <div className="mb-5"><CompanyPicker companies={(session?.companies ?? []).map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={scoped.current} allowAll label="Company:" /></div>
 
       <div className="mb-5">
         <PeriodPicker from={period.fromStr} to={period.toStr} label={period.label} />

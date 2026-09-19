@@ -9,15 +9,18 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
 import ExportButton from "@/components/ExportButton";
+import CompanyPicker from "@/components/CompanyPicker";
+import { companyScope } from "@/lib/company-scope";
 
 export const dynamic = "force-dynamic";
 const aed = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
-export default async function SeparationPage() {
+export default async function SeparationPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
   await requireAccess("hr.separation");
   const session = await getSession();
-  const companyIds = session?.companies.map((c) => c.id) ?? [];
+  const scoped = companyScope(session?.companies ?? [], (await searchParams).c);
+  const companyIds = scoped.ids;
 
   const employees = await db.employee.findMany({
     where: { companyId: { in: companyIds }, status: { not: "Inactive" } },
@@ -38,6 +41,7 @@ export default async function SeparationPage() {
         {companyIds.length > 0 && <ExportButton dataset="separations" companyId="*" />}
       </PageHeader>
       <HrTabs />
+      <div className="mb-5"><CompanyPicker companies={(session?.companies ?? []).map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={scoped.current} allowAll label="Company:" /></div>
 
       <div className="mb-6">
         <SeparationForm employees={employees.map((e) => ({ ...e, joinDate: e.joinDate ? e.joinDate.toISOString() : null }))} />
