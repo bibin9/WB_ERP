@@ -56,10 +56,11 @@ export default async function OvertimePage({
   const staff = companyIds.length
     ? await db.employee.findMany({
         where: { companyId: { in: companyIds } },
-        select: { id: true, department: true },
+        select: { id: true, department: true, empNo: true, name: true },
       })
     : [];
   const departmentOf = new Map(staff.map((e) => [e.id, e.department]));
+  const staffById = new Map(staff.map((e) => [e.id, e]));
 
   const from = period.from.toISOString().slice(0, 7);
   const to = period.to.toISOString().slice(0, 7);
@@ -77,7 +78,6 @@ export default async function OvertimePage({
         where: { companyId: { in: companyIds }, date: { gte: period.from, lte: period.to } },
         select: {
           employeeId: true, date: true, hours: true, otHours: true, otPremiumHours: true,
-          employee: { select: { empNo: true, name: true } },
         },
         orderBy: { date: "asc" },
       })
@@ -85,8 +85,10 @@ export default async function OvertimePage({
 
   const days: AttendanceDay[] = attendance.map((a) => ({
     employeeId: a.employeeId,
-    empNo: a.employee?.empNo ?? "—",
-    employeeName: a.employee?.name ?? "—",
+    // Named from the staff list already loaded, rather than the employee
+    // fetched again for each of a year's attendance rows.
+    empNo: staffById.get(a.employeeId)?.empNo ?? "—",
+    employeeName: staffById.get(a.employeeId)?.name ?? "—",
     date: a.date, hours: a.hours, otHours: a.otHours, otPremiumHours: a.otPremiumHours,
   }));
 

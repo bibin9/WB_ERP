@@ -11,6 +11,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { money } from "@/lib/money";
 import { balanceOf } from "@/lib/stock";
+import { totalsByStore } from "@/lib/stock-totals";
 import { binLabel, binQuantities, binVerdict } from "@/lib/bins";
 
 export const dynamic = "force-dynamic";
@@ -30,13 +31,13 @@ export default async function StoresPage({
     ? await db.store.findMany({
         where: { companyId },
         include: {
-          movements: { select: { kind: true, quantity: true, value: true, binId: true } },
           bins: { orderBy: [{ zone: "asc" }, { code: "asc" }] },
-          _count: { select: { movements: true } },
         },
         orderBy: { code: "asc" },
       })
     : [];
+  // Totalled by the database per store and bin, not every movement loaded.
+  const totals = companyId ? await totalsByStore(companyId) : new Map();
 
   return (
     <div>
@@ -75,8 +76,9 @@ export default async function StoresPage({
               </tr>
             )}
             {stores.map((s) => {
-              const held = balanceOf(s.movements);
-              const perBin = binQuantities(s.movements);
+              const t = totals.get(s.id) ?? { groups: [], count: 0 };
+              const held = balanceOf(t.groups);
+              const perBin = binQuantities(t.groups);
               return (
                 <tr key={s.id} className={s.isActive ? "" : "opacity-60"}>
                   <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-heading">{s.code}</td>
@@ -136,7 +138,7 @@ export default async function StoresPage({
                     <div className="mt-1 text-muted">{binVerdict(s.bins, perBin)}</div>
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-ink">{money(held.value)}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-muted">{s._count.movements || "—"}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-muted">{t.count || "—"}</td>
                   <td className="whitespace-nowrap px-4 py-2.5 text-right print:hidden">
                     <div className="flex items-center justify-end gap-1">
                       <StoreForm

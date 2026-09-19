@@ -5,12 +5,14 @@ import CompanyPicker from "@/components/CompanyPicker";
 import InventoryTabs from "@/components/InventoryTabs";
 import PrintReport from "@/components/finance/PrintReport";
 import SearchBox from "@/components/SearchBox";
+import Pager from "@/components/Pager";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { totalsByItem } from "@/lib/stock-totals";
 import { getSession } from "@/lib/auth";
 import { money } from "@/lib/money";
 import { readSearch } from "@/lib/search";
+import { readPaging, pageInfo } from "@/lib/paging";
 import { balanceOf, needsReorder, summariseStock, stockVerdict } from "@/lib/stock";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +26,7 @@ export const dynamic = "force-dynamic";
 export default async function StockPage({
   searchParams,
 }: {
-  searchParams: Promise<{ c?: string; q?: string; store?: string; show?: string }>;
+  searchParams: Promise<{ c?: string; q?: string; store?: string; show?: string; p?: string; per?: string }>;
 }) {
   await requireAccess("inventory.stock");
   const session = await getSession();
@@ -69,7 +71,12 @@ export default async function StockPage({
 
   // Items that have never moved crowd out the ones that have. They are still
   // reachable, just not in the way by default.
-  const shown = showAll ? rows : rows.filter((r) => r.balance.quantity !== 0);
+  const listed = showAll ? rows : rows.filter((r) => r.balance.quantity !== 0);
+  // A page at a time, like every other long grid: a store with fifteen hundred
+  // items sent nearly three megabytes to the browser on every visit. The
+  // totals and the verdict above the grid still cover every item.
+  const info = pageInfo(readPaging(sp), listed.length);
+  const shown = listed.slice((info.page - 1) * info.perPage, info.page * info.perPage);
   const stockTotals = summariseStock(rows);
   const verdict = stockVerdict(rows);
   const card = "card p-5";
@@ -233,6 +240,7 @@ export default async function StockPage({
           </tbody>
         </table>
       </div>
+      <Pager info={info} label="items" />
 
       <div className="mt-6 flex items-start gap-2 text-xs text-muted">
         <Boxes className="mt-0.5 h-4 w-4 shrink-0" />

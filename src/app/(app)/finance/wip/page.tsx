@@ -7,6 +7,7 @@ import FinanceTabs from "@/components/FinanceTabs";
 import PrintReport from "@/components/finance/PrintReport";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
+import { incomeAndCostBy } from "@/lib/ledger-query";
 import { getSession } from "@/lib/auth";
 import { money } from "@/lib/money";
 import { arrange, withDescendants } from "@/lib/tree";
@@ -55,13 +56,14 @@ export default async function WipPage({
   const jobs = companyId
     ? await db.job.findMany({
         where: { companyId, ...(showAll ? {} : { status: { in: ["Open", "On hold"] } }) },
-        include: {
-          party: { select: { name: true } },
-          lines: { include: { account: { select: { type: true } } } },
-        },
+        include: { party: { select: { name: true } } },
         orderBy: { code: "asc" },
       })
     : [];
+
+  // Totalled by the database per job and account — a few hundred rows — rather
+  // than every line ever charged to a job loaded with its account.
+  const figures = companyId ? await incomeAndCostBy("jobId", jobs.map((j) => j.id), companyId) : new Map();
 
   // What each job earned and consumed in its own right. Nothing is posted to a
   // parent, so a parent's figures are the sum of what sits beneath it.
@@ -70,13 +72,8 @@ export default async function WipPage({
   const ownValue = new Map<string, number>();
   const ownBudget = new Map<string, number>();
   for (const j of jobs) {
-    let billed = 0;
-    let cost = 0;
-    for (const l of j.lines) {
-      const net = l.debit - l.credit;
-      if (l.account.type === "Income") billed += -net; // income sits as a credit
-      else if (l.account.type === "Expense") cost += net;
-    }
+    const billed = figures.get(j.id)?.income ?? 0;
+    const cost = figures.get(j.id)?.cost ?? 0;
     ownCost.set(j.id, cost);
     ownBilled.set(j.id, billed);
     ownValue.set(j.id, j.contractValue);

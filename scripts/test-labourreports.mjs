@@ -240,5 +240,51 @@ ok("no timesheets is an empty report, not a crash",
     s.jobs[0].hours === 0.66, String(s.jobs[0].hours));
 }
 
+/* ------------------------------------------ the sliding three-week window -- */
+// rollingBreaches used to re-add all twenty-one days for every day of every
+// employee. It now slides one window along. The old method is kept here and
+// both are run over random rosters: the answer must be the same, window for
+// window, including which window wins a tie.
+{
+  const r2 = (n) => Math.round(n * 100) / 100;
+  const D = 864e5;
+  const oldRolling = (days, policy) => {
+    const byEmp = new Map();
+    for (const d of days) byEmp.set(d.employeeId, [...(byEmp.get(d.employeeId) ?? []), d]);
+    const out = [];
+    for (const [employeeId, list] of byEmp) {
+      const sorted = [...list].sort((a, b) => a.date - b.date);
+      let worst = null;
+      for (let i = 0; i < sorted.length; i++) {
+        const from = sorted[i].date, to = new Date(from.getTime() + 20 * D);
+        let hours = 0;
+        for (let j = i; j < sorted.length && sorted[j].date.getTime() <= to.getTime(); j++) hours = r2(hours + sorted[j].hours + sorted[j].otHours + sorted[j].otPremiumHours);
+        if (hours > policy.maxHoursPerThreeWeeks + 1e-9 && (!worst || hours > worst.hours)) worst = { employeeId, from, hours };
+      }
+      if (worst) out.push(worst);
+    }
+    return out.sort((a, b) => b.hours - a.hours);
+  };
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+  let same = 0, runs = 0, found = 0;
+  for (let run = 0; run < 40; run++) {
+    const days = [];
+    for (let e = 0; e < 6; e++) {
+      let t = Date.UTC(2026, 0, 1);
+      for (let k = 0; k < 90; k++) {
+        t += (1 + Math.floor(rnd() * 3)) * D; // gaps: days off and missing rows
+        days.push({ employeeId: `E${e}`, empNo: `E${e}`, employeeName: `E${e}`, date: new Date(t),
+          hours: Math.round(rnd() * 40) / 4, otHours: Math.round(rnd() * 16) / 4, otPremiumHours: Math.round(rnd() * 8) / 4 });
+      }
+    }
+    const policy = { ...DEFAULT_OVERTIME_POLICY, maxHoursPerThreeWeeks: 100 + Math.floor(rnd() * 120) };
+    const a = oldRolling(days, policy), b = rollingBreaches(days, policy);
+    runs++; found += b.length;
+    if (a.length === b.length && a.every((x, i) => x.employeeId === b[i].employeeId && x.hours === b[i].hours && x.from.getTime() === b[i].from.getTime())) same++;
+  }
+  ok("the sliding window finds exactly the breaches the old method found", same === runs && found > 0, `${same}/${runs} rosters agree, ${found} breaches between them`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

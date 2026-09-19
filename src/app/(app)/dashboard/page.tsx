@@ -92,9 +92,10 @@ export default async function DashboardPage() {
     pnl = { income, expense, netProfit: income - expense, cash };
   }
   if (g.finVat) {
-    const vat = await db.journalEntry.findMany({ where: { companyId: { in: companyIds }, vatAmount: { gt: 0 } }, select: { voucherType: true, vatAmount: true } });
-    const out = vat.filter((v) => ["Sales", "Receipt"].includes(v.voucherType)).reduce((s, v) => s + v.vatAmount, 0);
-    const inp = vat.filter((v) => ["Purchase", "Payment"].includes(v.voucherType)).reduce((s, v) => s + v.vatAmount, 0);
+    // One total per voucher type from the database, not every VAT voucher ever posted.
+    const vat = await db.journalEntry.groupBy({ by: ["voucherType"], where: { companyId: { in: companyIds }, vatAmount: { gt: 0 } }, _sum: { vatAmount: true } });
+    const out = vat.filter((v) => ["Sales", "Receipt"].includes(v.voucherType)).reduce((s, v) => s + (v._sum.vatAmount ?? 0), 0);
+    const inp = vat.filter((v) => ["Purchase", "Payment"].includes(v.voucherType)).reduce((s, v) => s + (v._sum.vatAmount ?? 0), 0);
     netVat = out - inp;
   }
 
@@ -114,15 +115,20 @@ export default async function DashboardPage() {
       docs = d;
     }
   }
-  const certs = g.hrCerts ? await db.certification.count({ where: { companyId: { in: companyIds }, expiryDate: { not: null, lte: in60 } } }) : null;
-  const pendingLeave = g.hrLeave ? await db.leaveRequest.count({ where: { companyId: { in: companyIds }, status: "Pending" } }) : null;
-  const openTasks = g.hrTasks ? await db.jobAssignment.count({ where: { companyId: { in: companyIds }, status: { notIn: ["Closed", "Completed"] } } }) : null;
+  // Independent counts, asked for together rather than one after another.
+  const [certs, pendingLeave, openTasks] = await Promise.all([
+    g.hrCerts ? db.certification.count({ where: { companyId: { in: companyIds }, expiryDate: { not: null, lte: in60 } } }) : null,
+    g.hrLeave ? db.leaveRequest.count({ where: { companyId: { in: companyIds }, status: "Pending" } }) : null,
+    g.hrTasks ? db.jobAssignment.count({ where: { companyId: { in: companyIds }, status: { notIn: ["Closed", "Completed"] } } }) : null,
+  ]);
 
   // ---- Approvals ----
   let appr: { count: number; pending: { id: string; title: string; docType: string; company: { code: string } }[] } | null = null;
   if (g.approvals) {
-    const pending = await db.approvalRequest.findMany({ where: { companyId: { in: companyIds }, status: "Pending" }, orderBy: { createdAt: "desc" }, take: 5, include: { company: true } });
-    const count = await db.approvalRequest.count({ where: { companyId: { in: companyIds }, status: "Pending" } });
+    const [pending, count] = await Promise.all([
+      db.approvalRequest.findMany({ where: { companyId: { in: companyIds }, status: "Pending" }, orderBy: { createdAt: "desc" }, take: 5, include: { company: true } }),
+      db.approvalRequest.count({ where: { companyId: { in: companyIds }, status: "Pending" } }),
+    ]);
     appr = { count, pending };
   }
 

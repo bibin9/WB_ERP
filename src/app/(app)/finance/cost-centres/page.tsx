@@ -12,6 +12,7 @@ import CostCentreForm from "@/components/finance/CostCentreForm";
 import { deleteCostCentre } from "./actions";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
+import { incomeAndCostBy } from "@/lib/ledger-query";
 import { getSession } from "@/lib/auth";
 import { resolvePeriod } from "@/lib/period";
 import { arrange, withDescendants } from "@/lib/tree";
@@ -38,28 +39,20 @@ export default async function CostCentresPage({
   const centres = companyId
     ? await db.costCentre.findMany({
         where: { companyId },
-        include: {
-          lines: {
-            where: { entry: { date: { gte: period.from, lte: period.to } } },
-            include: { account: { select: { type: true } } },
-          },
-        },
         orderBy: { code: "asc" },
       })
     : [];
+
+  // The period's lines totalled by the database per centre and account.
+  const figures = companyId ? await incomeAndCostBy("costCentreId", centres.map((c) => c.id), companyId, period) : new Map();
 
   // What each centre carried in its own right. A parent's figure is derived
   // from these, never posted to directly.
   const ownCost = new Map<string, number>();
   const ownIncome = new Map<string, number>();
   for (const c of centres) {
-    let cost = 0;
-    let income = 0;
-    for (const l of c.lines) {
-      const net = l.debit - l.credit;
-      if (l.account.type === "Expense") cost += net;
-      else if (l.account.type === "Income") income += -net;
-    }
+    const cost = figures.get(c.id)?.cost ?? 0;
+    const income = figures.get(c.id)?.income ?? 0;
     ownCost.set(c.id, cost);
     ownIncome.set(c.id, income);
   }

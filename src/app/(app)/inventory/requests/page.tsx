@@ -97,12 +97,18 @@ export default async function RequestsPage({
   const itemIds = [...new Set(requests.flatMap((r) => r.lines.map((l) => l.itemId).filter(Boolean)))] as string[];
   const onHand: Record<string, number> = {};
   if (itemIds.length) {
-    const movements = await db.stockMovement.findMany({
+    // One total per item and kind, added up by the database. It used to load
+    // every movement of every item on the page and filter the whole list
+    // again for each item.
+    const groups = await db.stockMovement.groupBy({
+      by: ["itemId", "kind"],
       where: { companyId, itemId: { in: itemIds } },
-      select: { itemId: true, kind: true, quantity: true, value: true },
+      _sum: { quantity: true, value: true },
     });
     for (const id of itemIds) {
-      onHand[id] = balanceOf(movements.filter((m) => m.itemId === id)).quantity;
+      onHand[id] = balanceOf(
+        groups.filter((g) => g.itemId === id).map((g) => ({ kind: g.kind, quantity: g._sum.quantity ?? 0, value: g._sum.value ?? 0 })),
+      ).quantity;
     }
   }
 

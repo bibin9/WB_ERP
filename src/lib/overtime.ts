@@ -201,19 +201,25 @@ export function rollingBreaches(days: AttendanceDay[], policy: OvertimePolicy): 
     const sorted = [...list].sort((a, b) => a.date.getTime() - b.date.getTime());
     let worst: RollingBreach | null = null;
 
+    // A sliding window: the end moves forward as the start does, so each day
+    // is added once and taken off once, instead of every window re-adding its
+    // twenty-one days. Summed in whole hundredths, which is what round() kept,
+    // so adding and taking off never drifts.
+    const cents = sorted.map((d) => Math.round((d.hours + d.otHours + d.otPremiumHours) * 100));
+    let end = 0;
+    let sum = 0;
     for (let i = 0; i < sorted.length; i++) {
       const from = sorted[i].date;
       const to = new Date(from.getTime() + (ROLLING_WINDOW_DAYS - 1) * DAY);
-      let hours = 0;
-      for (let j = i; j < sorted.length && sorted[j].date.getTime() <= to.getTime(); j++) {
-        hours = round(hours + sorted[j].hours + sorted[j].otHours + sorted[j].otPremiumHours);
-      }
+      while (end < sorted.length && sorted[end].date.getTime() <= to.getTime()) sum += cents[end++];
+      const hours = sum / 100;
       if (hours > limit + 1e-9 && (!worst || hours > worst.hours)) {
         worst = {
           employeeId, empNo: sorted[i].empNo, employeeName: sorted[i].employeeName,
           from, to, hours, limit,
         };
       }
+      sum -= cents[i];
     }
     if (worst) out.push(worst);
   }

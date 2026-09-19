@@ -4,6 +4,7 @@ import PageHeader from "@/components/PageHeader";
 import CompanyPicker from "@/components/CompanyPicker";
 import FinanceTabs from "@/components/FinanceTabs";
 import { db } from "@/lib/db";
+import { partyControlVouchers } from "@/lib/ledger-query";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
 import { ageParty, type PartyDoc, type Ageing } from "@/lib/ageing";
@@ -47,11 +48,7 @@ export default async function OutstandingPage({
 
   const entries =
     companyId && controlIds.size > 0
-      ? await db.journalEntry.findMany({
-          where: { companyId, partyId: { not: null } },
-          include: { lines: { select: { debit: true, credit: true, accountId: true } } },
-          orderBy: { date: "asc" },
-        })
+      ? await partyControlVouchers(companyId, [...controlIds])
       : [];
 
   // Group each voucher's effect on the control accounts, by party.

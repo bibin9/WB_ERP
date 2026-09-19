@@ -13,6 +13,7 @@ import { lineCost } from "@/lib/labour";
 import { deleteJob } from "./actions";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
+import { incomeAndCostBy } from "@/lib/ledger-query";
 import { getSession } from "@/lib/auth";
 import { resolvePeriod } from "@/lib/period";
 import { arrange, withDescendants } from "@/lib/tree";
@@ -48,16 +49,14 @@ export default async function JobsPage({
   const jobs = companyId
     ? await db.job.findMany({
         where: { companyId },
-        include: {
-          party: { select: { name: true } },
-          lines: {
-            where: { entry: { date: { gte: period.from, lte: period.to } } },
-            include: { account: { select: { type: true } } },
-          },
-        },
+        include: { party: { select: { name: true } } },
         orderBy: { code: "asc" },
       })
     : [];
+
+  // The period's lines totalled by the database per job and account, rather
+  // than every line loaded with its account and added up here.
+  const figures = companyId ? await incomeAndCostBy("jobId", jobs.map((j) => j.id), companyId, period) : new Map();
 
   // Hours logged against a job in this period that have not been charged yet.
   // Shown before posting so nobody runs it blind.
@@ -89,13 +88,8 @@ export default async function JobsPage({
   const ownContract = new Map<string, number>();
   const ownBudget = new Map<string, number>();
   for (const j of jobs) {
-    let revenue = 0;
-    let cost = 0;
-    for (const l of j.lines) {
-      const net = l.debit - l.credit;
-      if (l.account.type === "Income") revenue += -net; // income sits as a credit
-      else if (l.account.type === "Expense") cost += net;
-    }
+    const revenue = figures.get(j.id)?.income ?? 0;
+    const cost = figures.get(j.id)?.cost ?? 0;
     ownRevenue.set(j.id, revenue);
     ownCost.set(j.id, cost);
     ownContract.set(j.id, j.contractValue);

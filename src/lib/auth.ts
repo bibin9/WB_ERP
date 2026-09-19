@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { db } from "./db";
 import { SESSION_COOKIE } from "./session-token";
@@ -7,8 +8,20 @@ import { mergePerms, parsePerms } from "./rbac";
 export { signSession, verifyToken, SESSION_COOKIE } from "./session-token";
 export type { SessionToken } from "./session-token";
 
-/** Full session for server components / actions: user + accessible companies + role. */
-export async function getSession() {
+/**
+ * Full session for server components / actions: user + accessible companies + role.
+ *
+ * Asked for by the layout, the top bar, the module tab strip, the page and its
+ * access check — four or five times for every screen, and each time the user,
+ * their memberships, companies, roles and tenant came back from the database.
+ * `cache` answers every call after the first from the same request's result.
+ * It is per request, never shared between users or kept past the response, so
+ * a password change or a removed membership still takes effect on the next
+ * click.
+ */
+export const getSession = cache(loadSession);
+
+async function loadSession() {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;

@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./db";
+import { partyControlVouchers } from "./ledger-query";
 import { ageParty, type PartyDoc } from "./ageing";
 import { financePolicyFor } from "./accounts";
 import {
@@ -115,14 +116,7 @@ export async function cashSourceFor(
       where: { companyId },
       select: { id: true, name: true, type: true, creditDays: true },
     });
-    const entries = await db.journalEntry.findMany({
-      where: { companyId, partyId: { not: null } },
-      select: {
-        reference: true, date: true, partyId: true,
-        lines: { select: { debit: true, credit: true, accountId: true } },
-      },
-      orderBy: { date: "asc" },
-    });
+    const entries = await partyControlVouchers(companyId, control.map((c) => c.id));
 
     const docsByParty = new Map<string, { receivable: PartyDoc[]; payable: PartyDoc[] }>();
     for (const e of entries) {

@@ -15,6 +15,7 @@ import { getSession } from "@/lib/auth";
 import { money } from "@/lib/money";
 import { readPaging, pageInfo } from "@/lib/paging";
 import { readSearch, matchAny } from "@/lib/search";
+import { totalsByItemAndStore } from "@/lib/stock-totals";
 import { balanceOf } from "@/lib/stock";
 import { CONDITION_HELP, RETURN_STATUS_HELP, summariseReturn } from "@/lib/returns";
 
@@ -105,29 +106,23 @@ export default async function ReturnsPage({
   const positions: Record<string, { issued: number; returned: number }> = {};
   const averageCost: Record<string, number> = {};
   if (companyId) {
-    const onJobs = await db.stockMovement.findMany({
-      where: { companyId, jobId: { not: null }, kind: { in: ["Issue", "Return to store"] } },
-      select: { jobId: true, itemId: true, kind: true, quantity: true },
-    });
+    // Totalled by the database: one row per job, item and kind, and one list
+    // of totals per shelf — not every movement the company has recorded.
+    const [onJobs, shelves] = await Promise.all([
+      db.stockMovement.groupBy({
+        by: ["jobId", "itemId", "kind"],
+        where: { companyId, jobId: { not: null }, kind: { in: ["Issue", "Return to store"] } },
+        _sum: { quantity: true },
+      }),
+      totalsByItemAndStore(companyId),
+    ]);
     for (const m of onJobs) {
       const key = `${m.jobId}:${m.itemId}`;
       const at = (positions[key] ??= { issued: 0, returned: 0 });
-      if (m.kind === "Issue") at.issued += m.quantity;
-      else at.returned += m.quantity;
+      if (m.kind === "Issue") at.issued += m._sum.quantity ?? 0;
+      else at.returned += m._sum.quantity ?? 0;
     }
-
-    const all = await db.stockMovement.findMany({
-      where: { companyId },
-      select: { itemId: true, storeId: true, kind: true, quantity: true, value: true, inspection: true },
-    });
-    const grouped = new Map<string, { kind: string; quantity: number; value: number }[]>();
-    for (const m of all) {
-      const key = `${m.itemId}:${m.storeId}`;
-      const list = grouped.get(key);
-      if (list) list.push(m);
-      else grouped.set(key, [m]);
-    }
-    for (const [key, list] of grouped) averageCost[key] = balanceOf(list).averageCost;
+    for (const [key, list] of shelves) averageCost[key] = balanceOf(list).averageCost;
   }
 
   const anyOut = Object.values(positions).some((p) => p.issued - p.returned > 0);

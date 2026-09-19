@@ -33,11 +33,12 @@ export default async function LedgersPage({ searchParams }: { searchParams: Prom
   const account = accounts.find((a) => a.id === accountId);
 
   // Everything before the period start collapses into one brought-forward line.
-  const priorLines = accountId
-    ? await db.journalLine.findMany({ where: { accountId, entry: { date: { lt: period.from } } }, select: { debit: true, credit: true } })
-    : [];
+  // One total from the database rather than every earlier line loaded here.
+  const prior = accountId
+    ? await db.journalLine.aggregate({ where: { accountId, entry: { date: { lt: period.from } } }, _sum: { debit: true, credit: true } })
+    : null;
   const carriedIn = (account && openingInBalance(openingAsOf, period.from) ? account.openingBalance : 0);
-  const broughtForwardBal = priorLines.reduce((s, l) => s + l.debit - l.credit, carriedIn);
+  const broughtForwardBal = carriedIn + (prior?._sum.debit ?? 0) - (prior?._sum.credit ?? 0);
 
   const lines = accountId
     ? await db.journalLine.findMany({

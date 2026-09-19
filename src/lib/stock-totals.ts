@@ -73,3 +73,26 @@ export async function binHoldingsFor(companyId: string): Promise<Record<string, 
   }
   return out;
 }
+
+/**
+ * Per store: movement totals by bin, kind and inspection state, and how many
+ * movements there were. Each group carries its binId, so the same list serves
+ * balanceOf (value held) and binQuantities (what each bin holds). The Stores
+ * screen used to load every movement of every store for these three figures.
+ */
+export async function totalsByStore(companyId: string): Promise<Map<string, { groups: (MovementLike & { binId: string | null })[]; count: number }>> {
+  const groups = await db.stockMovement.groupBy({
+    by: ["storeId", "binId", "kind", "inspection"],
+    where: { companyId },
+    _sum: { quantity: true, value: true },
+    _count: { _all: true },
+  });
+  const out = new Map<string, { groups: (MovementLike & { binId: string | null })[]; count: number }>();
+  for (const g of groups) {
+    const at = out.get(g.storeId) ?? { groups: [], count: 0 };
+    at.groups.push({ ...asMovements(g), binId: g.binId });
+    at.count += g._count._all;
+    out.set(g.storeId, at);
+  }
+  return out;
+}

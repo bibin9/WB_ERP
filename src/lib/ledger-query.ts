@@ -176,3 +176,82 @@ export async function balanceOf(
   const opening = openingInBalance(openingAsOf, asAt) ? account.openingBalance : 0;
   return { found: true, balance: r2(opening + (agg._sum.debit ?? 0) - (agg._sum.credit ?? 0)) };
 }
+
+export type PartyVoucher = {
+  reference: string;
+  date: Date;
+  partyId: string;
+  lines: { debit: number; credit: number; accountId: string }[];
+};
+
+/**
+ * Every party voucher that touches one of these control accounts, with only
+ * its lines on those accounts, oldest first.
+ *
+ * Outstanding and the cash-flow forecast used to load every voucher that named
+ * a party, with every line of each, and then throw away all but the lines on
+ * the receivable and payable accounts. With fifteen thousand party vouchers
+ * that was a fifteen-thousand-id IN list and most of each screen's time. The
+ * database now picks the lines; the shape handed back is what both screens
+ * already read, so the ageing arithmetic is untouched.
+ */
+export async function partyControlVouchers(companyId: string, accountIds: string[]): Promise<PartyVoucher[]> {
+  if (accountIds.length === 0) return [];
+  const lines = await db.journalLine.findMany({
+    where: { accountId: { in: accountIds }, entry: { companyId, partyId: { not: null } } },
+    select: { debit: true, credit: true, accountId: true, entry: { select: { id: true, reference: true, date: true, partyId: true } } },
+    orderBy: [{ entry: { date: "asc" } }, { entryId: "asc" }],
+  });
+  const out: PartyVoucher[] = [];
+  const byEntry = new Map<string, PartyVoucher>();
+  for (const l of lines) {
+    let v = byEntry.get(l.entry.id);
+    if (!v) {
+      v = { reference: l.entry.reference, date: l.entry.date, partyId: l.entry.partyId!, lines: [] };
+      byEntry.set(l.entry.id, v);
+      out.push(v);
+    }
+    v.lines.push({ debit: l.debit, credit: l.credit, accountId: l.accountId });
+  }
+  return out;
+}
+
+/**
+ * Income and expense posted to each job, or each cost centre, added up by the
+ * database: one row per job and account instead of every line with its account.
+ *
+ * Job Costing, WIP, Cost Centres and their exports each loaded every journal
+ * line tagged to a job and summed it in a loop — thirty thousand lines on a
+ * three-year ledger, for a table of sixty jobs. `income` is what was credited
+ * to Income accounts net of debits; `cost` is what was debited to Expense
+ * accounts net of credits. Other account types do not count, as before.
+ */
+export async function incomeAndCostBy(
+  dimension: "jobId" | "costCentreId",
+  ids: string[],
+  companyId: string,
+  period?: { from: Date; to: Date },
+): Promise<Map<string, { income: number; cost: number }>> {
+  const out = new Map<string, { income: number; cost: number }>();
+  if (ids.length === 0) return out;
+  const [totals, accounts] = await Promise.all([
+    db.journalLine.groupBy({
+      by: [dimension, "accountId"],
+      where: { [dimension]: { in: ids }, ...(period ? { entry: { date: { gte: period.from, lte: period.to } } } : {}) },
+      _sum: { debit: true, credit: true },
+    }),
+    db.chartOfAccount.findMany({ where: { companyId, type: { in: ["Income", "Expense"] } }, select: { id: true, type: true } }),
+  ]);
+  const typeOf = new Map(accounts.map((a) => [a.id, a.type]));
+  for (const t of totals as unknown as ({ accountId: string; _sum: { debit: number | null; credit: number | null } } & Record<string, string>)[]) {
+    const id = t[dimension];
+    const type = typeOf.get(t.accountId);
+    if (!id || !type) continue;
+    const net = (t._sum.debit ?? 0) - (t._sum.credit ?? 0);
+    const at = out.get(id) ?? { income: 0, cost: 0 };
+    if (type === "Income") at.income += -net; // income sits as a credit
+    else at.cost += net;
+    out.set(id, at);
+  }
+  return out;
+}

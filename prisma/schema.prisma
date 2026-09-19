@@ -140,7 +140,6 @@ model Company {
   emailLogs           EmailLog[]
 
   @@unique([tenantId, code])
-  @@index([tenantId])
 }
 
 model User {
@@ -161,7 +160,6 @@ model User {
   createdAt         DateTime            @default(now())
 
   @@unique([tenantId, email])
-  @@index([tenantId])
 }
 
 /// Which companies a user can access, and with what role (RBAC + company scope).
@@ -220,7 +218,6 @@ model JobAssignment {
   updatedAt      DateTime  @updatedAt
 
   @@unique([companyId, ticketNo])
-  @@index([companyId])
 }
 
 /// Approval Engine (FSD FS-PLT-02) — one configurable sign-off workflow reused
@@ -240,7 +237,9 @@ model ApprovalRequest {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
-  @@index([companyId])
+
+  // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
+  @@index([companyId, status])
 }
 
 model ApprovalStep {
@@ -280,7 +279,6 @@ model ChartOfAccount {
   InvoiceLine    InvoiceLine[]
 
   @@unique([companyId, code])
-  @@index([companyId])
 }
 
 /// Finance — double-entry journal entry (header + balanced lines).
@@ -329,11 +327,14 @@ model JournalEntry {
 
   @@unique([companyId, reference])
   @@unique([companyId, sourceType, sourceId])
-  @@index([companyId])
   /// The access path every report uses: one company, one date range. Without
   /// the date in the index the database reads all of a company's history to
   /// answer a question about one year, and that is the cost that grows.
   @@index([companyId, date])
+
+  // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
+  @@index([partyId])
+  @@index([reversalOfId])
 }
 
 model JournalLine {
@@ -397,7 +398,6 @@ model ApprovalRoute {
   updatedAt DateTime            @updatedAt
 
   @@unique([tenantId, docType])
-  @@index([tenantId])
 }
 
 model ApprovalRouteStep {
@@ -527,7 +527,6 @@ model Employee {
   updatedAt          DateTime           @updatedAt
 
   @@unique([companyId, empNo])
-  @@index([companyId])
 }
 
 /// Notifications / Alerts engine (FSD FS-PLT-03) — in-app notifications per user.
@@ -563,7 +562,6 @@ model AuditLog {
   userAgent String?
   createdAt DateTime @default(now())
 
-  @@index([tenantId])
   /// The screen reads a page of one tenant's newest entries, which is exactly this.
   @@index([tenantId, createdAt])
 }
@@ -685,11 +683,13 @@ model Invoice {
   updatedAt         DateTime               @updatedAt
 
   @@unique([companyId, side, number])
-  @@index([companyId])
   @@index([companyId, issueDate])
   @@index([partyId])
   @@index([jobId])
   @@index([status])
+
+  // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
+  @@index([originalInvoiceId])
 }
 
 /// One billed line. Everything a tax invoice and a PINT AE document need.
@@ -786,7 +786,6 @@ model PayrollRun {
   createdAt DateTime  @default(now())
 
   @@unique([companyId, period])
-  @@index([companyId])
 }
 
 model Payslip {
@@ -823,6 +822,9 @@ model Payslip {
   netPay             Float
 
   @@index([runId])
+
+  // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
+  @@index([employeeId])
 }
 
 /// HR — Salary advances / loans, recovered through payroll
@@ -889,7 +891,6 @@ model Attendance {
   createdAt      DateTime  @default(now())
 
   @@unique([employeeId, date])
-  @@index([companyId])
   @@index([companyId, date])
 }
 
@@ -1030,7 +1031,6 @@ model CustomFieldDef {
   createdAt DateTime           @default(now())
 
   @@unique([tenantId, entity, fieldKey])
-  @@index([tenantId])
 }
 
 model CustomFieldValue {
@@ -1112,7 +1112,6 @@ model Party {
   rfqsAwarded    Rfq[]
 
   @@unique([companyId, code])
-  @@index([companyId])
 }
 
 /// A cheque held or issued, most of them post-dated.
@@ -1226,7 +1225,6 @@ model PartyAdvance {
 
   /// The same reference twice on the same side is the same money entered again.
   @@unique([companyId, direction, reference])
-  @@index([companyId])
   @@index([status])
   @@index([partyId])
   @@index([jobId])
@@ -1301,7 +1299,6 @@ model Item {
   takeoffLines       TakeoffLine[]
 
   @@unique([companyId, code])
-  @@index([companyId])
   @@index([category])
 }
 
@@ -1335,7 +1332,6 @@ model Store {
   MaterialReturn   MaterialReturn[]
 
   @@unique([companyId, code])
-  @@index([companyId])
 }
 
 /// Every movement of stock, in or out. The ledger the shelf is read from.
@@ -1408,11 +1404,17 @@ model StockMovement {
   purchaseOrderLine   PurchaseOrderLine?   @relation(fields: [purchaseOrderLineId], references: [id])
   MaterialReturnLine  MaterialReturnLine[]
 
-  @@index([companyId])
   @@index([itemId, storeId])
   @@index([jobId])
   @@index([entryId])
   @@index([date])
+
+  // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
+  @@index([storeId])
+  @@index([binId])
+  @@index([partyId])
+  @@index([purchaseOrderLineId])
+  @@index([companyId, date])
 }
 
 /// Site saying what it needs, and for which job.
@@ -1448,9 +1450,11 @@ model MaterialRequest {
   updatedAt DateTime              @updatedAt
 
   @@unique([companyId, number])
-  @@index([companyId])
   @@index([status])
   @@index([jobId])
+
+  // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
+  @@index([storeId])
 }
 
 model MaterialRequestLine {
@@ -1529,10 +1533,13 @@ model PurchaseOrder {
   updatedAt DateTime            @updatedAt
 
   @@unique([companyId, number])
-  @@index([companyId])
   @@index([status])
   @@index([partyId])
   @@index([jobId])
+
+  // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
+  @@index([storeId])
+  @@index([requestId])
 }
 
 model PurchaseOrderLine {
@@ -1561,6 +1568,9 @@ model PurchaseOrderLine {
 
   @@index([orderId])
   @@index([itemId])
+
+  // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
+  @@index([jobId])
 }
 
 /// One physical tool or instrument, with a serial number and a history.
@@ -1604,9 +1614,12 @@ model Equipment {
   updatedAt    DateTime            @updatedAt
 
   @@unique([companyId, serialNo])
-  @@index([companyId])
   @@index([status])
   @@index([itemId])
+
+  // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
+  @@index([storeId])
+  @@index([jobId])
 }
 
 /// One calibration, passed or failed.
@@ -1676,9 +1689,11 @@ model MaterialReturn {
   updatedAt DateTime             @updatedAt
 
   @@unique([companyId, number])
-  @@index([companyId])
   @@index([status])
   @@index([jobId])
+
+  // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
+  @@index([storeId])
 }
 
 model MaterialReturnLine {
@@ -1705,6 +1720,9 @@ model MaterialReturnLine {
 
   @@index([returnId])
   @@index([itemId])
+
+  // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
+  @@index([movementId])
 }
 
 model Cheque {
@@ -1739,7 +1757,6 @@ model Cheque {
   /// One cheque number per bank per direction — the same number can legitimately
   /// appear again from a different bank.
   @@unique([companyId, direction, bankName, chequeNo])
-  @@index([companyId])
   @@index([status])
   @@index([chequeDate])
   @@index([partyId])
@@ -1797,8 +1814,10 @@ model Job {
   MaterialReturn     MaterialReturn[]
 
   @@unique([companyId, code])
-  @@index([companyId])
   @@index([parentId])
+
+  // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
+  @@index([partyId])
 }
 
 /// A cost centre — the second costing dimension, for what belongs to the
@@ -1825,7 +1844,6 @@ model CostCentre {
   InvoiceLine InvoiceLine[]
 
   @@unique([companyId, code])
-  @@index([companyId])
   @@index([parentId])
 }
 
@@ -1868,7 +1886,6 @@ model CorporateTaxReturn {
   updatedAt            DateTime                 @updatedAt
 
   @@unique([companyId, periodFrom, periodTo])
-  @@index([companyId])
   @@index([status])
 }
 
@@ -2065,9 +2082,12 @@ model Rfq {
   updatedAt DateTime @updatedAt
 
   @@unique([companyId, number])
-  @@index([companyId])
   @@index([status])
   @@index([jobId])
+
+  // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
+  @@index([requestId])
+  @@index([awardedPartyId])
 }
 
 model RfqLine {
@@ -2086,6 +2106,9 @@ model RfqLine {
   quoteLines RfqQuoteLine[]
 
   @@index([rfqId])
+
+  // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
+  @@index([itemId])
 }
 
 /// One supplier who was asked, whether or not they answered.
@@ -2123,7 +2146,6 @@ model RfqQuote {
   /// A supplier is asked once. Without this, three invitations to the same
   /// supplier would satisfy the rule that exists to prevent exactly that.
   @@unique([rfqId, partyId])
-  @@index([rfqId])
   @@index([partyId])
 }
 
@@ -2138,7 +2160,9 @@ model RfqQuoteLine {
   unitPrice Float @default(0)
 
   @@unique([quoteId, rfqLineId])
-  @@index([quoteId])
+
+  // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
+  @@index([rfqLineId])
 }
 
 /// A place inside a store (INV-14).
@@ -2170,7 +2194,6 @@ model StorageBin {
   updatedAt DateTime        @updatedAt
 
   @@unique([storeId, code])
-  @@index([storeId])
 }
 
 /// An enquiry, from first contact to won or lost (CRM-01, CRM-02, CRM-11).
@@ -2247,9 +2270,11 @@ model Lead {
   updatedAt DateTime @updatedAt
 
   @@unique([companyId, number])
-  @@index([companyId])
   @@index([stage])
   @@index([partyId])
+
+  // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
+  @@index([jobId])
 }
 
 /// A visit to site, and the report that comes back (CRM-12).
@@ -2342,7 +2367,6 @@ model Estimate {
   updatedAt DateTime @updatedAt
 
   @@unique([companyId, number])
-  @@index([companyId])
   @@index([leadId])
   @@index([status])
 }
@@ -2404,6 +2428,9 @@ model TakeoffLine {
   sortOrder Int @default(0)
 
   @@index([lineId])
+
+  // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
+  @@index([itemId])
 }
 
 /// The quotation that goes to the customer (CRM-13 to CRM-17).
@@ -2493,10 +2520,13 @@ model Quotation {
   updatedAt DateTime @updatedAt
 
   @@unique([companyId, number])
-  @@index([companyId])
   @@index([status])
   @@index([leadId])
   @@index([estimateId])
+
+  // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
+  @@index([partyId])
+  @@index([jobId])
 }
 
 /// Where this company's email goes out from (CRM-15).

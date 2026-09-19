@@ -3,7 +3,7 @@
 import { db } from "@/lib/db";
 import { broughtForward, balanceAsAt, openingInPeriod } from "@/lib/ledger";
 import { compute, dueDate } from "@/lib/corporatetax";
-import { profitAndLoss, accountBalances } from "@/lib/ledger-query";
+import { profitAndLoss, accountBalances, incomeAndCostBy } from "@/lib/ledger-query";
 import { financialYear } from "@/lib/period";
 import { getSession, canAdminister } from "@/lib/auth";
 import { allow } from "@/lib/guard";
@@ -292,19 +292,15 @@ const jobs: Dataset = {
   async build(companyId) {
     const rows = await db.job.findMany({
       where: { companyId },
-      include: { party: { select: { name: true } }, lines: { include: { account: { select: { type: true } } } } },
+      include: { party: { select: { name: true } } },
       orderBy: { code: "asc" },
     });
     const codeById = new Map(rows.map((j) => [j.id, j.code]));
     // Each row carries only what was posted to it; the roll-up is the job
     // screen's job, and doing it here would double-count on a re-import.
+    const totals = await incomeAndCostBy("jobId", rows.map((j) => j.id), companyId);
     const figures = (j: (typeof rows)[number]) => {
-      let revenue = 0, cost = 0;
-      for (const l of j.lines) {
-        const net = l.debit - l.credit;
-        if (l.account.type === "Income") revenue += -net;
-        else if (l.account.type === "Expense") cost += net;
-      }
+      const revenue = totals.get(j.id)?.income ?? 0, cost = totals.get(j.id)?.cost ?? 0;
       return { revenue, cost, margin: revenue - cost };
     };
     const columns: Column<(typeof rows)[number]>[] = [
@@ -335,15 +331,11 @@ const costCentres: Dataset = {
   async build(companyId) {
     const rows = await db.costCentre.findMany({
       where: { companyId },
-      include: { lines: { include: { account: { select: { type: true } } } } },
       orderBy: { code: "asc" },
     });
     const codeById = new Map(rows.map((c) => [c.id, c.code]));
-    const own = (c: (typeof rows)[number]) => {
-      let cost = 0;
-      for (const l of c.lines) if (l.account.type === "Expense") cost += l.debit - l.credit;
-      return cost;
-    };
+    const totals = await incomeAndCostBy("costCentreId", rows.map((c) => c.id), companyId);
+    const own = (c: (typeof rows)[number]) => totals.get(c.id)?.cost ?? 0;
     const columns: Column<(typeof rows)[number]>[] = [
       { header: "Code", value: (c) => c.code },
       { header: "Cost Centre", value: (c) => c.name },
