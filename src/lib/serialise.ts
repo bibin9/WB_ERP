@@ -128,3 +128,11 @@ export const seriesKey = (companyId: string, series: string) => `series:${compan
 
 /** Whether an error is a unique-index clash, the kind a retry can get past. */
 export const isUniqueClash = (err: unknown): boolean => (err as { code?: string })?.code === "P2002";
+
+/**
+ * One item out on one job, while a return note is weighed against it.
+ *
+ * Two notes for the same job saved at the same instant both asked "how much
+ * does this job still have out?", both were told forty, and both returned it.
+ */
+export const jobItemKey = (companyId: string, jobId: string, itemId: string) => `job-item:${companyId}:${jobId}:${itemId}`;

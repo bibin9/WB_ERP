@@ -18,7 +18,7 @@ import { importLibs } from "./lib-shim.mjs";
 
 const libs = await importLibs(["db", "stock-posting", "purchase-posting", "posting", "stock-totals", "stock", "serialise"]);
 const { db } = libs.db;
-const { recordMovement, postReturn } = libs["stock-posting"];
+const { recordMovement, postReturn, jobPosition } = libs["stock-posting"];
 const { createOrder, createRequest, receiveAgainstOrder } = libs["purchase-posting"];
 const { postVoucher } = libs.posting;
 const { totalsByItem, totalsByItemAndStore, binHoldingsFor } = libs["stock-totals"];
@@ -107,6 +107,53 @@ try {
   const notes = returns.filter((r) => r.ok).map((r) => r.number);
   ok("8 return notes saved at once: all 8 saved with different numbers", notes.length === 8 && new Set(notes).size === 8,
     `${notes.length} saved${returns.find((r) => !r.ok) ? ": " + returns.find((r) => !r.ok).error?.slice(0, 90) : ""}`);
+
+  /* ------------------------------------- PT-07 · two notes, one job ----- */
+  // Found by the Pre-Prod stress test: both notes asked "how much does this
+  // job still have out?", both were told the same figure, and both returned
+  // it. The job ended up credited with more material than it was ever issued.
+  {
+    const j2 = await db.job.create({ data: { companyId: company.id, code: `${code}-J2`, name: "Race job" } });
+    const stocked = await recordMovement({ companyId: company.id, postedBy: "t", kind: "Receipt", itemId: item.id, storeId: store.id, date: today, quantity: 100, unitCost: 25, reference: "GRN-J2" });
+    ok("stock for the second job", stocked.ok, stocked.error ?? "");
+    const issued = await recordMovement({ companyId: company.id, postedBy: "t", kind: "Issue", itemId: item.id, storeId: store.id, jobId: j2.id, date: today, quantity: 100, reference: "ISS-J2" });
+    ok("a hundred issued to it", issued.ok, issued.error ?? "");
+
+    // Six notes of sixty, all at the same instant, against a hundred out.
+    const race = await all(6, (k) => postReturn({ companyId: company.id, postedBy: `t${k}`, jobId: j2.id, storeId: store.id, date: today, returnedBy: `Site ${k}`,
+      lines: [{ itemId: item.id, condition: "Reusable", quantity: 60 }] }));
+    const took = race.filter((r) => r.ok).length;
+    ok("six notes of sixty against a hundred out: only one is taken", took === 1, `${took} saved, ${race.length - took} refused`);
+    const pos = await jobPosition(company.id, j2.id, item.id);
+    ok("  the job is never credited with more than it had out", pos.returned <= pos.issued, `${pos.returned} returned of ${pos.issued} issued`);
+    const refusal = race.find((r) => !r.ok)?.error ?? "";
+    ok("  and the refusal says what is left", /still out on this job|already been returned/i.test(refusal), refusal.slice(0, 90));
+    const notesLeft = await db.materialReturn.count({ where: { companyId: company.id, jobId: j2.id } });
+    ok("  a refused note leaves nothing behind", notesLeft === took, `${notesLeft} notes for ${took} taken`);
+
+    // Scrap moves no stock, so its claim lives only on the note itself.
+    const j3 = await db.job.create({ data: { companyId: company.id, code: `${code}-J3`, name: "Scrap race job" } });
+    const stocked3 = await recordMovement({ companyId: company.id, postedBy: "t", kind: "Receipt", itemId: item.id, storeId: store.id, date: today, quantity: 50, unitCost: 25, reference: "GRN-J3" });
+    const issued3 = await recordMovement({ companyId: company.id, postedBy: "t", kind: "Issue", itemId: item.id, storeId: store.id, jobId: j3.id, date: today, quantity: 50, reference: "ISS-J3" });
+    ok("fifty issued to the third job", stocked3.ok && issued3.ok, issued3.error ?? "");
+    const scrapRace = await all(4, (k) => postReturn({ companyId: company.id, postedBy: `t${k}`, jobId: j3.id, storeId: store.id, date: today, returnedBy: `Site ${k}`,
+      lines: [{ itemId: item.id, condition: "Scrap", quantity: 40 }] }));
+    const scrapTook = scrapRace.filter((r) => r.ok).length;
+    ok("four scrap notes of forty against fifty out: only one is taken", scrapTook === 1, `${scrapTook} saved`);
+    const pos3 = await jobPosition(company.id, j3.id, item.id);
+    ok("  scrap counts against what the job has out", pos3.returned <= pos3.issued, `${pos3.returned} of ${pos3.issued}`);
+
+    // A note that mixes both, racing itself: the whole note still adds up.
+    const j4 = await db.job.create({ data: { companyId: company.id, code: `${code}-J4`, name: "Mixed race job" } });
+    await recordMovement({ companyId: company.id, postedBy: "t", kind: "Receipt", itemId: item.id, storeId: store.id, date: today, quantity: 60, unitCost: 25, reference: "GRN-J4" });
+    await recordMovement({ companyId: company.id, postedBy: "t", kind: "Issue", itemId: item.id, storeId: store.id, jobId: j4.id, date: today, quantity: 60, reference: "ISS-J4" });
+    const mixed = await all(3, (k) => postReturn({ companyId: company.id, postedBy: `t${k}`, jobId: j4.id, storeId: store.id, date: today, returnedBy: `Site ${k}`,
+      lines: [{ itemId: item.id, condition: "Reusable", quantity: 30 }, { itemId: item.id, condition: "Scrap", quantity: 20 }] }));
+    const mixedTook = mixed.filter((r) => r.ok).length;
+    const pos4 = await jobPosition(company.id, j4.id, item.id);
+    ok("mixed reusable and scrap notes at once stay inside what was issued", mixedTook === 1 && pos4.returned <= pos4.issued,
+      `${mixedTook} saved, ${pos4.returned} returned of ${pos4.issued}`);
+  }
 
   /* --------------------------------------------- database-added totals -- */
   const rows = await db.stockMovement.findMany({ where: { companyId: company.id }, select: { itemId: true, storeId: true, binId: true, kind: true, quantity: true, value: true, inspection: true } });

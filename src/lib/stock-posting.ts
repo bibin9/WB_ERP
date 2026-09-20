@@ -9,7 +9,7 @@ import {
   MOVEMENT_KINDS, type StockBalance,
 } from "./stock";
 import { goesBackToStock, checkReturn, RETURN_CONDITIONS } from "./returns";
-import { serialised, shelfKey, seriesKey, isUniqueClash, isBusy, BUSY_MESSAGE, type Client } from "./serialise";
+import { serialised, shelfKey, seriesKey, jobItemKey, isUniqueClash, isBusy, BUSY_MESSAGE, type Client } from "./serialise";
 
 /**
  * Turning a stock movement into accounting.
@@ -426,8 +426,8 @@ export type ReturnInput = {
 };
 
 /** How much of an item a job was issued, and how much it has sent back. */
-export async function jobPosition(companyId: string, jobId: string, itemId: string) {
-  const rows = await db.stockMovement.findMany({
+export async function jobPosition(companyId: string, jobId: string, itemId: string, client: Client = db) {
+  const rows = await client.stockMovement.findMany({
     where: { companyId, jobId, itemId, kind: { in: ["Issue", "Return to store"] } },
     select: { kind: true, quantity: true },
   });
@@ -438,8 +438,14 @@ export async function jobPosition(companyId: string, jobId: string, itemId: stri
     else returned += r.quantity;
   }
   // Scrap never moved stock, so it has to be counted from the notes instead.
-  const scrapped = await db.materialReturnLine.aggregate({
-    where: { itemId, condition: "Scrap", return: { companyId, jobId, status: "Posted" } },
+  //
+  // A note still in Draft counts too. It is a claim on what the job has out:
+  // its rows are written before its movements are, and until this counted them
+  // two notes saved at the same instant could both be told the job still had
+  // forty out and both return it. A note that fails to post is deleted, so the
+  // claim goes with it.
+  const scrapped = await client.materialReturnLine.aggregate({
+    where: { itemId, condition: "Scrap", return: { companyId, jobId, status: { in: ["Draft", "Posted"] } } },
     _sum: { quantity: true },
   });
   return {
@@ -494,23 +500,48 @@ export async function postReturn(input: ReturnInput): Promise<ReturnResult> {
   // two lines of sixty both pass against a hundred outstanding, then post a
   // hundred and twenty. Each line is therefore weighed against what the job
   // still has out AFTER the lines above it on this same note.
-  const claimed = new Map<string, number>();
+  const itemNames = new Map<string, string>();
   for (const l of lines) {
     const item = await db.item.findFirst({ where: { id: l.itemId, companyId: input.companyId } });
     if (!item) return { ok: false, error: "One of those items is not in this company." };
-
-    const pos = await jobPosition(input.companyId, input.jobId, l.itemId);
-    const already = claimed.get(l.itemId) ?? 0;
-    const permitted = checkReturn(l.quantity, pos.issued, pos.returned + already, item.name);
-    if (!permitted.ok) return permitted;
-    claimed.set(l.itemId, already + Number(l.quantity));
+    itemNames.set(l.itemId, item.name);
   }
+
+  /**
+   * What this note asks of the job, weighed against what the job still has out.
+   *
+   * Run inside the lock on each (job, item) before the note is written, and
+   * again inside the same lock before each movement — because a reusable line
+   * only becomes visible to another note when its movement exists, and that
+   * happens after the note row.
+   */
+  const askOf = async (client: Client, only?: { itemId: string; quantity: number }) => {
+    const claimed = new Map<string, number>();
+    for (const l of only ? [only] : lines) {
+      const pos = await jobPosition(input.companyId, input.jobId, l.itemId, client);
+      const already = claimed.get(l.itemId) ?? 0;
+      const permitted = checkReturn(l.quantity, pos.issued, pos.returned + already, itemNames.get(l.itemId) ?? "this item");
+      if (!permitted.ok) return permitted;
+      claimed.set(l.itemId, already + Number(l.quantity));
+    }
+    return { ok: true as const };
+  };
+
+  // One lock per item on the note, in a fixed order (serialised sorts them), so
+  // two notes for the same job queue rather than pass the same check.
+  const jobLocks = [...new Set(lines.map((l) => jobItemKey(input.companyId, input.jobId, l.itemId)))];
 
   // Numbered while holding the series lock. There was no retry here at all, so
   // two returns saved at the same moment took the same number and the second
   // failed with a database error instead of a note.
-  const writeNote = async (client: Client) =>
-    client.materialReturn.create({
+  let refused: { ok: false; error: string } | null = null;
+  const writeNote = async (client: Client) => {
+    const allowed = await askOf(client);
+    if (!allowed.ok) {
+      refused = allowed;
+      return null;
+    }
+    return client.materialReturn.create({
       data: {
         companyId: input.companyId,
         number: await nextReturnNumber(input.companyId, client),
@@ -533,15 +564,17 @@ export async function postReturn(input: ReturnInput): Promise<ReturnResult> {
       },
       include: { lines: true },
     });
+  };
   let created: Awaited<ReturnType<typeof writeNote>> | null = null;
-  for (let attempt = 0; attempt < 5 && !created; attempt++) {
+  for (let attempt = 0; attempt < 5 && !created && !refused; attempt++) {
     try {
-      created = await serialised([seriesKey(input.companyId, "MRN")], writeNote);
+      created = await serialised([...jobLocks, seriesKey(input.companyId, "MRN")], writeNote);
     } catch (e) {
       if (isBusy(e)) return { ok: false, error: BUSY_MESSAGE };
       if (!isUniqueClash(e)) throw e;
     }
   }
+  if (refused) return refused;
   if (!created) return { ok: false, error: "Could not allocate a number. Try again." };
 
   /**
@@ -572,6 +605,12 @@ export async function postReturn(input: ReturnInput): Promise<ReturnResult> {
       reference: created.number,
       notes: l.notes,
       binId: binBySort.get(l.sortOrder) ?? null,
+    }, {
+      // Held and checked together: the job's position is read and the movement
+      // written as one step, so a note that slipped past the first check cannot
+      // slip past this one.
+      lockKeys: [jobItemKey(input.companyId, input.jobId, l.itemId)],
+      guard: (client) => askOf(client, { itemId: l.itemId, quantity: l.quantity }),
     });
     if (!moved.ok) {
       // Undo the note rather than leave half of it posted.
