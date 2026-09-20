@@ -4,6 +4,8 @@
  *
  *   node scripts/perf-uat.mjs --target=rehearsal --confirm-host=<host>:<port> [--small]
  *   node scripts/perf-uat.mjs --target=uat       --confirm-host=<host>:<port> [--small | --half]
+ *   node scripts/perf-uat.mjs --target=uat       --confirm-host=<host>:<port> --signin
+ *       (the sign-in throttle under simultaneous load — scripts/perf-signin.mjs)
  *
  * The connection string comes from REHEARSAL_DATABASE_URL or UAT_DATABASE_URL
  * in .env (git-ignored) and is never printed. Production is refused outright.
@@ -69,6 +71,14 @@ try {
     const recorded = JSON.parse(readFileSync(`perf-results/${last}`, "utf8")).cleanup;
     writeFileSync("perf-results/.expect.json", JSON.stringify(recorded));
     run("node", ["scripts/perf-count.mjs"], { ...pgEnv, PERF_EXPECT: "perf-results/.expect.json" });
+  } else if (process.argv.includes("--cleanup")) {
+    // A run that lost the database cannot clean up after itself; this does it.
+    run("node", ["--experimental-strip-types", "scripts/perf-cleanup.mjs"], pgEnv);
+  } else if (process.argv.includes("--signin")) {
+    // The sign-in throttle under simultaneous load — the one part of the
+    // security work whose whole job is to hold when requests arrive together.
+    run("node", ["--experimental-strip-types", "scripts/perf-signin.mjs"], pgEnv);
+    console.log(`\nResults written to ${out.replace(/\.json$/, "-signin.json")}`);
   } else {
     run("node", ["--experimental-strip-types", "scripts/perf.mjs"], pgEnv);
     console.log(`\nResults written to ${out}`);
