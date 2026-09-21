@@ -538,6 +538,45 @@ tested, push it to `uat` only once you are content for both to reach production 
 
 Work through these in order. Each one exists because skipping it has a specific cost.
 
+The current release (September 2026) takes production from `fe0667a` to the signed-off
+`uat` commit: phase 2 (CRM, Inventory, printed documents, reports), the performance work,
+the security review fixes and the company filters. **17 migrations**, every one additive —
+new tables, new columns that are either optional or have a default, indexes and foreign
+keys. None drops, renames or rewrites anything phase 1 uses.
+
+#### Before the day
+
+These are done once, ahead of the promotion, and each one can stop it.
+
+1. **`AUTH_SECRET` is set on production.** Production environment → WB_ERP → **Variables**:
+   the name `AUTH_SECRET` must be there with a long random value. Look at the name only —
+   never copy the value into a chat, a ticket or an email. From this release the app
+   **refuses to start** without a real secret, rather than falling back to one written in
+   the source, so a missing variable takes production down at the promotion.
+
+   If it is missing or short, set it now, before promoting, with a fresh value:
+
+   ```bash
+   openssl rand -base64 48
+   ```
+
+   Setting it signs everybody out once. Nothing else depends on the old value yet: the
+   secret also encrypts the mail password on Settings → Email, and production has no mail
+   settings until this release lands.
+2. **Tally, if production uses it.** Sign in to production → Finance → Tally. The connector
+   now connects only to a public address: `localhost`, a `192.168…` or `10.…` address, or
+   a name ending `.local` or `.internal` is refused, because on a cloud host those lead
+   into the host's own network. If it is set to one of those, Tally has to be reached
+   through the office's public address or a secure tunnel before it will work again.
+   Everything else is unaffected.
+3. **`PROD_DATABASE_URL` is in `.env`** in `C:\Bibin\wb-erp`, for the backup in step 5
+   below. Add it yourself from Railway; it is git-ignored and never pasted anywhere.
+4. **Production's database password has been changed** — see *Still to do on production*
+   above. It was shared in a chat, and this release is the point where real client data
+   starts going in. If you change it, update `PROD_DATABASE_URL` in `.env` to match.
+
+#### On the day
+
 1. **Client sign-off.** Who, on which build, on what date. Pre-Prod's **Deployments** tab shows
    the commit that was tested — write it down.
 2. **Read what is shipping.** From `C:\Bibin\wb-erp`:
@@ -547,7 +586,8 @@ Work through these in order. Each one exists because skipping it has a specific 
    git log --oneline main..origin/uat
    ```
 
-   The top line should be the commit the client signed off.
+   The top line should be the commit the client signed off. For this release there are
+   about 55 commits.
 3. **Rehearse the database change.** From `C:\Bibin\wb-erp-phase2`, with it at the
    signed-off commit:
 
@@ -557,10 +597,37 @@ Work through these in order. Each one exists because skipping it has a specific 
    ```
 
    It builds a database the way production's is, applies every migration production has
-   not seen, and fails if any data went missing. It must pass.
-4. **Decide anything that changes production's data on first boot.** For the phase 2
-   release: the seed adds **six accounts to each company's chart of accounts** (stock and
-   work in progress).
+   not seen, and fails if any data went missing. It must pass. It passed on 21 September
+   2026 at `a177bf3`: all 17 migrations, every phase-1 table the same count before and
+   after, 28 phase-2 tables created, and the seed idempotent on restart.
+4. **Know what the first boot changes**, and tell the people it affects:
+   - **Chart of accounts:** two accounts are added to each company's chart where missing —
+     2250 Goods Received Not Invoiced and 5200 Site Materials. The stock ledger posts to
+     them.
+   - **Built-in roles gain the phase-2 screens their defaults include**, once. Production's
+     seed used to rewrite every built-in role on each boot, so it has never recorded what
+     was applied; this boot adds the defaults each role is missing, and prints each grant
+     in the deploy log as `<role>: granted …`. From then on, changes made in Access Control
+     stay.
+
+     | Role | Gains |
+     |---|---|
+     | Operations Manager | Inventory screens (view and approve); estimates and quotations (view) |
+     | Project Manager | Inventory screens (view and create); estimates and quotations (view); **Approve in the inbox** |
+     | Site Engineer / Planner | Inventory screens (view and create); **the approvals inbox, with Approve** |
+     | Procurement Officer | Inventory screens (full except delete); estimates and quotations (view); **the approvals inbox, with Approve** |
+     | Storekeeper | Inventory screens (view, create, edit) |
+     | QA/QC & Calibration | Inventory screens (view and edit) |
+     | Estimation / Sales Engineer | Estimates and quotations (view, create, edit) |
+
+     Director, Managing Director and Group Admin (level 80 and above) already see
+     everything. These are the defaults Pre-Prod has run with throughout UAT.
+   - **Approvals are four-eyes.** Nobody approves a request they raised, and nobody decides
+     two steps of the same one. Requests already pending on production recorded only the
+     requester's name, so the name is used for those.
+   - **Signing in:** passwords already set keep working; the 10-character rule applies at
+     the next change. Sign-ins made before the promotion last until they expire (up to
+     seven days); new ones last twelve hours, and signing out ends every session.
 5. **Back up production.** From `C:\Bibin\wb-erp`: `npm run db:backup` — see BACKUP.md. The backup contains
    passports, salaries and IBANs: it stays in `backups/`, which is git-ignored, and is
    never emailed or pasted.
@@ -575,16 +642,34 @@ Work through these in order. Each one exists because skipping it has a specific 
    If `--ff-only` refuses, **stop**. Production has something UAT never tested — a hotfix
    that was not merged back. Bring it into UAT (see *Hotfixes*), let the client re-check,
    and start this list again.
-7. **Watch production's deploy log.** Expect `Applying migrations.`, then each new
-   migration by name, the seed, the login line **without** a password, and `✓ Ready`.
-   The phase 2 release applies 13 migrations.
-8. **Check it by hand.** Sign in; open Finance, HR, Stores and CRM; confirm one company's
-   trial balance still balances.
+7. **Watch production's deploy log.** Expect `Applying migrations.`, then the 17 migrations
+   by name — the last three are `role-seeded-permissions`, `query-indexes` and
+   `security-hardening` — then the seed with its `<role>: granted …` lines, the login line
+   **without** a password, and `✓ Ready`. If the log says `AUTH_SECRET is not set`, stop
+   and go back to *Before the day*, step 1.
+8. **Check it by hand.** A 200 from the site proves only that the shell rendered.
+   - Sign in. Open Finance, HR, Inventory and CRM.
+   - Finance → Reports → Trial Balance, for one company: debits equal credits.
+   - HR & Admin → People: the **Company** filter is there, and the three tiles count
+     everyone rather than the fifty on the page.
+   - Approvals: pressing Approve on a request you raised is refused, and says why.
+   - Sign out, then sign in again.
+   - The security policy is in place, from any terminal:
+
+     ```bash
+     curl -sI https://wberp-production.up.railway.app/login
+     ```
+
+     The `content-security-policy` line carries a `'nonce-…'` value.
 9. **If it has gone wrong:** production environment → WB_ERP → **Deployments** → the deployment before
-   this one → **Redeploy**. Rehearsed: the previous version boots against the newer
-   database with *"No pending migrations to apply"*, because phase 2's migrations only add
-   tables, and columns on tables of their own — none alter or remove anything phase 1
-   uses. The new tables stay, unused, until the fix is promoted.
+   this one → **Redeploy**. The previous version boots against the newer database with
+   *"No pending migrations to apply"*, because every migration in this release only adds —
+   the new tables and columns stay, unused, until the fix is promoted. Two things to know:
+   the older seed goes back to rewriting built-in roles on each boot, so changes made in
+   Access Control after the promotion are reset by the rollback; and sign-in reverts to
+   the old lock-out rules until the fix is promoted.
+10. **Close up.** If Public Access was turned on for the production database to take the
+    backup, turn it off again. Tell the client it is live, and which build.
 
 ---
 
