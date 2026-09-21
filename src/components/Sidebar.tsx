@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { PanelLeftClose, PanelLeftOpen, ChevronDown, X } from "lucide-react";
 import { NAV, NAV_GROUPS } from "@/lib/data";
-import { SCREENS } from "@/lib/rbac";
 import { activeTenant } from "@/config/tenant";
 
 const CKEY = "wb-erp.sidebar.collapsed";
@@ -15,16 +14,11 @@ const GKEY = "wb-erp.sidebar.groups"; // closed group keys
 export default function Sidebar({ allowedScreens }: { allowedScreens: string[] }) {
   const pathname = usePathname();
   const allowed = new Set(allowedScreens);
-  // A whole-module entry (Finance/HR) shows if ANY of its screens is allowed and lands on the first accessible one.
-  const firstScreenHref = (moduleKey: string) => SCREENS.find((s) => s.module === moduleKey && allowed.has(s.key))?.href;
-  const visibleNav = NAV.flatMap((i) => {
-    if (i.alwaysShow) return [i];
-    if (i.moduleLanding) {
-      const href = allowed.has(i.screen) ? i.href : firstScreenHref(i.module);
-      return href ? [{ ...i, href }] : [];
-    }
-    return allowed.has(i.screen) ? [i] : [];
-  });
+  // A whole-module entry shows if ANY of its screens is allowed (the layout
+  // adds the module key then) and opens the module's dashboard. Keyed on the
+  // module, not its first screen: the Inventory entry used to open Items, so a
+  // site engineer with requests and stock but not Items had no Inventory entry.
+  const visibleNav = NAV.filter((i) => i.alwaysShow || allowed.has(i.screen));
   const [collapsed, setCollapsed] = useState(false);
   const [closed, setClosed] = useState<Set<string>>(new Set());
   const [ready, setReady] = useState(false);
@@ -94,7 +88,7 @@ export default function Sidebar({ allowedScreens }: { allowedScreens: string[] }
   }
 
   function NavLink({ item }: { item: (typeof NAV)[number] }) {
-    const active = isActive(item.href);
+    const active = item.moduleLanding ? isActive(`/${item.module}`) : isActive(item.href);
     const locked = item.phase > 1;
     const Icon = item.icon;
     return (

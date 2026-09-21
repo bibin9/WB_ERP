@@ -85,7 +85,7 @@ export default async function UsersPage() {
                   <UserForm
                     companies={companies.map((c) => ({ id: c.id, label: `${c.code} — ${c.name}` }))}
                     roles={grantable.map((r) => ({ id: r.id, label: r.name }))}
-                    user={{ id: u.id, name: u.name, roleId: u.memberships[0]?.role.id }}
+                    user={{ id: u.id, name: u.name, roleId: u.memberships[0]?.role.id, companyIds: u.memberships.map((m) => m.companyId) }}
                   />
                   <GuardedDelete screen="users.list" action={deleteUser.bind(null, u.id)} label={`Delete user ${u.name}?`} />
                 </div>

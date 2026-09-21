@@ -16,9 +16,13 @@ export type NavItem = {
   icon: LucideIcon;
   phase: 1 | 2 | 3 | 4;
   module: string;
-  /** Primary screen this nav entry opens (for screen-level visibility + landing). */
+  /**
+   * Primary screen this nav entry opens (for screen-level visibility + landing).
+   * For a whole module it is the module key: the entry opens the module's
+   * dashboard, shown to anyone who can open any screen in it.
+   */
   screen: string;
-  /** True for a whole-module entry (Finance/HR) that may land on any accessible screen. */
+  /** True for a whole-module entry, highlighted on every page of the module. */
   moduleLanding?: boolean;
   /** Always visible regardless of permissions (e.g. Help). */
   alwaysShow?: boolean;
@@ -45,12 +49,12 @@ export const NAV: NavItem[] = [
   // HR tabs of the same name was one more than the word can carry. It is
   // reached from the "All reports" link at the end of every module tab strip.
   // Finance (multi-screen module)
-  { label: "Finance & Accounting", href: "/finance", icon: Wallet, phase: 1, module: "finance", screen: "finance.overview", moduleLanding: true, group: "finance" },
+  { label: "Finance & Accounting", href: "/finance/dashboard", icon: Wallet, phase: 1, module: "finance", screen: "finance", moduleLanding: true, group: "finance" },
   // Human Resources (multi-screen module)
-  { label: "HR & Admin", href: "/hr", icon: Users, phase: 1, module: "hr", screen: "hr.employees", moduleLanding: true, group: "people" },
+  { label: "HR & Admin", href: "/hr/dashboard", icon: Users, phase: 1, module: "hr", screen: "hr", moduleLanding: true, group: "people" },
   // Sales & Supply Chain
-  { label: "CRM & Estimation", href: "/crm", icon: Handshake, phase: 2, module: "crm", screen: "crm.leads", group: "supply" },
-  { label: "Inventory & SCM", href: "/inventory", icon: Boxes, phase: 2, module: "inventory", screen: "inventory.items", group: "supply" },
+  { label: "CRM & Estimation", href: "/crm/dashboard", icon: Handshake, phase: 2, module: "crm", screen: "crm", moduleLanding: true, group: "supply" },
+  { label: "Inventory & SCM", href: "/inventory/dashboard", icon: Boxes, phase: 2, module: "inventory", screen: "inventory", moduleLanding: true, group: "supply" },
   // Projects & Safety
   { label: "Projects", href: "/projects", icon: HardHat, phase: 3, module: "projects", screen: "projects.list", group: "delivery" },
   { label: "HSE", href: "/hse", icon: ShieldCheck, phase: 3, module: "hse", screen: "hse.register", group: "delivery" },

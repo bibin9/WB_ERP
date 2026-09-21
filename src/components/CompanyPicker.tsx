@@ -34,8 +34,19 @@ export default function CompanyPicker({
     router.push(qs ? `${pathname}?${qs}` : pathname);
   }
 
-  // A filter with one company in it has nothing to choose between.
-  if (allowAll && companies.length < 2) return null;
+  // One company: nothing to choose, but still say whose figures these are. The
+  // filter used to vanish here, and someone who belongs to one company read
+  // its absence as the screen having no company filter at all.
+  if (companies.length === 1) {
+    const c = companies[0];
+    return (
+      <div className="flex items-center gap-2 print:hidden" title="You belong to this company only. An administrator can add you to others in Users & Roles.">
+        <span className="text-sm text-muted">{label}</span>
+        <span className="flex h-9 items-center rounded-lg border border-line bg-brand-paper px-3 text-sm text-ink">{c.code} — {c.name}</span>
+      </div>
+    );
+  }
+  if (companies.length === 0) return null;
 
   return (
     <div className="flex items-center gap-2 print:hidden">

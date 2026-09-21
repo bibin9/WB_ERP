@@ -112,8 +112,11 @@ ok("a user with no access sees no reports", visibleReports([]).length === 0);
 
 /* ===================== the tabs: shorter, and still complete ============= */
 
-ok("finance is seven groups, not sixteen tabs", FINANCE_GROUPS.length === 7, `${FINANCE_GROUPS.length}`);
-ok("HR is six", HR_GROUPS.length === 6, `${HR_GROUPS.length}`);
+// Not counting the Dashboard tab each module now opens on.
+const working = (gs) => gs.filter((g) => g.key !== "dashboard");
+ok("finance is seven groups, not sixteen tabs", working(FINANCE_GROUPS).length === 7, `${working(FINANCE_GROUPS).length}`);
+ok("HR is six", working(HR_GROUPS).length === 6, `${working(HR_GROUPS).length}`);
+ok("every module opens on its dashboard", [FINANCE_GROUPS, HR_GROUPS].every((gs) => gs[0].key === "dashboard"));
 ok("no group is longer than five screens",
   [...FINANCE_GROUPS, ...HR_GROUPS].every((g) => g.screens.length <= 5),
   [...FINANCE_GROUPS, ...HR_GROUPS].filter((g) => g.screens.length > 5).map((g) => g.key).join(", "));

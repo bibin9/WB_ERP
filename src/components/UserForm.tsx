@@ -5,7 +5,7 @@ import { Plus, X, Pencil } from "lucide-react";
 import { createUser, updateUser } from "@/app/(app)/users/actions";
 
 type Opt = { id: string; label: string };
-export type EditingUser = { id: string; name: string; roleId?: string };
+export type EditingUser = { id: string; name: string; roleId?: string; companyIds?: string[] };
 
 export default function UserForm({ companies, roles, user }: { companies: Opt[]; roles: Opt[]; user?: EditingUser }) {
   const [open, setOpen] = useState(false);
@@ -43,6 +43,8 @@ export default function UserForm({ companies, roles, user }: { companies: Opt[];
           className="space-y-4 p-5"
         >
           {editing && <input type="hidden" name="id" value={user!.id} />}
+          {/* So unticking every company reaches the server as "none", not "not sent". */}
+          {editing && <input type="hidden" name="companiesShown" value="1" />}
           {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -82,19 +84,28 @@ export default function UserForm({ companies, roles, user }: { companies: Opt[];
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-ink">Company access</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {companies.map((c) => (
-                    <label key={c.id} className="flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm">
-                      <input type="checkbox" name="companyIds" value={c.id} className="accent-[color:rgb(var(--brand-green))]" />
-                      <span className="text-ink">{c.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
             </>
           )}
+
+          {/* Which companies the person can work in — on the edit form too.
+              It used to appear only when adding someone, so a user created in
+              one company could never be given a second. */}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-ink">Company access</label>
+            <div className="grid grid-cols-2 gap-2">
+              {companies.map((c) => (
+                <label key={c.id} className="flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm">
+                  <input type="checkbox" name="companyIds" value={c.id} defaultChecked={user?.companyIds?.includes(c.id)} className="accent-[color:rgb(var(--brand-green))]" />
+                  <span className="text-ink">{c.label}</span>
+                </label>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-muted">
+              {editing
+                ? "Tick a company to give access, untick to take it away. A company added here uses the role chosen above, or their current role."
+                : "They see only the companies ticked here."}
+            </p>
+          </div>
 
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={() => setOpen(false)} className="btn-ghost">Cancel</button>

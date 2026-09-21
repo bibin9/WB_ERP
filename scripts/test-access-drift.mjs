@@ -57,8 +57,12 @@ ok("every screen is gated, or deliberately open", ungated.length === 0,
   ungated.length ? ungated.join(", ") : `${pages.length} screens checked`);
 
 const used = new Set();
+const MODULE_KEYS = ["finance", "hr", "inventory", "crm"];
 for (const p of pages) {
   const m = read(p).match(/requireAccess\("([^"]+)"/);
+  // A module's dashboard is guarded by the module — anyone with any of its
+  // screens (lib/moduletabs.ts). Only a dashboard may ask for a module.
+  if (m && MODULE_KEYS.includes(m[1]) && p.endsWith(`/${m[1]}/dashboard/page.tsx`)) continue;
   if (m) used.add(m[1]);
 }
 const unknown = [...used].filter((k) => !screens.includes(k));

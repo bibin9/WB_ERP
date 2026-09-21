@@ -3,7 +3,7 @@ import {
   HardHat, Building2, Scale, Banknote, Lock, Landmark, Percent, Settings2, PenLine,
   FolderOpen, UserPlus, Wallet, CalendarDays, CalendarCheck, BadgeCheck, UserMinus,
   ShieldAlert, ClipboardList, TrendingUp, Timer, UsersRound, FileText, Send, HandCoins,
-  Boxes, Package, PackagePlus, Warehouse, Wrench, Undo2, Gauge, Calculator, FileSignature, type LucideIcon,
+  Boxes, Package, PackagePlus, Warehouse, Wrench, Undo2, Gauge, Calculator, FileSignature, LayoutDashboard, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -37,10 +37,25 @@ export type TabGroup = {
   screens: TabScreen[];
 };
 
+/**
+ * The Dashboard tab leads every module. It is guarded by the module rather
+ * than by a screen of its own: anyone who can open any screen in the module
+ * can open its dashboard, and each figure on it is shown only to those who may
+ * open the screen it comes from. The tab wrappers add this key to the allowed
+ * list when the module is visible at all.
+ */
+export const DASHBOARD = "module-dashboard";
+
 export const FINANCE_GROUPS: TabGroup[] = [
   {
-    key: "overview", label: "Overview", icon: LayoutGrid,
-    screens: [{ href: "/finance", label: "Overview", icon: LayoutGrid, screen: "finance.overview" }],
+    key: "dashboard", label: "Dashboard", icon: LayoutDashboard,
+    screens: [{ href: "/finance/dashboard", label: "Dashboard", icon: LayoutDashboard, screen: DASHBOARD }],
+  },
+  {
+    // "Accounts" rather than "Overview" now that the Dashboard tab leads: this
+    // is the chart of accounts, journals and trial balance.
+    key: "overview", label: "Accounts", icon: LayoutGrid,
+    screens: [{ href: "/finance", label: "Accounts", icon: LayoutGrid, screen: "finance.overview" }],
   },
   {
     key: "entry", label: "Entry", icon: PenLine,
@@ -99,6 +114,10 @@ export const FINANCE_GROUPS: TabGroup[] = [
 
 export const HR_GROUPS: TabGroup[] = [
   {
+    key: "dashboard", label: "Dashboard", icon: LayoutDashboard,
+    screens: [{ href: "/hr/dashboard", label: "Dashboard", icon: LayoutDashboard, screen: DASHBOARD }],
+  },
+  {
     key: "people", label: "People", icon: Users,
     screens: [
       { href: "/hr", label: "Employees", icon: Users, screen: "hr.employees" },
@@ -146,6 +165,10 @@ export const HR_GROUPS: TabGroup[] = [
  * ceremony around a list short enough to read.
  */
 export const INVENTORY_GROUPS: TabGroup[] = [
+  {
+    key: "dashboard", label: "Dashboard", icon: LayoutDashboard,
+    screens: [{ href: "/inventory/dashboard", label: "Dashboard", icon: LayoutDashboard, screen: DASHBOARD }],
+  },
   {
     key: "stock", label: "Stock on Hand", icon: Boxes,
     screens: [{ href: "/inventory/stock", label: "Stock on Hand", icon: Boxes, screen: "inventory.stock" }],
@@ -213,6 +236,10 @@ export function activeGroup(groups: TabGroup[], pathname: string): TabGroup | un
  * this short is quicker to read than it is to navigate.
  */
 export const CRM_GROUPS: TabGroup[] = [
+  {
+    key: "dashboard", label: "Dashboard", icon: LayoutDashboard,
+    screens: [{ href: "/crm/dashboard", label: "Dashboard", icon: LayoutDashboard, screen: DASHBOARD }],
+  },
   {
     key: "pipeline", label: "Pipeline", icon: TrendingUp,
     screens: [{ href: "/crm", label: "Pipeline", icon: TrendingUp, screen: "crm.leads" }],

@@ -2,14 +2,17 @@ import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
 import ForcePasswordChange from "@/components/ForcePasswordChange";
 import { getSession } from "@/lib/auth";
-import { visibleScreens } from "@/lib/rbac";
+import { visibleModules, visibleScreens } from "@/lib/rbac";
 import { redirect } from "next/navigation";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
   // A signed cookie whose session has ended (lib/auth.ts): clear it and sign in again.
   if (!session) redirect("/api/session-ended");
-  const allowedScreens = visibleScreens(session);
+  // The screens this person may open, plus each module with any of them — a
+  // module's sidebar entry opens its dashboard (lib/data.ts).
+  const screens = visibleScreens(session);
+  const allowedScreens = [...screens, ...visibleModules(session)];
   return (
     <div className="flex h-screen overflow-hidden">
       <ForcePasswordChange active={session?.user.mustReset ?? false} />

@@ -112,9 +112,37 @@ export async function updateUser(formData: FormData): Promise<Result> {
     roleName = role.name;
   }
 
-  await db.user.update({ where: { id }, data: { name } });
-  if (roleId) await db.companyMembership.updateMany({ where: { userId: id }, data: { roleId } });
-  await audit({ action: "Updated", entity: "User", entityId: id, summary: `Updated user ${name}${roleName ? ` — role set to ${roleName}` : ""}` });
+  // Company access. Sent by the edit form since it gained the company boxes;
+  // a caller that sends none leaves the companies as they are.
+  const companyIds = [...new Set(formData.getAll("companyIds").map(String).filter(Boolean))];
+  const sentCompanies = formData.has("companyIds") || formData.get("companiesShown") === "1";
+  const current = t.user.memberships.map((m) => m.companyId);
+  const adding = sentCompanies ? companyIds.filter((c) => !current.includes(c)) : [];
+  const removing = sentCompanies ? current.filter((c) => !companyIds.includes(c)) : [];
+  if (adding.length || removing.length) {
+    // Nobody widens their own reach, for the same reason nobody sets their own role.
+    if (self) return { ok: false, error: "You cannot change your own companies. Ask someone more senior." };
+    if (companyIds.length === 0) return { ok: false, error: "Leave at least one company ticked. To stop someone signing in, deactivate them instead." };
+    const inGroup = await db.company.count({ where: { id: { in: adding }, tenantId: session.tenant.id } });
+    if (inGroup !== adding.length) return { ok: false, error: "One of those companies is not in this group." };
+  }
+  // A company being added takes the role chosen, or the role they hold now.
+  const newRoleId = roleId || t.user.memberships[0]?.roleId;
+  if (adding.length && !newRoleId) return { ok: false, error: "Choose a role for the companies being added." };
+
+  await db.$transaction([
+    db.user.update({ where: { id }, data: { name } }),
+    ...(roleId ? [db.companyMembership.updateMany({ where: { userId: id }, data: { roleId } })] : []),
+    ...(removing.length ? [db.companyMembership.deleteMany({ where: { userId: id, companyId: { in: removing } } })] : []),
+    ...(adding.length ? [db.companyMembership.createMany({ data: adding.map((companyId) => ({ userId: id, companyId, roleId: newRoleId! })) })] : []),
+  ]);
+  const codes = async (ids: string[]) => (await db.company.findMany({ where: { id: { in: ids } }, select: { code: true } })).map((c) => c.code).join(", ");
+  const changes = [
+    roleName ? `role set to ${roleName}` : "",
+    adding.length ? `added to ${await codes(adding)}` : "",
+    removing.length ? `removed from ${await codes(removing)}` : "",
+  ].filter(Boolean);
+  await audit({ action: "Updated", entity: "User", entityId: id, summary: `Updated user ${name}${changes.length ? ` — ${changes.join("; ")}` : ""}` });
   revalidatePath("/users");
   return { ok: true };
 }

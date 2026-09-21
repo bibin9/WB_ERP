@@ -54,10 +54,13 @@ for (const file of Object.values(SCREEN_FILES)) {
 ok("the module has a tab set", INVENTORY_GROUPS.length > 0);
 ok("no group is longer than five screens",
   INVENTORY_GROUPS.every((g) => g.screens.length <= 5));
+// The Dashboard tab is guarded by the module, not a screen of its own.
+const WORK_GROUPS = INVENTORY_GROUPS.filter((g) => g.key !== "dashboard");
+ok("the strip opens on the dashboard", INVENTORY_GROUPS[0].key === "dashboard" && INVENTORY_GROUPS[0].screens[0].href === "/inventory/dashboard");
 ok("every tab points at a registered screen",
-  INVENTORY_GROUPS.every((g) => g.screens.every((s) => SCREENS.some((k) => k.key === s.screen))));
+  WORK_GROUPS.every((g) => g.screens.every((s) => SCREENS.some((k) => k.key === s.screen))));
 ok("and at the href that screen actually has",
-  INVENTORY_GROUPS.every((g) =>
+  WORK_GROUPS.every((g) =>
     g.screens.every((s) => SCREENS.find((k) => k.key === s.screen)?.href === s.href)));
 
 // Every screen in the module is reachable from the strip, or it is a screen
