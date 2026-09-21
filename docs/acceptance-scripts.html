@@ -270,6 +270,13 @@
     { id:"ADM-10", r:"ADM", p:"1", t:"The audit trail shows who changed what",
       s:["Open Audit Log and search for “Printed document settings”.","Search for your own name."],
       e:"Your change is listed with the time and your name. The artwork itself is not dumped into the log. Nothing in the log can be edited or deleted." },
+    { id:"ADM-11", r:"ADM", p:"1", t:"Give someone a second company",
+      s:["Open Users & Roles and click the pencil next to the HR tester.","Tick a second company, e.g. WBTS, and click Save changes.","Sign in as the HR tester and open HR & Admin → People.","Back as administrator, untick every company on the same user and save."],
+      e:"The user's line shows both companies. The HR tester's Company filter now offers All my companies, WBE and WBTS. With every company unticked the form refuses: “Leave at least one company ticked”. The Audit Log says which company was added.",
+      n:"Put the tester back to WBE only afterwards if other checks expect it." },
+    { id:"ADM-12", r:"ADM", p:"2", t:"The company is always shown",
+      s:["Sign in as any tester who belongs to one company only.","Open HR & Admin → People, then any dashboard."],
+      e:"Beside the list is the company name, e.g. “Company: WBE — WB Engineering”. It cannot be changed — there is nothing else to choose — but the screen says whose records these are." },
 
     // ================= Estimator
     { id:"EST-01", r:"EST", p:"2", t:"Log a new enquiry",
@@ -309,6 +316,10 @@
     { id:"EST-12", r:"EST", p:"2", t:"Record a lost enquiry, and see why work is lost",
       s:["Move an enquiry to Lost. Give the reason and who won it.","Open All reports → Where the Work Comes From."],
       e:"You cannot mark it lost without a reason. The report groups lost work by reason, ordered by value, and lists who took it." },
+
+    { id:"EST-13", r:"EST", p:"2", t:"The sales dashboard agrees with the pipeline",
+      s:["Click CRM & Estimation in the menu. It opens on the Dashboard tab.","Note Open pipeline and the value beside each stage.","Open the Pipeline tab and add up the open deals in one stage."],
+      e:"The stage value on the dashboard is the sum of that stage's deals on the Pipeline. Likely to win is smaller than Open pipeline. Quotations expiring within 14 days are listed, soonest first, and each line opens the quotation list." },
 
     // ================= Operations & Directors
     { id:"APR-01", r:"APR", p:"2", t:"Approve a quotation through the route",
@@ -350,6 +361,9 @@
       s:["Open Approvals. Find the request you raised in SITE-01 and click Approve.","Now approve the Project Manager's request from PM-03, which is waiting for Site Engineer / Planner."],
       e:"Your own request is refused with “You raised this request, so someone else has to approve it.” The Project Manager's request is approved and moves on to the Project Manager step. If your role cannot approve at all, the screen says so rather than doing nothing.",
       n:"Needs PM-03. Nobody approves what they raised — the same rule as a cheque needing a second signature." },
+    { id:"SITE-05", r:"SITE", p:"1", t:"Inventory is in the menu, with only your figures",
+      s:["Look at the menu for Inventory & SCM and click it.","Look at what the Stores Dashboard shows."],
+      e:"Inventory & SCM is in the menu and opens the Stores Dashboard. It shows stock value, items running low and requests waiting. There is no Purchase orders panel and no supplier prices — those belong to Procurement." },
     { id:"SITE-04", r:"SITE", p:"2", t:"A request must ask for something",
       s:["Start a new request, remove every line, and click Send for approval."],
       e:"It is refused, asking for at least one line saying what is needed and how much." },
@@ -434,6 +448,10 @@
       s:["Open Stock on Hand and look at T-CBL-4C16 in T-MAIN."],
       e:"The quantity equals received minus issued plus reusable returns. Anything at or below its reorder level is highlighted. No balance is negative." },
 
+    { id:"STR-12", r:"STR", p:"2", t:"The stores dashboard shows what is running low",
+      s:["Open an item and set its reorder level above what is on hand. Save.","Click Inventory & SCM in the menu to open the Stores Dashboard."],
+      e:"Running low counts that item, and it is listed with what is on hand against its reorder level, the lowest first. Stock value by store adds up to the total on the Stock on Hand screen." },
+
     // ================= QA/QC
     { id:"QA-01", r:"QA", p:"2", t:"Pass a delivery",
       s:["Open Receive & Issue, find the delivery showing Pending, click Inspect.","Pass it and record the certificate number in the notes."],
@@ -490,6 +508,9 @@
     { id:"FC-05", r:"FC", p:"1", t:"Work in progress",
       s:["Open Job Costing → Work in Progress."],
       e:"Each contract shows how far through it is by cost against budget, and whether billing is ahead or behind. A job with no budget says “budget not set” rather than 0%." },
+    { id:"FC-07", r:"FC", p:"1", t:"The finance dashboard agrees with the reports",
+      s:["Click Finance & Accounting in the menu. It opens on the Dashboard tab.","Note Income this year, Profit this year and Customers owe us.","Open Reports → Profit & Loss for 1 January to today, then Outstanding & Ageing."],
+      e:"Income and profit on the dashboard equal the Profit & Loss for the year to date. Customers owe us equals the receivables total on Outstanding & Ageing. Each tile opens the screen its figure comes from." },
     { id:"FC-06", r:"FC", p:"1", t:"Approve the payroll run HR prepared",
       s:["Open HR → Payroll. Find the run HR prepared in HR-03 and check the totals.","Click Approve. Then Mark paid."],
       e:"The run is Approved, then Paid, and the wage cost is posted to the books. HR can prepare a run but not approve it, so the salary run is always checked by a second person.",
@@ -524,6 +545,9 @@
     { id:"HR-09", r:"HR", p:"1", t:"Document expiry warnings",
       s:["Open Compliance & Expiry."],
       e:"Visas, Emirates IDs, passports and labour cards due to expire are listed before they lapse." },
+    { id:"HR-10", r:"HR", p:"1", t:"The HR dashboard: today, and what is waiting",
+      s:["Click HR & Admin in the menu. It opens on the Dashboard tab.","Mark today's attendance for two people, then come back to the dashboard.","Raise a leave request for someone and come back again."],
+      e:"Present today goes up by the two you marked, and Not yet marked goes down. Leave to decide counts the new request and lists it with its start date. Documents lapsing lists visas, Emirates IDs, labour cards and passports expiring within 60 days. No salary or pay figure appears anywhere on the dashboard." },
 
     // ================= Site Timekeeper
     { id:"TK-01", r:"TK", p:"1", t:"Record the day's muster",
@@ -531,7 +555,7 @@
       e:"The muster is saved and the hours sit against each job, ready for job costing." },
     { id:"TK-02", r:"TK", p:"1", t:"Only attendance, nothing else",
       s:["Look at the menu.","Type /hr/payroll at the end of the address and press Enter. Then try /hr and /finance."],
-      e:"The menu shows only the Dashboard and Attendance & Muster. Every other address returns you to the dashboard — no salaries, payroll, employee profiles or finance screens are shown." },
+      e:"The menu shows only the Dashboard and HR & Admin. HR & Admin opens an HR dashboard showing only today's muster, with Attendance & Muster as the one other tab. Every other address returns you to the dashboard — no salaries, payroll, employee profiles or finance screens are shown." },
   ];
 
   /* ------------------------------------------------------------ state */

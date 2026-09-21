@@ -250,13 +250,26 @@
     <h4>The company switcher</h4>
     <span class="where">Top-left, above the page</span>
     <p>Changes which company's records you are looking at. It follows you as you move between screens, so you will not find yourself reading the wrong company's figures after a few clicks.</p>
-    <p>Screens that bring every company together — People, Approvals, the Dashboard, Overtime, Man-hours, Compliance &amp; Expiry, Separation and HR Tasks — have their own <em>Company</em> filter above the list. It starts on <em>All my companies</em>; pick one to see only that company. You only ever see the companies you belong to.</p>
+    <p>Screens that bring every company together — People, Approvals, the Dashboard and each module's dashboard, Overtime, Man-hours, Compliance &amp; Expiry, Separation and HR Tasks — have their own <em>Company</em> filter above the list. It starts on <em>All my companies</em>; pick one to see only that company. You only ever see the companies you belong to.</p>
+    <p>If you belong to one company only, the filter shows that company's name instead of a list — there is nothing to choose, but the screen still says whose records you are reading. To work in another company, ask an administrator to add it to your user.</p>
   </div>
   <div class="entry">
     <h4>The tabs across the top</h4>
     <span class="where">Inside Finance, HR, CRM &amp; Estimation, and Inventory &amp; SCM</span>
-    <p>Each module keeps its screens as tabs along the top. Finance and HR hold a lot of screens, so their tabs come in two levels. The top row is the <em>area</em> — Entry, Registers, Job Costing, Reports, Tax, Setup. When the area you opened has more than one screen in it, a smaller second row appears underneath listing them.</p>
+    <p>Each module keeps its screens as tabs along the top. The first tab is always <em>Dashboard</em> — see below. Finance and HR hold a lot of screens, so their tabs come in two levels. The top row is the <em>area</em> — Accounts, Entry, Registers, Job Costing, Reports, Tax, Setup. When the area you opened has more than one screen in it, a smaller second row appears underneath listing them.</p>
     <p>At the far right of that row, <em>All reports</em> opens the full list of reports across the whole system.</p>
+  </div>
+  <div class="entry" id="dashboards">
+    <h4>A dashboard for each module</h4>
+    <span class="where">Finance, HR, CRM &amp; Estimation, and Inventory &amp; SCM — the first tab</span>
+    <p>Clicking a module in the menu opens its dashboard: what needs someone today, and how that part of the business is doing. The main <em>Dashboard</em> at the top of the menu is the same idea across every module at once.</p>
+    <ul>
+      <li><strong>Finance</strong> — income and profit this year, with the last six months side by side; cash in the bank; what customers owe and what we owe suppliers; cheques falling due in the next 30 days; drafts not yet issued; retention; VAT this quarter.</li>
+      <li><strong>HR</strong> — who is present today and who is not yet marked; leave waiting for a decision; visas, Emirates IDs, labour cards and passports expiring within 60 days; the latest payroll runs; overtime and hours booked this month; certificates, vacancies and settlements. No salary appears on it.</li>
+      <li><strong>Stores</strong> (Inventory &amp; SCM) — what the stock is worth and in which store; items at or below their reorder level; material requests waiting to be ordered; purchase orders still to arrive, and late ones; deliveries waiting for inspection; instruments out of calibration.</li>
+      <li><strong>Sales</strong> (CRM &amp; Estimation) — the open pipeline by stage and what it is likely to be worth; what has been won this year and how often; quotations expiring in the next 14 days, awaiting approval, or accepted.</li>
+    </ul>
+    <p>Every figure is a link to the screen it comes from, and the dashboard only shows figures from screens <em>your</em> role can open. So two people opening the same dashboard can see different panels: a site engineer sees stock and requests but not purchase orders or supplier prices; a timekeeper sees only today's muster. A coloured bar along the top of a figure marks what needs attention — gold for soon, red for overdue or expired, green for all well.</p>
   </div>
   <div class="note do"><b>The quickest way to learn a screen</b>Click the <strong>?</strong> in the top bar. It shows help for the exact page you are looking at, in the same plain English as this handbook.</div>
   <h3>Small things worth knowing</h3>
@@ -295,7 +308,7 @@
     <li><b>Complete each company's details</b>
       Companies → the pencil icon. Fill in the <strong>VAT registration number (TRN)</strong>, and the address split into line, city and emirate. No invoice can be issued without the TRN — a tax invoice is not valid without it — and the emirate travels as its own field on an electronic invoice.</li>
     <li><b>Check the chart of accounts</b>
-      Finance → Overview. A standard UAE contracting chart is already there. Mark every bank and petty cash account with <em>Control account → Cash or bank</em>: that is what the Cash Flow Forecast starts from, and a missed one makes the forecast start short.</li>
+      Finance → Accounts. A standard UAE contracting chart is already there. Mark every bank and petty cash account with <em>Control account → Cash or bank</em>: that is what the Cash Flow Forecast starts from, and a missed one makes the forecast start short.</li>
     <li><b>Enter opening balances</b>
       If you are moving from another system, put each account's closing balance in as its opening balance, and set the date those balances are stated as at. Do this before posting anything new.</li>
     <li><b>Add customers and suppliers</b>
@@ -954,6 +967,7 @@
   <h3>Managing users</h3>
   <ul>
     <li><strong>Who you can manage:</strong> people and roles below your own approval level. A Director can manage a Finance Controller but not another Director or the Group Admin; only the Group Admin manages everyone. Nobody changes their own role.</li>
+    <li><strong>Change someone's companies:</strong> the pencil icon. Tick a company to give them access to it, untick to take it away. A company you add uses the role chosen on the same form, or the role they already hold. At least one company must stay ticked — to stop someone signing in, deactivate them instead — and nobody can change their own companies.</li>
     <li><strong>Reset a password:</strong> the key icon. A temporary password is shown once — hand it over, and the user must set their own on first sign-in. A password you type when adding a user works the same way: it is only for their first sign-in.</li>
     <li><strong>Lock or unlock:</strong> the lock icon. Unlocking also lifts any sign-in pause on the account.</li>
     <li><strong>Master data:</strong> the dropdown lists used across the system — departments, designations, grades, leave types, nationalities. Keeping these tidy keeps every dropdown clean.</li>

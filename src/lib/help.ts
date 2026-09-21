@@ -66,13 +66,26 @@ export const HELP_ARTICLES: HelpArticle[] = [
     id: "module-tabs", category: "Getting Started", screens: ["/finance", "/hr"],
     title: "The tabs across the top of Finance and HR",
     summary: "A top row of areas, and a second row for the screens inside the one you are in.",
-    body: "Finance and HR each hold a lot of screens, so the tabs come in two levels. The top row is the area — Entry, Registers, Job Costing, Reports, Tax, Setup. When the area you have opened contains more than one screen, a smaller second row appears underneath listing them. Areas with only one screen, such as Job Costing, show no second row.",
+    body: "Finance and HR each hold a lot of screens, so the tabs come in two levels. The first tab is the module's Dashboard. The top row is the area — Accounts, Entry, Registers, Job Costing, Reports, Tax, Setup. When the area you have opened contains more than one screen, a smaller second row appears underneath listing them. Areas with only one screen, such as Job Costing, show no second row.",
     steps: [
       "Click an area in the top row. It opens the first screen in that area.",
       "Use the small round buttons underneath to move between the screens in that area.",
       "'All reports' at the right-hand end opens the full list across every module — it is the only way in, so it is worth remembering.",
     ],
     tip: "The company you are looking at travels with you between tabs, so you will not find yourself reading the wrong company's figures after clicking around.",
+  },
+  {
+    id: "module-dashboards", category: "Getting Started", screens: ["/finance/dashboard", "/hr/dashboard", "/inventory/dashboard", "/crm/dashboard", "/dashboard"],
+    title: "Module dashboards",
+    summary: "Each module opens on a page that says what needs someone today, and how that area is doing.",
+    body: "Clicking Finance, HR, CRM or Inventory in the menu opens that module's dashboard — its first tab. The figures at the top are the headlines; the panels below list what needs attention, most urgent first. Every figure is a link: click it to open the screen it came from. You only see figures from screens your role can open, so a colleague may see more or fewer panels than you.",
+    steps: [
+      "Click the module in the left menu. The Dashboard tab opens.",
+      "Use 'Figures for' to look at one company, or all the companies you belong to.",
+      "Read the coloured bar along the top of each figure: gold means soon, red means overdue or expired, green means all well.",
+      "Click a figure or an 'Open' link to go to the screen behind it.",
+    ],
+    tip: "If a panel you expected is missing, your role does not include the screen it comes from. The dashboard never shows more than the module itself would.",
   },
   {
     id: "roles-access", category: "Getting Started", screens: [],
