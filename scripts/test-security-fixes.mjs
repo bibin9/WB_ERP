@@ -25,7 +25,7 @@
 import fs from "node:fs";
 import { importLibs } from "./lib-shim.mjs";
 
-const libs = await importLibs(["db", "rank", "password-policy", "signin-throttle", "net-guard", "session-token", "csp", "company-scope"]);
+const libs = await importLibs(["db", "rank", "password-policy", "signin-throttle", "net-guard", "session-token", "csp", "company-scope", "approval-visibility"]);
 const { db } = libs.db;
 const { outranks, cleanLevel, levelOf, TOP_LEVEL } = libs.rank;
 const { passwordProblem, temporaryPassword, MIN_PASSWORD_LENGTH } = libs["password-policy"];
@@ -202,6 +202,39 @@ console.log("\nCompany filters");
   ok("every group-wide screen has a company filter", missing.length === 0, missing.join(", ") || `${screens.length} screens`);
   ok("HR Tasks lists only your own companies' tasks", /id: \{ in: session\.companies\.map\(\(c\) => c\.id\) \}/.test(read("src/app/(app)/hr/tasks/page.tsx")));
   ok("the People tiles count everyone matching, not the page on screen", /db\.employee\.count\(\{ where: \{ \.\.\.empWhere, status: "Active" \} \}\)/.test(read("src/app/(app)/hr/page.tsx")) && !/employees\.filter\(\(e\) => e\.status === "Active"\)/.test(read("src/app/(app)/hr/page.tsx")));
+}
+
+/* ==================================== approvals: who sees which request == */
+console.log("\nApprovals — who sees which request");
+{
+  const { canSeeRequest, waitingFor } = libs["approval-visibility"];
+  // A sales quotation (Ops Manager 70 → Director 80), raised by the estimator.
+  const quote = { requestedById: "est", requestedBy: "Estimator", status: "Pending", currentStep: 1,
+    steps: [{ order: 1, requiredLevel: 70, decidedById: null, decidedBy: null }, { order: 2, requiredLevel: 80, decidedById: null, decidedBy: null }] };
+  // A material request (Site Eng 35 → PM 50 → Procurement 45), raised by the site engineer.
+  const mr = { requestedById: "site", requestedBy: "Site", status: "Pending", currentStep: 1,
+    steps: [{ order: 1, requiredLevel: 35, decidedById: null, decidedBy: null }, { order: 2, requiredLevel: 50, decidedById: null, decidedBy: null }, { order: 3, requiredLevel: 45, decidedById: null, decidedBy: null }] };
+  const who = (id, level, mayApprove = true) => ({ id, name: id, level, mayApprove });
+
+  ok("a storekeeper does not see sales quotations", !canSeeRequest(quote, who("store", 20, false)));
+  ok("a site engineer does not see sales quotations", !canSeeRequest(quote, who("site2", 35)));
+  ok("the estimator who raised it sees their own quotation", canSeeRequest(quote, who("est", 40)));
+  ok("the Operations Manager who approves it sees it", canSeeRequest(quote, who("ops", 70)));
+  ok("directors see everything", canSeeRequest(quote, who("dir", 80)) && canSeeRequest(mr, who("dir", 80)));
+  ok("someone who can only view the inbox sees only what they raised", !canSeeRequest(mr, who("acc", 45, false)));
+  ok("someone outside the company sees nothing", !canSeeRequest(mr, who("x", -1)));
+  const decided = { ...quote, steps: [{ ...quote.steps[0], decidedById: "ops2" }, quote.steps[1]] };
+  ok("whoever decided a step keeps seeing the request", canSeeRequest(decided, who("ops2", 20, false)));
+
+  ok("my queue: the site engineer who raised it is not asked to approve it", !waitingFor(mr, who("site", 35)));
+  ok("my queue: another site engineer is", waitingFor(mr, who("site2", 35)));
+  const atPm = { ...mr, currentStep: 2, steps: [{ ...mr.steps[0], decidedById: "pm", status: "Approved" }, mr.steps[1], mr.steps[2]] };
+  ok("my queue: whoever decided step one is not asked for step two", !waitingFor(atPm, who("pm", 50)));
+  ok("my queue: nobody without Approve is asked", !waitingFor(mr, who("site3", 35, false)));
+
+  const page = read("src/app/(app)/approvals/page.tsx");
+  ok("the inbox lists only the requests you may see", /const visible = requests\.filter/.test(page) && /\{visible\.map\(/.test(page) && !/\{requests\.map\(/.test(page));
+  ok("the dashboard counts only what is waiting for you", /waitingFor\(r,/.test(read("src/app/(app)/dashboard/page.tsx")));
 }
 
 await db.$disconnect();

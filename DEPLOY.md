@@ -604,24 +604,38 @@ These are done once, ahead of the promotion, and each one can stop it.
    - **Chart of accounts:** two accounts are added to each company's chart where missing —
      2250 Goods Received Not Invoiced and 5200 Site Materials. The stock ledger posts to
      them.
-   - **Built-in roles gain the phase-2 screens their defaults include**, once. Production's
-     seed used to rewrite every built-in role on each boot, so it has never recorded what
-     was applied; this boot adds the defaults each role is missing, and prints each grant
-     in the deploy log as `<role>: granted …`. From then on, changes made in Access Control
-     stay.
+   - **Built-in roles are brought to the least-privilege defaults**, once. Production's seed
+     used to rewrite every built-in role on each boot, so it has never recorded what was
+     applied. This boot adds the defaults each role is missing **and withdraws what the old
+     defaults gave that the new ones do not** — the September 2026 access review found
+     whole-module grants that let a Site Engineer read every salary. Each change is printed
+     in the deploy log as `<role>: granted …` or `<role>: withdrew …`. From then on, changes
+     made in Access Control stay.
 
-     | Role | Gains |
-     |---|---|
-     | Operations Manager | Inventory screens (view and approve); estimates and quotations (view) |
-     | Project Manager | Inventory screens (view and create); estimates and quotations (view); **Approve in the inbox** |
-     | Site Engineer / Planner | Inventory screens (view and create); **the approvals inbox, with Approve** |
-     | Procurement Officer | Inventory screens (full except delete); estimates and quotations (view); **the approvals inbox, with Approve** |
-     | Storekeeper | Inventory screens (view, create, edit) |
-     | QA/QC & Calibration | Inventory screens (view and edit) |
-     | Estimation / Sales Engineer | Estimates and quotations (view, create, edit) |
+     | Role | Gains | Loses |
+     |---|---|---|
+     | Operations Manager | Inventory screens (view and approve); estimates and quotations (view) | **Employees, Payroll, Separation, Leave, Onboarding, HR Policy** — no salaries |
+     | Finance Controller | **Payroll: view and approve** — now approves the run HR prepares | — |
+     | Project Manager | Material requests (create); stock, orders and returns (view); estimates and quotations (view); **Approve in the inbox** | **All salary-bearing HR screens**; creating items |
+     | Site Engineer / Planner | Material requests (create); stock and returns (view); **the approvals inbox, with Approve** | **All salary-bearing HR screens**, overtime, workforce; creating items |
+     | Procurement Officer | Enquiries, orders and requests (with approve); supplier performance and stock (view); **the approvals inbox, with Approve** | The CRM pipeline |
+     | Storekeeper | Receive & issue (create); stores and returns (create, edit); stock, requests and orders (view) | Creating and editing items |
+     | QA/QC & Calibration | Inspections on Receive & Issue; equipment and calibration; stock (view) | Items |
+     | HSE Officer | — | **Employees, Payroll, Separation, Leave, Onboarding, HR Policy**, overtime, man-hours, workforce, tasks |
+     | HR Officer | — | **Approving payroll** — the Finance Controller approves it |
+     | Finance / Accounts | **Issuing invoices** | Editing Finance Settings, Tally and Corporate Tax (view only) |
+     | Estimation / Sales Engineer | Estimates and quotations (view, create, edit); **issuing approved quotations** | — |
+     | **Site Timekeeper** (new) | Attendance & Muster (view, record, correct) and the dashboard — nothing else | — |
 
      Director, Managing Director and Group Admin (level 80 and above) already see
-     everything. These are the defaults Pre-Prod has run with throughout UAT.
+     everything. These are the defaults Pre-Prod runs with for UAT.
+
+     **Tell HR and the Finance Controller before the day:** from this release the Finance
+     Controller (or a Director) approves and pays the monthly run; HR prepares it.
+
+     **Check first:** if production already has a role called *Site Timekeeper* that an
+     administrator created by hand, the seed now manages it as a built-in role and withdraws
+     anything beyond attendance. Look at it in Access Control before promoting.
    - **Approvals are four-eyes.** Nobody approves a request they raised, and nobody decides
      two steps of the same one. Requests already pending on production recorded only the
      requester's name, so the name is used for those.
@@ -644,7 +658,7 @@ These are done once, ahead of the promotion, and each one can stop it.
    and start this list again.
 7. **Watch production's deploy log.** Expect `Applying migrations.`, then the 17 migrations
    by name — the last three are `role-seeded-permissions`, `query-indexes` and
-   `security-hardening` — then the seed with its `<role>: granted …` lines, the login line
+   `security-hardening` — then the seed with its `<role>: granted …` and `<role>: withdrew …` lines, the login line
    **without** a password, and `✓ Ready`. If the log says `AUTH_SECRET is not set`, stop
    and go back to *Before the day*, step 1.
 8. **Check it by hand.** A 200 from the site proves only that the shell rendered.

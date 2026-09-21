@@ -14,6 +14,7 @@ import { deletePayrollRun, deleteAdvance } from "./actions";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
+import { can } from "@/lib/rbac";
 import ExportButton from "@/components/ExportButton";
 
 export const dynamic = "force-dynamic";
@@ -67,7 +68,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
                       {r._count.payslips} {r._count.payslips === 1 ? "payslip" : "payslips"} · AED {money(total)} · by {r.runBy}
                     </div>
                   </div>
-                  <RunStatus id={r.id} status={r.status} />
+                  <RunStatus id={r.id} status={r.status} canApprove={can(session, "hr.payroll", "approve")} />
                   {r.status === "Draft" && <GuardedDelete screen="hr.payroll" action={deletePayrollRun.bind(null, r.id)} label={`Delete draft payroll ${r.period}?`} />}
                 </div>
               );

@@ -229,7 +229,8 @@
     { id: "QA", name: "QA/QC & Calibration", login: "QA/QC & Calibration", intro: "Passes or fails deliveries that need inspection, and keeps calibrated equipment in date." },
     { id: "FIN", name: "Accounts", login: "Finance / Accounts", intro: "Invoices customers, records supplier bills, and checks that stores and payroll reach the books correctly." },
     { id: "FC", name: "Finance Controller", login: "Finance Controller", intro: "Owns the reports, the tax returns and the period lock." },
-    { id: "HR", name: "HR", login: "HR Officer", intro: "Employees, attendance, leave, payroll and payslips, and the final settlement when someone leaves." },
+    { id: "HR", name: "HR", login: "HR Officer", intro: "Employees, attendance, leave, payroll and payslips, and the final settlement when someone leaves. Prepares the payroll run; the Finance Controller approves it." },
+    { id: "TK", name: "Site Timekeeper", login: "Site Timekeeper", intro: "Records the daily muster on site and the hours against each job — and can see nothing else." },
   ];
 
   /* ------------------------------------------------------------ checks
@@ -489,6 +490,10 @@
     { id:"FC-05", r:"FC", p:"1", t:"Work in progress",
       s:["Open Job Costing → Work in Progress."],
       e:"Each contract shows how far through it is by cost against budget, and whether billing is ahead or behind. A job with no budget says “budget not set” rather than 0%." },
+    { id:"FC-06", r:"FC", p:"1", t:"Approve the payroll run HR prepared",
+      s:["Open HR → Payroll. Find the run HR prepared in HR-03 and check the totals.","Click Approve. Then Mark paid."],
+      e:"The run is Approved, then Paid, and the wage cost is posted to the books. HR can prepare a run but not approve it, so the salary run is always checked by a second person.",
+      n:"Needs HR-03." },
 
     // ================= HR
     { id:"HR-01", r:"HR", p:"1", t:"Refuse a duplicate person",
@@ -501,13 +506,14 @@
       s:["Open Payroll and run the month."],
       e:"Every employee has basic, allowances, overtime, deductions and net pay. Anyone missing a salary or bank details is held back and named." },
     { id:"HR-04", r:"HR", p:"2", t:"Print payslips for the whole run",
-      s:["Before approving, click Print → all payslips.","Approve the run, then print again."],
-      e:"Before approval every page says DRAFT. After approval there is no mark. Each employee is on a page of their own with earnings, deductions, net pay in words, and the bank shown as the bank name and the last four characters of the account only." },
+      s:["On the draft run, click Print → all payslips.","Look for an Approve button on the run.","After the Finance Controller has approved it (FC-06), print again."],
+      e:"The draft prints with DRAFT on every page. There is no Approve button for HR — the run shows “Waiting for the Finance Controller to approve”. After approval there is no mark. Each employee is on a page of their own with earnings, deductions, net pay in words, and the bank shown as the bank name and the last four characters of the account only.",
+      n:"FC-06 approves the run." },
     { id:"HR-05", r:"HR", p:"2", t:"Print one employee's payslip",
       s:["Click Payslip on one employee's row, ideally someone who joined part-way through the month."],
       e:"One page for that employee. A part month shows the days behind the figure, e.g. “12 of 30 days on 3,000.00”." },
     { id:"HR-06", r:"HR", p:"1", t:"Payroll reaches the accounts",
-      s:["After approving, ask Accounts to find the payroll voucher in the Day Book."],
+      s:["After the Finance Controller approves the run and marks it paid, ask Accounts to find the payroll voucher in the Day Book."],
       e:"The wage cost is posted without anyone typing a journal." },
     { id:"HR-07", r:"HR", p:"1", t:"WPS file for the bank",
       s:["Generate the WPS file for the approved run."],
@@ -518,6 +524,14 @@
     { id:"HR-09", r:"HR", p:"1", t:"Document expiry warnings",
       s:["Open Compliance & Expiry."],
       e:"Visas, Emirates IDs, passports and labour cards due to expire are listed before they lapse." },
+
+    // ================= Site Timekeeper
+    { id:"TK-01", r:"TK", p:"1", t:"Record the day's muster",
+      s:["Open HR → Attendance & Muster.","Mark today's attendance for three workers — present, absent, half-day — with in and out times and the job each worked on. Save."],
+      e:"The muster is saved and the hours sit against each job, ready for job costing." },
+    { id:"TK-02", r:"TK", p:"1", t:"Only attendance, nothing else",
+      s:["Look at the menu.","Type /hr/payroll at the end of the address and press Enter. Then try /hr and /finance."],
+      e:"The menu shows only the Dashboard and Attendance & Muster. Every other address returns you to the dashboard — no salaries, payroll, employee profiles or finance screens are shown." },
   ];
 
   /* ------------------------------------------------------------ state */

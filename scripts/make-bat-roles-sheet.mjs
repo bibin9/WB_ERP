@@ -56,20 +56,22 @@ const LOGINS = [
   { bat: "STR", as: ["Storekeeper"], count: 1, note: "Receives, issues, transfers and takes back returns." },
   { bat: "QA", as: ["QA/QC & Calibration"], count: 1, note: "Passes or fails deliveries; keeps equipment calibrated." },
   { bat: "FIN", as: ["Finance / Accounts"], count: 1, note: "Drafts and issues invoices, credit notes and supplier bills." },
-  { bat: "FC", as: ["Finance Controller"], count: 1, note: "Reports, VAT, cash flow and the period lock." },
-  { bat: "HR", as: ["HR Officer"], count: 1, note: "Employees, attendance, payroll, payslips and settlements." },
+  { bat: "FC", as: ["Finance Controller"], count: 1, note: "Reports, VAT, cash flow, the period lock, and approving the payroll run." },
+  { bat: "HR", as: ["HR Officer"], count: 1, note: "Employees, attendance, payroll, payslips and settlements. Prepares the payroll run; the Finance Controller approves it." },
+  { bat: "TK", as: ["Site Timekeeper"], count: 1, note: "The daily site muster and hours against each job — nothing else." },
 ];
 const totalLogins = LOGINS.reduce((a, l) => a + l.count, 0);
 
 /* -------------------------------------------------- the rights matrix -- */
 const COLUMNS = [
   "Operations Manager", "Finance Controller", "Finance / Accounts", "Project Manager", "Site Engineer / Planner",
-  "Procurement Officer", "Storekeeper", "QA/QC & Calibration", "Estimation / Sales Engineer", "HR Officer",
+  "Procurement Officer", "Storekeeper", "QA/QC & Calibration", "Estimation / Sales Engineer", "HR Officer", "HSE Officer", "Site Timekeeper",
 ];
 const SHORT = {
   "Operations Manager": "Ops Mgr", "Finance Controller": "Fin Ctrl", "Finance / Accounts": "Accounts",
   "Project Manager": "Proj Mgr", "Site Engineer / Planner": "Site Eng", "Procurement Officer": "Procure",
   "Storekeeper": "Store", "QA/QC & Calibration": "QA/QC", "Estimation / Sales Engineer": "Estimator", "HR Officer": "HR",
+  "HSE Officer": "HSE", "Site Timekeeper": "Timekeeper",
 };
 const rights = Object.fromEntries(COLUMNS.map((n) => [n, expandPerms(roleByName[n]?.permissions ?? {})]));
 const MODULE_LABEL = {
@@ -228,6 +230,15 @@ ${loginRows}
     <thead><tr><th>Screen</th>${COLUMNS.map((n) => `<th class="role" scope="col" title="${esc(n)} (L${roleByName[n]?.approvalLevel ?? "?"})">${esc(SHORT[n])}</th>`).join("")}</tr></thead>
 ${matrix}
   </table></div>
+
+  <h2>The access review</h2>
+  <p>On 21 September 2026 every role was checked against what its work needs. The built-in roles used to be given whole modules, and each module grant had grown as screens were added — a Site Engineer could read every employee's salary. Each role now names only its screens, and three separations hold:</p>
+  <ul>
+    <li><b>Salaries, payroll and settlements</b> are for HR, the Finance Controller (payroll only) and directors. Operations Manager, Project Manager, Site Engineer and HSE Officer see the operational HR screens — attendance, man-hours, tasks, certifications — and no pay.</li>
+    <li><b>Whoever orders does not receive, and whoever receives does not inspect.</b> Procurement raises enquiries and orders; the Storekeeper receives and issues; QA/QC passes or fails deliveries.</li>
+    <li><b>HR prepares the payroll run; the Finance Controller approves it.</b> Finance / Accounts can no longer change Finance Settings, Tally or Corporate Tax.</li>
+  </ul>
+  <p>The Site Timekeeper is a new built-in role with Attendance &amp; Muster and nothing else.</p>
 
   <h2>Changed for BAT</h2>
   <p>Setting up the testers found six acceptance checks given to a role that could not do them — each tester would have recorded a failure that was really a missing permission. Decided on 21 September 2026:</p>

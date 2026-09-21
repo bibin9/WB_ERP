@@ -3,35 +3,19 @@
  * Run: node scripts/test-rbac.mjs
  */
 import { PrismaClient } from "@prisma/client";
+import { can as canSession, visibleModules as visibleFor } from "../src/lib/rbac.ts";
 const db = new PrismaClient();
 let pass = 0, fail = 0;
 function ok(id, name, cond, detail = "") { if (cond) pass++; else fail++; console.log(`${cond ? "✅" : "❌"} ${id}  ${name}${detail ? "  — " + detail : ""}`); }
 
-const MODULE_KEYS = ["dashboard", "companies", "finance", "hr", "approvals", "users", "inventory", "crm", "projects", "hse", "audit", "settings"];
-// Screen taxonomy mirrors src/lib/rbac.ts — permissions are stored per screen now.
-const MODULE_SCREENS = {
-  dashboard: ["dashboard.home"], companies: ["companies.list"],
-  finance: ["finance.overview", "finance.daybook", "finance.ledgers", "finance.reports", "finance.vat", "finance.tally"],
-  hr: ["hr.employees", "hr.onboarding", "hr.payroll", "hr.leave", "hr.attendance", "hr.certifications", "hr.separation", "hr.reports", "hr.tasks"],
-  approvals: ["approvals.inbox"], users: ["users.list", "users.access"],
-  inventory: ["inventory.items"], crm: ["crm.leads"], projects: ["projects.list"], hse: ["hse.register"],
-  audit: ["audit.log"], settings: ["settings.general", "settings.master", "settings.approvals", "settings.custom"],
-};
-const SCREEN_KEYS = new Set(Object.values(MODULE_SCREENS).flat());
-const screensForModule = (m) => MODULE_SCREENS[m] || [];
+// The real access check, not a copy of it. A copy of the screen list lived
+// here and fell behind as modules were split into screens — it believed
+// Inventory had one screen — so the test failed a role that was right.
 function parse(json) { try { const v = JSON.parse(json); return v && typeof v === "object" ? v : {}; } catch { return {}; } }
 function isAdminRole(r) { return r.approvalLevel >= 80 || r.name === "Group Admin"; }
-// Screen-aware can(): exact screen/module grant, screen→module legacy fallback, module→any screen.
-function can(role, key, action = "view") {
-  if (isAdminRole(role)) return true;
-  const perms = parse(role.permissions);
-  if ((perms[key] || []).includes(action)) return true;
-  if (SCREEN_KEYS.has(key)) { const mod = key.split(".")[0]; return (perms[mod] || []).includes(action); }
-  if (MODULE_KEYS.includes(key)) return screensForModule(key).some((s) => (perms[s] || []).includes(action));
-  return false;
-}
-function visibleModules(role) { if (isAdminRole(role)) return MODULE_KEYS.slice(); return MODULE_KEYS.filter((m) => can(role, m, "view")); }
-// replicate setRolePermission per-screen toggle logic
+const sessionOf = (role) => ({ isAdmin: isAdminRole(role), perms: parse(role.permissions) });
+const can = (role, key, action = "view") => canSession(sessionOf(role), key, action);
+const visibleModules = (role) => visibleFor(sessionOf(role));
 function toggle(perms, key, action, enabled) {
   const set = new Set(perms[key] || []);
   if (enabled) { set.add(action); set.add("view"); } else { if (action === "view") set.clear(); else set.delete(action); }
@@ -47,7 +31,7 @@ async function main() {
   // ===== ROLES SEEDED =====
   const expected = ["Group Admin", "Managing Director", "Director", "Operations Manager", "Finance Controller", "Project Manager",
     "Estimation / Sales Engineer", "Site Engineer / Planner", "Procurement Officer", "Storekeeper", "QA/QC & Calibration",
-    "HSE Officer", "HR Officer", "Finance / Accounts", "Vendor (external)", "Customer (external)"];
+    "HSE Officer", "HR Officer", "Finance / Accounts", "Site Timekeeper", "Vendor (external)", "Customer (external)"];
   ok("RB-1", "All defined roles are seeded", expected.every((n) => !!byName(n)), `${roles.length} roles`);
 
   // ===== ADMIN OVERRIDE =====

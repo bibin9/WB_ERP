@@ -56,6 +56,33 @@ ok("damaged stored JSON is treated as empty rather than crashing the boot",
 const legacy = mergeRoleDefaults(fresh.permissions, "{}", defaults);
 ok("an install from before the change keeps its permissions exactly", legacy.permissions === fresh.permissions && legacy.added.length === 0);
 
+/* ---------------------------------------- withdrawing what it granted -- */
+// September 2026: roles were narrowed, and adding alone could never take the
+// old grants back. What the seed applied and no longer applies is withdrawn;
+// what an administrator granted by hand is not.
+{
+  const was = { "hr.payroll": ["view"], "hr.attendance": ["view"] };
+  const now = { "hr.attendance": ["view"] };
+  const first = mergeRoleDefaults("{}", "{}", was);
+  const narrowed = mergeRoleDefaults(first.permissions, first.seeded, now);
+  ok("a right the seed granted and no longer grants is withdrawn", !("hr.payroll" in P(narrowed.permissions)) && narrowed.removed.join(",") === "hr.payroll.view", narrowed.removed.join(", "));
+  ok("  and forgotten, so it is not re-added or re-withdrawn", !("hr.payroll" in P(narrowed.seeded)) && mergeRoleDefaults(narrowed.permissions, narrowed.seeded, now).removed.length === 0);
+  ok("  what is still a default stays", JSON.stringify(P(narrowed.permissions)["hr.attendance"]) === '["view"]');
+
+  const byHand = JSON.stringify({ ...P(first.permissions), "finance.daybook": ["view"] });
+  ok("a right an administrator granted by hand is never withdrawn",
+    JSON.stringify(P(mergeRoleDefaults(byHand, first.seeded, now).permissions)["finance.daybook"]) === '["view"]');
+
+  const handEdit = JSON.stringify({ ...P(first.permissions), "hr.payroll": ["view", "edit"] });
+  const kept = P(mergeRoleDefaults(handEdit, first.seeded, now).permissions)["hr.payroll"];
+  ok("an action an administrator added keeps its screen visible", JSON.stringify(kept) === '["view","edit"]', JSON.stringify(kept));
+
+  // An install from before seededPermissions: the old seed wrote everything.
+  const legacyBroad = JSON.stringify({ "hr.payroll": ["view"], "hr.attendance": ["view"] });
+  const upgraded = mergeRoleDefaults(legacyBroad, "{}", now);
+  ok("an install from before the record loses the old broad grants too", !("hr.payroll" in P(upgraded.permissions)) && upgraded.removed.includes("hr.payroll.view"));
+}
+
 /* ------------------------------------------------- the seed as written -- */
 const seed = fs.readFileSync("prisma/seed.mjs", "utf8");
 ok("the seed no longer writes permissions or approval level over an existing role",
@@ -103,7 +130,15 @@ ok("the inbox tells somebody without the grant, rather than offering buttons",
     ["Storekeeper", "inventory.movements", "create", "STR-01, STR-05 — receive and issue"],
     ["QA/QC & Calibration", "inventory.movements", "edit", "QA-01, QA-02 — pass or fail a delivery"],
     ["Procurement Officer", "inventory.rfq", "approve", "PRC-06 — award an enquiry"],
-    ["HR Officer", "hr.payroll", "approve", "HR-04 — approve the payroll run"],
+    ["HR Officer", "hr.payroll", "create", "HR-03 — run payroll"],
+    ["Finance Controller", "hr.payroll", "approve", "FC-06 — approve the payroll run HR prepared"],
+    ["Site Timekeeper", "hr.attendance", "create", "TK-01 — record the day's muster"],
+    ["Project Manager", "inventory.requests", "create", "PM-03 — raise a material request"],
+    ["Site Engineer / Planner", "inventory.requests", "create", "SITE-01 — ask for material"],
+    ["Storekeeper", "inventory.orders", "view", "STR-01 — open the order to receive against it"],
+    ["Storekeeper", "inventory.returns", "create", "STR-09 — take material back from site"],
+    ["Procurement Officer", "inventory.orders", "create", "PRC-07, PRC-09 — raise purchase orders"],
+    ["QA/QC & Calibration", "inventory.equipment", "edit", "QA-03, QA-04 — calibrate and edit tools"],
     ["Site Engineer / Planner", "approvals.inbox", "approve", "SITE-03 — approve a material request"],
     ["Project Manager", "approvals.inbox", "approve", "PM-01, PM-02 — approve requests and orders"],
   ];
@@ -121,6 +156,37 @@ ok("the inbox tells somebody without the grant, rather than offering buttons",
     /allowIn\(companyId, "finance\.settings", "approve"\)/.test(setLock));
   ok("  a lock on a future date is refused, and every change is audited",
     /lockTo\.getTime\(\) > Date\.now\(\)/.test(setLock) && /await audit\(/.test(setLock));
+
+  /* ------------------------ least privilege and separation of duties -- */
+  // The September 2026 access review: whole-module grants had grown with every
+  // screen added, so a Site Engineer could read every salary. These hold the
+  // narrowed roles to it.
+  const scoped = ROLES.filter((r) => r.approvalLevel < 80 && r.name !== "Group Admin");
+  const holders = (screen, action = "view") => scoped.filter((r) => (rights(r.name)[screen] ?? []).includes(action)).map((r) => r.name).sort();
+  const eq = (a, b) => JSON.stringify(a) === JSON.stringify([...b].sort());
+
+  ok("salaries and profiles (Employees) are for HR only", eq(holders("hr.employees"), ["HR Officer"]), holders("hr.employees").join(", "));
+  ok("payroll is for HR and the Finance Controller only", eq(holders("hr.payroll"), ["HR Officer", "Finance Controller"]), holders("hr.payroll").join(", "));
+  ok("end-of-service settlements are for HR only", eq(holders("hr.separation"), ["HR Officer"]), holders("hr.separation").join(", "));
+  ok("leave, onboarding and the HR policy are for HR only",
+    ["hr.leave", "hr.onboarding", "hr.policy"].every((s) => eq(holders(s), ["HR Officer"])));
+
+  const both = (a, b) => scoped.filter((r) => { const p = rights(r.name); return (p[a[0]] ?? []).includes(a[1]) && (p[b[0]] ?? []).includes(b[1]); }).map((r) => r.name);
+  ok("nobody below director both orders and receives", both(["inventory.orders", "create"], ["inventory.movements", "create"]).length === 0,
+    both(["inventory.orders", "create"], ["inventory.movements", "create"]).join(", ") || "none");
+  ok("nobody below director both receives and passes inspection", both(["inventory.movements", "create"], ["inventory.movements", "edit"]).length === 0,
+    both(["inventory.movements", "create"], ["inventory.movements", "edit"]).join(", ") || "none");
+  ok("nobody below director both prepares and approves payroll", both(["hr.payroll", "create"], ["hr.payroll", "approve"]).length === 0,
+    both(["hr.payroll", "create"], ["hr.payroll", "approve"]).join(", ") || "none");
+  ok("only the Finance Controller changes finance settings, Tally and corporate tax",
+    ["finance.settings", "finance.tally", "finance.corptax"].every((s) => eq(holders(s, "edit"), ["Finance Controller"])));
+  ok("the Site Timekeeper has attendance and a landing page, nothing else",
+    JSON.stringify(rights("Site Timekeeper")) === JSON.stringify({ "dashboard.home": ["view"], "hr.attendance": ["view", "create", "edit"] }),
+    JSON.stringify(rights("Site Timekeeper")));
+  ok("every built-in role is granted screens, never a whole module",
+    scoped.every((r) => !Object.keys(r.permissions).some((k) => ["hr", "inventory"].includes(k))
+      || ["Operations Manager", "HR Officer"].includes(r.name)),
+    "hr/inventory module grants only where the whole module is meant: Operations Manager (inventory view/approve), HR Officer (hr)");
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

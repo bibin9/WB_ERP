@@ -6,6 +6,7 @@ import {
 import PageHeader from "@/components/PageHeader";
 import CompanyPicker from "@/components/CompanyPicker";
 import { companyScope } from "@/lib/company-scope";
+import { waitingFor } from "@/lib/approval-visibility";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
@@ -129,11 +130,19 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   // ---- Approvals ----
   let appr: { count: number; pending: { id: string; title: string; docType: string; company: { code: string } }[] } | null = null;
   if (g.approvals) {
-    const [pending, count] = await Promise.all([
-      db.approvalRequest.findMany({ where: { companyId: { in: companyIds }, status: "Pending" }, orderBy: { createdAt: "desc" }, take: 5, include: { company: true } }),
-      db.approvalRequest.count({ where: { companyId: { in: companyIds }, status: "Pending" } }),
-    ]);
-    appr = { count, pending };
+    // Only what is waiting for this person to decide (lib/approval-visibility.ts)
+    // — the card used to count every pending request in the company.
+    const mayApprove = can(session, "approvals.inbox", "approve");
+    const open = await db.approvalRequest.findMany({
+      where: { companyId: { in: companyIds }, status: "Pending" },
+      orderBy: { createdAt: "desc" },
+      include: { company: true, steps: true },
+    });
+    const mine = open.filter((r) => waitingFor(r, {
+      id: session.user.id, name: session.user.name,
+      level: session.companies.find((c) => c.id === r.companyId)?.approvalLevel ?? -1, mayApprove,
+    }));
+    appr = { count: mine.length, pending: mine.slice(0, 5) };
   }
 
   // ---- Group ----

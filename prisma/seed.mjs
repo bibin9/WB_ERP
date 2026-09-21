@@ -71,29 +71,51 @@ const expandPerms = (modulePerms) => {
 // approval level. Project Manager, Site Engineer and Procurement Officer are on
 // the Material Request and Purchase Order routes and once had view only, so
 // their Approve button did nothing and only more senior roles could move work.
+//
+// Least privilege, screen by screen (September 2026 access review). These used
+// to grant whole modules — `hr: V`, `inventory: VC` — and every module grant
+// silently grew as the module was split into screens. A Site Engineer could
+// read every employee's salary, IBAN and settlement; a Storekeeper could raise
+// the purchase orders they then received against; Procurement could receive
+// and pass inspection on what it had ordered. Each role now names the screens
+// its work needs, and three separations hold:
+//   - who orders does not receive, and who receives does not inspect;
+//   - salaries, payroll and settlements are for HR, finance and directors only;
+//   - HR prepares the payroll run, the Finance Controller approves it.
+// The seed withdraws on boot any right it granted before that is no longer
+// listed here (prisma/role-defaults.mjs); rights an administrator granted by
+// hand are left alone.
 const ROLES = [
   // Admin-level roles (approvalLevel >= 80 get full access automatically)
   { name: "Group Admin", approvalLevel: 100, permissions: {} },
   { name: "Managing Director", approvalLevel: 90, permissions: {} },
   { name: "Director", approvalLevel: 80, permissions: {} },
   // Scoped roles — explicit permissions
-  { name: "Operations Manager", approvalLevel: 70, permissions: { dashboard: V, companies: V, finance: V, hr: V, approvals: ["view", "approve"], inventory: ["view", "approve"], crm: V, projects: VCE, hse: V, audit: V } },
-  { name: "Finance Controller", approvalLevel: 60, permissions: { dashboard: V, companies: V, finance: FULL, approvals: ["view", "approve"], audit: V } },
-  { name: "Project Manager", approvalLevel: 50, permissions: { dashboard: V, projects: VCED, hr: V, inventory: VC, crm: V, approvals: ["view", "approve"], hse: V } },
+  { name: "Operations Manager", approvalLevel: 70, permissions: { dashboard: V, companies: V, finance: V, "hr.attendance": V, "hr.overtime": V, "hr.manhours": V, "hr.tasks": V, "hr.reports": V, "hr.workforce": V, "hr.certifications": V, approvals: ["view", "approve"], inventory: ["view", "approve"], crm: V, projects: VCE, hse: V, audit: V } },
+  // Approves the payroll run HR prepares: the pay leaves the business on their word.
+  { name: "Finance Controller", approvalLevel: 60, permissions: { dashboard: V, companies: V, finance: FULL, "hr.payroll": ["view", "approve"], approvals: ["view", "approve"], audit: V } },
+  { name: "Project Manager", approvalLevel: 50, permissions: { dashboard: V, projects: VCED, "hr.attendance": V, "hr.overtime": V, "hr.manhours": V, "hr.tasks": V, "inventory.requests": VC, "inventory.stock": V, "inventory.orders": V, "inventory.returns": V, crm: V, approvals: ["view", "approve"], hse: V } },
   // Approve on Quotations is the right to issue a quotation management has
   // already signed, and to record the customer's order — the estimator's job in
   // the acceptance scripts and the Handbook, which the role could not do.
   { name: "Estimation / Sales Engineer", approvalLevel: 40, permissions: { dashboard: V, crm: VCE, "crm.quotations": [...VCE, "approve"], projects: V } },
-  { name: "Site Engineer / Planner", approvalLevel: 35, permissions: { dashboard: V, inventory: VC, projects: VCE, hr: V, hse: V, approvals: ["view", "approve"] } },
-  { name: "Procurement Officer", approvalLevel: 45, permissions: { dashboard: V, inventory: ["view", "create", "edit", "approve"], crm: V, approvals: ["view", "approve"] } },
-  { name: "Storekeeper", approvalLevel: 20, permissions: { dashboard: V, inventory: VCE } },
-  { name: "QA/QC & Calibration", approvalLevel: 40, permissions: { dashboard: V, inventory: ["view", "edit"], hse: V } },
-  { name: "HSE Officer", approvalLevel: 45, permissions: { dashboard: V, hse: FULL, hr: V } },
-  { name: "HR Officer", approvalLevel: 30, permissions: { dashboard: V, hr: FULL, approvals: V } },
+  { name: "Site Engineer / Planner", approvalLevel: 35, permissions: { dashboard: V, "inventory.requests": VC, "inventory.stock": V, "inventory.returns": V, projects: VCE, "hr.attendance": V, "hr.manhours": V, "hr.tasks": V, hse: V, approvals: ["view", "approve"] } },
+  // Orders, but does not receive or inspect what it ordered.
+  { name: "Procurement Officer", approvalLevel: 45, permissions: { dashboard: V, "inventory.rfq": [...VCE, "approve"], "inventory.orders": [...VCE, "approve"], "inventory.requests": [...VCE, "approve"], "inventory.vendors": V, "inventory.items": VCE, "inventory.stock": V, approvals: ["view", "approve"] } },
+  // Receives and issues, but does not order, and does not pass its own receipts.
+  { name: "Storekeeper", approvalLevel: 20, permissions: { dashboard: V, "inventory.movements": VC, "inventory.stock": V, "inventory.stores": VCE, "inventory.returns": VCE, "inventory.requests": V, "inventory.orders": V, "inventory.items": V } },
+  // Inspects and calibrates; edit on Receive & Issue is the inspection.
+  { name: "QA/QC & Calibration", approvalLevel: 40, permissions: { dashboard: V, "inventory.movements": ["view", "edit"], "inventory.equipment": VCE, "inventory.stock": V, hse: V } },
+  { name: "HSE Officer", approvalLevel: 45, permissions: { dashboard: V, hse: FULL, "hr.certifications": V, "hr.reports": V, "hr.attendance": V } },
+  // Everything in HR, but the payroll run is approved by the Finance Controller.
+  { name: "HR Officer", approvalLevel: 30, permissions: { dashboard: V, hr: FULL, "hr.payroll": VCED, approvals: V } },
   // Approve on Invoices is the right to issue: post it, number it, make it a
-  // tax invoice. Accounts raises and issues invoices; without it they could only
-  // draft them.
-  { name: "Finance / Accounts", approvalLevel: 45, permissions: { dashboard: V, finance: VCE, "finance.invoices": [...VCE, "approve"], approvals: V } },
+  // tax invoice. Settings, Tally and Corporate Tax stay with the Finance
+  // Controller: a clerk who can change the VAT rate or where postings go can
+  // change every figure after it.
+  { name: "Finance / Accounts", approvalLevel: 45, permissions: { dashboard: V, finance: VCE, "finance.invoices": [...VCE, "approve"], "finance.settings": V, "finance.tally": V, "finance.corptax": V, approvals: V } },
+  // Records the site muster and the hours against each job, and nothing else.
+  { name: "Site Timekeeper", approvalLevel: 10, permissions: { dashboard: V, "hr.attendance": VCE } },
   { name: "Vendor (external)", approvalLevel: 0, permissions: {} },
   { name: "Customer (external)", approvalLevel: 0, permissions: {} },
 ];
@@ -139,6 +161,7 @@ async function main() {
     if (merged.permissions !== existing.permissions || merged.seeded !== existing.seededPermissions) {
       await db.role.update({ where: { id: existing.id }, data: { permissions: merged.permissions, seededPermissions: merged.seeded } });
       if (merged.added.length) console.log(`  ${r.name}: granted ${merged.added.join(", ")}`);
+      if (merged.removed.length) console.log(`  ${r.name}: withdrew ${merged.removed.join(", ")}`);
     }
   }
 

@@ -9,6 +9,7 @@ import { getSession } from "@/lib/auth";
 import { listDocTypes } from "@/lib/approval-engine";
 import { requireAccess } from "@/lib/guard";
 import { can } from "@/lib/rbac";
+import { canSeeRequest, waitingFor } from "@/lib/approval-visibility";
 import { money } from "@/lib/money";
 import CompanyPicker from "@/components/CompanyPicker";
 import { companyScope } from "@/lib/company-scope";
@@ -46,17 +47,23 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
   });
 
-  // "My queue": the current pending step of any request, where I have authority in that company.
-  const myQueue = requests.filter((r) => {
-    if (r.status !== "Pending") return false;
-    const step = r.steps.find((s) => s.order === r.currentStep);
-    const m = session?.companies.find((c) => c.id === r.companyId);
-    return step && m && m.approvalLevel >= step.requiredLevel;
-  });
-
   // Seeing the inbox and deciding in it are separate grants. Somebody with the
   // level but not the grant is told so, rather than offered buttons that refuse.
   const mayApprove = can(session, "approvals.inbox", "approve");
+
+  // Only the requests that concern this person (lib/approval-visibility.ts):
+  // the inbox used to list every request in the company to everybody.
+  const visible = requests.filter((r) => {
+    const m = session?.companies.find((c) => c.id === r.companyId);
+    return !!session && canSeeRequest(r, { id: session.user.id, name: session.user.name, level: m?.approvalLevel ?? -1, mayApprove });
+  });
+
+  // "My queue": what I can decide now — within my level, and not something
+  // the four-eyes rule would refuse me (I raised it, or decided a step of it).
+  const myQueue = visible.filter((r) => {
+    const m = session?.companies.find((c) => c.id === r.companyId);
+    return !!session && waitingFor(r, { id: session.user.id, name: session.user.name, level: m?.approvalLevel ?? -1, mayApprove });
+  });
 
   const companyOpts = (session?.companies ?? []).map((c) => ({ id: c.id, label: `${c.code} — ${c.name}` }));
   const docTypes = session ? await listDocTypes(session.tenant.id) : [];
@@ -67,9 +74,11 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
         title="Approvals"
         subtitle="One configurable sign-off engine, reused across the whole ERP."
       >
-        <Link href="/settings/approvals" className="btn-ghost border border-line">
-          <Settings2 className="h-4 w-4" /> Configure routes
-        </Link>
+        {can(session, "settings.approvals") && (
+          <Link href="/settings/approvals" className="btn-ghost border border-line">
+            <Settings2 className="h-4 w-4" /> Configure routes
+          </Link>
+        )}
         <RaiseRequestForm companies={companyOpts} docTypes={docTypes} />
       </PageHeader>
       <div className="mb-5"><CompanyPicker companies={(session?.companies ?? []).map((c) => ({ id: c.id, code: c.code, name: c.name }))} current={scoped.current} allowAll label="Company:" /></div>
@@ -117,12 +126,12 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
           <h2 className="font-semibold text-heading">All requests</h2>
         </div>
         <div className="divide-y divide-line">
-          {requests.length === 0 && (
+          {visible.length === 0 && (
             <p className="px-5 py-8 text-center text-sm text-muted">
               No approval requests yet. Click “Raise for approval” to try the workflow.
             </p>
           )}
-          {requests.map((r) => (
+          {visible.map((r) => (
             <div key={r.id} className="px-5 py-4">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="min-w-0 flex-1">

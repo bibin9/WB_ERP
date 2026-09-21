@@ -273,7 +273,7 @@
   <p>Almost nobody uses the whole system. Find your job below and read those sections first; the rest will still be there when you need it.</p>
   <div class="tw"><table>
     <tr><th>If you are the…</th><th>You will live in</th></tr>
-    <tr><td>Site timekeeper</td><td>Attendance &amp; Muster. That is all — and the hours you record become the cost on every job. (Your administrator creates this role with Attendance only.)</td></tr>
+    <tr><td>Site timekeeper</td><td>Attendance &amp; Muster. That is all — and the hours you record become the cost on every job. (The built-in <em>Site Timekeeper</em> role.)</td></tr>
     <tr><td>HR officer</td><td>Employees, Onboarding, Leave, Certifications, Compliance &amp; Expiry.</td></tr>
     <tr><td>Accountant</td><td>Invoices, Day Book, Ledgers, Outstanding, Cheques, VAT.</td></tr>
     <tr><td>Finance controller</td><td>The above, plus Reports, Cash Flow, Corporate Tax and Finance Settings.</td></tr>
@@ -546,12 +546,12 @@
   <div class="entry">
     <h4>Payroll</h4>
     <span class="where">HR → Payroll</span>
-    <p>Run the month, review every payslip, then approve. The system works out basic and allowances, overtime at both rates, absence and unpaid-leave deductions, salary-advance recovery, and part months for anyone who joined or left partway through.</p>
+    <p>HR runs the month and reviews every payslip; the Finance Controller (or a Director) then approves the run and marks it paid. HR cannot approve its own run, so the salary run is always checked by a second person. The system works out basic and allowances, overtime at both rates, absence and unpaid-leave deductions, salary-advance recovery, and part months for anyone who joined or left partway through.</p>
     <p>Nothing is a guess: every figure traces back to attendance, to the employee's contract, or to your HR policy.</p>
   </div>
   <h3>Payslips</h3>
   <p>Above a run, <em>Print</em> or <em>Download all payslips</em> produces one PDF with each employee on a page of their own, ready to hand out; <em>Payslip</em> on a row prints just that person. Each shows earnings with the days behind a part month, overtime hours, unpaid days, other deductions, advance recovery, and net pay in words. The bank account is printed as its last four characters only. Until the run is approved every page says DRAFT.</p>
-  <div class="note"><b>Payroll reaches the accounts by itself</b>Approving a run posts the wage cost to the ledger. You do not raise a journal entry for salaries.</div>
+  <div class="note"><b>Payroll reaches the accounts by itself</b>Marking a run paid posts the wage cost to the ledger. You do not raise a journal entry for salaries.</div>
   <h3>"Somebody is not ready"</h3>
   <p>Payroll will hold a person back rather than pay them wrongly — no salary set, no join date, missing bank details. It names each one and why. Fix the record and run again.</p>
   <h3>The WPS file for the bank</h3>
@@ -902,6 +902,7 @@
     <li><strong>Raising one:</strong> the request goes to whoever the route names, and they are notified.</li>
     <li><strong>Acting on one:</strong> open Approvals, read it, approve or reject with a reason. The reason is kept.</li>
     <li>The bell in the top bar shows how many things are waiting on you.</li>
+    <li>You see only the requests that concern you: ones you raised, ones you decided, and ones your role could decide. Directors see them all. <em>My pending approvals</em> lists only what you can decide right now.</li>
     <li>A step can be decided by the role it names or anyone with a higher approval level. A role below that level does not see the step in its queue.</li>
     <li><strong>Four eyes.</strong> Nobody approves a request they raised, and nobody decides two steps of the same request — a senior person may act for a junior step, but then the next step needs someone else. The screen says so if you try.</li>
   </ul>
@@ -930,6 +931,7 @@
 <section id="admin">
   <h2>Users and access</h2>
   <p>Access is granted <strong>per screen</strong>, and separately for viewing, creating, editing, deleting and approving. A site storekeeper might see only Inventory; an accountant sees Finance. If a screen is not granted, it is not in the menu at all — and typing its address simply returns you to your dashboard.</p>
+  <div class="note do"><b>Each role sees only what its work needs</b>Salaries, payroll and settlements are for HR, the Finance Controller and directors. Whoever orders does not receive, and whoever receives does not pass the inspection. HR prepares the payroll run and the Finance Controller approves it. A Site Timekeeper sees attendance and nothing else.</div>
   <p>That is also why a button can be missing rather than present-and-refusing: being allowed to <em>see</em> a screen and being allowed to <em>change</em> it are two different grants.</p>
   <h3>The roles that ship with the system</h3>
   <div class="tw"><table>
@@ -945,6 +947,7 @@
     <tr><td>Site Engineer / Planner</td><td class="n">35</td></tr>
     <tr><td>HR Officer</td><td class="n">30</td></tr>
     <tr><td>Storekeeper</td><td class="n">20</td></tr>
+    <tr><td>Site Timekeeper</td><td class="n">10</td></tr>
   </table></div>
   <p>Roles your administrator creates — a site timekeeper with Attendance only, for example — sit alongside these with whatever level and screens they are given.</p>
   <div class="note do"><b>Your changes are kept</b>Changes made in Access Control to any role, built-in or your own, stay as you set them when the system is updated. A screen added in a later release is given to the roles it is meant for, without undoing anything you removed.</div>

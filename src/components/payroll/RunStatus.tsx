@@ -22,7 +22,7 @@ const badge: Record<string, string> = {
  * missing account, a closed period. That refusal has to reach the person who
  * clicked; a status that silently does not change is worse than an error.
  */
-export default function RunStatus({ id, status }: { id: string; status: string }) {
+export default function RunStatus({ id, status, canApprove = true }: { id: string; status: string; canApprove?: boolean }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState("");
   const step = NEXT[status];
@@ -31,7 +31,12 @@ export default function RunStatus({ id, status }: { id: string; status: string }
     <span className="inline-flex flex-col items-end gap-1">
       <span className="inline-flex items-center gap-2">
         <span className={clsx("rounded-full px-2.5 py-0.5 text-xs font-medium", badge[status])}>{status}</span>
-        {step && (
+        {step && !canApprove && (
+          // HR prepares the run; the Finance Controller (or a Director) approves
+          // and pays it. Said rather than offering a button that would refuse.
+          <span className="text-xs text-muted">{status === "Draft" ? "Waiting for the Finance Controller to approve" : "Waiting to be marked paid"}</span>
+        )}
+        {step && canApprove && (
           <button
             disabled={pending}
             onClick={() =>

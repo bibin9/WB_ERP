@@ -1029,7 +1029,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     summary: "Marking a run Paid posts the salary journal. Nobody re-keys it.",
     body: "When a payroll run is marked Paid, the month goes into the ledger as one voucher: the wage cost to 6000 Salaries & Wages, the money out of 1000 Cash at Bank, and any salary advance recovered against 1170 Employee Advances \u2014 because an advance is money the employee owes back, not a cost the month it is lent. The three lines balance by construction, and it is the same arithmetic the payslip shows.",
     steps: [
-      "Run payroll, check the payslips, then Approve and Mark paid.",
+      "HR runs payroll and checks the payslips. The Finance Controller (or a Director) then clicks Approve and Mark paid — HR cannot approve its own run.",
       "The voucher appears in Finance -> Day Book with the period in its memo.",
       "If the company is missing account 6000 or 1000, the run says so instead of posting a half entry.",
     ],
