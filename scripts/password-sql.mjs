@@ -39,25 +39,44 @@ const email = ((process.argv.find((a) => a.startsWith("--email=")) ?? "").split(
 const who = bat ? "every BAT tester login (bat.…@wandb.ae)" : email;
 const where = bat ? `email LIKE 'bat.%@wandb.ae'` : `email = '${email}'`;
 
-/** Ask a question with the answer hidden when there is a terminal to hide it in. */
+/**
+ * Ask a question with the answer hidden, reading the keys directly.
+ *
+ * This used readline with its echo switched off, which on Windows (PowerShell,
+ * through npm) could end the input before anything was typed: the prompt
+ * appeared, the question was never answered, and Node exited with "unsettled
+ * top-level await" and no explanation. Raw keys have no such layer to go wrong,
+ * and every way out says what happened: Enter answers, Backspace deletes,
+ * Ctrl+C stops with a message, and a paste arrives as one chunk and is taken
+ * whole.
+ */
 function askHidden(question) {
   return new Promise((resolve) => {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-    if (process.stdin.isTTY) {
-      // Print the question, then swallow every echo of what is typed after it.
-      let asked = false;
-      rl._writeToOutput = (s) => {
-        if (!asked) {
-          process.stdout.write(s);
-          asked = true;
+    const stdin = process.stdin;
+    process.stdout.write(question);
+    let answer = "";
+    const finish = (value) => {
+      stdin.off("data", onData);
+      stdin.setRawMode(false);
+      stdin.pause();
+      process.stdout.write("\n");
+      resolve(value);
+    };
+    const onData = (chunk) => {
+      for (const ch of chunk.toString("utf8")) {
+        if (ch === "\r" || ch === "\n") return finish(answer);
+        if (ch === "") {
+          stdin.setRawMode(false);
+          console.error("\n\nStopped. Nothing was produced.\n");
+          process.exit(130);
         }
-      };
-    }
-    rl.question(question, (answer) => {
-      rl.close();
-      if (process.stdin.isTTY) process.stdout.write("\n");
-      resolve(answer);
-    });
+        if (ch === "\b" || ch === "") answer = answer.slice(0, -1);
+        else if (ch >= " ") answer += ch;
+      }
+    };
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.on("data", onData);
   });
 }
 

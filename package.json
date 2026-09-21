@@ -20,7 +20,7 @@
     "db:demo": "node --experimental-strip-types scripts/demo-data.mjs",
     "db:demo:clean": "node --experimental-strip-types scripts/demo-data.mjs --clean",
     "db:demo:uat": "node scripts/demo-data-uat.mjs",
-    "user:password-sql": "node --experimental-strip-types scripts/password-sql.mjs",
+    "user:password-sql": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/password-sql.mjs",
     "test:pg": "node scripts/run-on-pg.mjs"
   },
   "dependencies": {
