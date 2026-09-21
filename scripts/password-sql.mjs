@@ -3,6 +3,13 @@
  *
  *   npm run user:password-sql
  *   npm run user:password-sql -- --email=someone@wandb.ae
+ *   npm run user:password-sql -- --bat
+ *
+ * --bat sets one starting password on every business-acceptance tester login
+ * (bat.<role>@wandb.ae) in a single statement, and leaves "must change at first
+ * sign-in" on — so each tester replaces it with their own before doing
+ * anything, and the four-eyes checks still prove something. The administrator
+ * is never included.
  *
  * Asks for the new password twice, with the typing hidden, and prints one SQL
  * statement to run against the database in question — for Railway, in the
@@ -22,10 +29,15 @@
  */
 import bcrypt from "bcryptjs";
 import readline from "node:readline";
+import { passwordProblem } from "../src/lib/password-policy.ts";
 
+const bat = process.argv.includes("--bat");
 const email = ((process.argv.find((a) => a.startsWith("--email=")) ?? "").split("=")[1] || "admin@wandb.ae")
   .trim()
   .toLowerCase();
+/** Who the statement is for, in words and in SQL. */
+const who = bat ? "every BAT tester login (bat.…@wandb.ae)" : email;
+const where = bat ? `email LIKE 'bat.%@wandb.ae'` : `email = '${email}'`;
 
 /** Ask a question with the answer hidden when there is a terminal to hide it in. */
 function askHidden(question) {
@@ -52,7 +64,7 @@ function askHidden(question) {
 // When input is piped rather than typed, read both answers from it in order.
 async function answers() {
   if (process.stdin.isTTY) {
-    const first = await askHidden(`New password for ${email} (hidden as you type): `);
+    const first = await askHidden(`New password for ${who} (hidden as you type): `);
     const second = await askHidden("Type it again: ");
     return [first, second];
   }
@@ -68,9 +80,16 @@ if (password !== again) {
   console.error("\nThe two did not match. Nothing was produced — run it again.\n");
   process.exit(1);
 }
-// Stricter than the app's own six-character floor, because this is how an
-// administrator account gets its password.
-if (password.length < 12) {
+// The app's own rules: ten characters, not a common password, not the
+// person's or the company's name. A password the sign-in screen would refuse
+// to let anyone choose should not be put in behind its back.
+const weak = passwordProblem(password, bat ? {} : { email });
+if (weak) {
+  console.error(`\n${weak}\nNothing was produced.\n`);
+  process.exit(1);
+}
+// Stricter again for an administrator, who can reach everything.
+if (!bat && password.length < 12) {
   console.error("\nUse at least 12 characters for an administrator. Nothing was produced.\n");
   process.exit(1);
 }
@@ -103,16 +122,17 @@ ${pieces},
       '\\s', '', 'g'),
        "failedAttempts" = 0,
        "lockedUntil" = NULL,
-       "mustReset" = false,
+       "mustReset" = ${bat ? "true" : "false"},
        "passwordChangedAt" = NOW()
- WHERE email = '${email}';`;
+ WHERE ${where};`;
 
 const check = `SELECT email,
        CASE WHEN "passwordHash" ~ '^\\$2[aby]\\$10\\$[./A-Za-z0-9]{53}$'
             THEN 'hash intact' ELSE 'hash damaged' END AS result,
-       "failedAttempts", "lockedUntil"
+       "failedAttempts", "lockedUntil", "mustReset"
   FROM "User"
- WHERE email = '${email}';`;
+ WHERE ${where}
+ ORDER BY email;`;
 
 // Also into a file, opened in Notepad on Windows: copying from Notepad does not
 // add line breaks the way copying from a terminal can.
@@ -138,8 +158,9 @@ if (process.platform === "win32" && process.stdin.isTTY) {
 
 console.log(`
 ${opened ? `Opened in Notepad: ${file}\nCopy from Notepad rather than from this window.\n` : `Also saved to: ${file}\n`}
-Run these against the database whose ${email} you mean — for Pre-Prod, in
-Railway: Pre-Prod -> Postgres -> Database -> Data, in the query box.
+Run these against the database you mean — for Pre-Prod, in Railway:
+Pre-Prod -> Postgres -> Database -> Data, in the query box.
+They set the password for ${who}.
 
 -- 1. Run this first
 ${statement}
@@ -147,6 +168,6 @@ ${statement}
 -- 2. Then run this. It must say: hash intact
 ${check}
 
-When it says "hash intact", sign in with the password you just typed.
-Setting passwordChangedAt also signs out anyone already signed in as ${email}.
+When it says "hash intact"${bat ? " on every row (11 for the BAT logins)" : ""}, sign in with the password you just typed.${bat ? "\nEach tester is asked to choose their own password straight after signing in." : ""}
+Setting passwordChangedAt also signs out anyone already signed in as ${bat ? "those users" : email}.
 `);
