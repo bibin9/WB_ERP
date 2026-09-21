@@ -27,3 +27,6 @@ scripts/.*.py
 
 # performance test output (may name database hosts)
 perf-results/
+
+# Temporary passwords for tester logins (scripts/uat-testers.mjs). Never commit.
+tester-logins/

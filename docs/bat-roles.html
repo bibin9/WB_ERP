@@ -1,0 +1,320 @@
+<title>BAT Roles &amp; Access</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  :root{
+    --ground:#F2F5F4; --panel:#FFFFFF; --sunk:#E7ECEA;
+    --ink:#15201D; --ink-2:#41504B; --ink-3:#6E7B77;
+    --rule:#D2DAD7; --rule-soft:#E4E9E7;
+    --accent:#0B5F6B; --accent-bg:#DFEEF0;
+    --v:#E3E9E7; --v-ink:#41504B;
+    --c:#DCEBDF; --c-ink:#1C6B3F;
+    --e:#DDE7F2; --e-ink:#23507F;
+    --d:#F6E1DE; --d-ink:#9A2A20;
+    --a:#F4E8CF; --a-ink:#7A4C00;
+    --disp:'Barlow Semi Condensed','Arial Narrow',system-ui,sans-serif;
+    --body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0D1312; --panel:#141C1A; --sunk:#1C2624;
+      --ink:#E5ECE9; --ink-2:#AEBAB6; --ink-3:#7E8B87;
+      --rule:#29342F; --rule-soft:#1F2926;
+      --accent:#62B9C5; --accent-bg:#11292D;
+      --v:#222D2A; --v-ink:#AEBAB6; --c:#12301F; --c-ink:#6FD39B; --e:#152536; --e-ink:#8EB9E6;
+      --d:#3A1814; --d-ink:#F29A90; --a:#33280F; --a-ink:#E2B25E;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0D1312; --panel:#141C1A; --sunk:#1C2624;
+    --ink:#E5ECE9; --ink-2:#AEBAB6; --ink-3:#7E8B87;
+    --rule:#29342F; --rule-soft:#1F2926;
+    --accent:#62B9C5; --accent-bg:#11292D;
+    --v:#222D2A; --v-ink:#AEBAB6; --c:#12301F; --c-ink:#6FD39B; --e:#152536; --e-ink:#8EB9E6;
+    --d:#3A1814; --d-ink:#F29A90; --a:#33280F; --a-ink:#E2B25E;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--body);font-size:15.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:68rem;margin:0 auto;padding-inline:16px;padding-block:2rem 5rem}
+  h1,h2,h3{font-family:var(--disp);line-height:1.12;margin:0;text-wrap:balance}
+  h1{font-size:clamp(2rem,5vw,2.8rem);font-weight:700;margin-top:.4rem}
+  h2{font-size:1.55rem;font-weight:700;margin-top:2.6rem}
+  p{margin:.6rem 0;max-width:70ch}
+  .kicker{font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+  .lede{font-size:1.08rem;color:var(--ink-2);max-width:62ch}
+  .facts{display:flex;flex-wrap:wrap;gap:.5rem 1.6rem;margin-top:1.2rem;font-size:.9rem;color:var(--ink-2)}
+  .facts b{font-family:var(--disp);font-size:1.35rem;color:var(--ink);margin-right:.25rem;font-variant-numeric:tabular-nums}
+  .tw{overflow-x:auto;margin-top:1rem;background:var(--panel);border:1px solid var(--rule);border-radius:6px}
+  table{border-collapse:collapse;width:100%;font-size:.88rem}
+  th,td{padding:.5rem .65rem;border-top:1px solid var(--rule-soft);vertical-align:top;text-align:left}
+  thead th{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);background:var(--sunk);border-top:0;white-space:nowrap}
+  td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  td.big{font-family:var(--disp);font-size:1.2rem;font-weight:700}
+  .tag{font-family:var(--mono);font-size:.72rem;font-weight:600;color:var(--accent);background:var(--accent-bg);border-radius:3px;padding:.05rem .35rem;margin-right:.3rem}
+  .sys{font-weight:600}
+  .note{background:var(--panel);border:1px solid var(--rule);border-left:4px solid var(--accent);border-radius:5px;padding:.8rem 1rem;margin-top:1rem;max-width:72ch}
+  .note b{font-family:var(--disp);font-size:1.02rem}
+  ul{padding-left:1.2rem;max-width:70ch} li{margin:.3rem 0}
+  /* rights matrix */
+  .matrix table{font-size:.82rem}
+  .matrix thead th{position:sticky;top:0;z-index:1}
+  .matrix thead th.role{writing-mode:vertical-rl;transform:rotate(180deg);height:7.2rem;text-align:left;padding:.5rem .35rem;letter-spacing:.06em}
+  .matrix tbody th,.matrix thead th:first-child{font-weight:500;white-space:nowrap;padding-right:1rem;position:sticky;left:0;background:var(--panel);z-index:2}
+  .matrix thead th:first-child{background:var(--sunk);z-index:3}
+  .matrix tr.mod th{background:var(--sunk);font-family:var(--disp);font-size:.95rem;font-weight:700;color:var(--ink);letter-spacing:.02em;padding-top:.6rem}
+  .matrix tr.mod th span{font-family:var(--body);font-size:.8rem;font-weight:400;color:var(--ink-3)}
+  .matrix td{text-align:center;padding:.4rem .3rem;white-space:nowrap}
+  .matrix td.none{color:var(--ink-3)}
+  .r{display:inline-flex;gap:2px}
+  .r b{font-family:var(--mono);font-size:.68rem;font-weight:600;width:1.15rem;height:1.15rem;display:inline-grid;place-items:center;border-radius:3px}
+  .r b.view{background:var(--v);color:var(--v-ink)} .r b.create{background:var(--c);color:var(--c-ink)}
+  .r b.edit{background:var(--e);color:var(--e-ink)} .r b.delete{background:var(--d);color:var(--d-ink)}
+  .r b.approve{background:var(--a);color:var(--a-ink)}
+  .legend{display:flex;flex-wrap:wrap;gap:.4rem 1.1rem;margin-top:.8rem;font-size:.85rem;color:var(--ink-2)}
+  .legend span{display:inline-flex;align-items:center;gap:.35rem}
+  pre{background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:.8rem 1rem;font-family:var(--mono);font-size:.8rem;overflow-x:auto}
+  footer{margin-top:3rem;font-size:.82rem;color:var(--ink-3);max-width:70ch}
+  @media print{ body{background:#fff} .tw{border-color:#ccc} .matrix thead th{position:static} }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="kicker">Business acceptance testing · Pre-Prod</div>
+    <h1>BAT Roles &amp; Access Rights</h1>
+    <p class="lede">Who signs in as what for acceptance testing, and exactly what each role can see and do. Every tester uses their own login on the role they will really do — nobody tests as the administrator, because a screen that works for the Group Admin can still be refused to the storekeeper, and finding that is the point.</p>
+    <div class="facts">
+      <span><b>12</b> logins</span>
+      <span><b>11</b> tester roles</span>
+      <span><b>84</b> acceptance checks</span>
+      <span>Company for testing: <b style="font-size:1.05rem">WBE</b></span>
+    </div>
+  </header>
+
+  <h2>Logins to create</h2>
+  <p>One login per person, each in the company <b>WBE — WB Engineering</b> unless a check says otherwise. The number of checks is from the Acceptance Scripts.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Tester</th><th>Signs in as (role)</th><th class="n">Level</th><th class="n">Logins</th><th class="n">Checks</th><th>What they test</th></tr></thead>
+    <tbody>
+<tr>
+      <td><span class="tag">ADM</span> Administrator</td>
+      <td><span class="sys">Group Admin</span></td>
+      <td class="n">L100</td>
+      <td class="n big">1</td>
+      <td class="n">10</td>
+      <td>The client's own administrator. The only person who tests as Group Admin.</td>
+    </tr>
+<tr>
+      <td><span class="tag">EST</span> Estimator / Sales</td>
+      <td><span class="sys">Estimation / Sales Engineer</span></td>
+      <td class="n">L40</td>
+      <td class="n big">1</td>
+      <td class="n">12</td>
+      <td>Enquiries, estimates and quotations; issues approved quotations and records orders.</td>
+    </tr>
+<tr>
+      <td><span class="tag">APR</span> Operations &amp; Directors</td>
+      <td><span class="sys">Operations Manager</span><br><span class="sys">Director</span></td>
+      <td class="n">L70 · L80</td>
+      <td class="n big">2</td>
+      <td class="n">8</td>
+      <td>Two people: the Operations Manager, then a Director. Add a Managing Director only to test orders from AED 50,000 or quotations from AED 500,000.</td>
+    </tr>
+<tr>
+      <td><span class="tag">SITE</span> Site Engineer</td>
+      <td><span class="sys">Site Engineer / Planner</span></td>
+      <td class="n">L35</td>
+      <td class="n big">1</td>
+      <td class="n">4</td>
+      <td>Raises material requests; approves the first step of other people's.</td>
+    </tr>
+<tr>
+      <td><span class="tag">PM</span> Project Manager</td>
+      <td><span class="sys">Project Manager</span></td>
+      <td class="n">L50</td>
+      <td class="n big">1</td>
+      <td class="n">3</td>
+      <td>Approves requests and orders for their jobs; raises their own request.</td>
+    </tr>
+<tr>
+      <td><span class="tag">PRC</span> Procurement</td>
+      <td><span class="sys">Procurement Officer</span></td>
+      <td class="n">L45</td>
+      <td class="n big">1</td>
+      <td class="n">10</td>
+      <td>Enquiries, three quotes, awards and purchase orders.</td>
+    </tr>
+<tr>
+      <td><span class="tag">STR</span> Storekeeper</td>
+      <td><span class="sys">Storekeeper</span></td>
+      <td class="n">L20</td>
+      <td class="n big">1</td>
+      <td class="n">11</td>
+      <td>Receives, issues, transfers and takes back returns.</td>
+    </tr>
+<tr>
+      <td><span class="tag">QA</span> QA/QC &amp; Calibration</td>
+      <td><span class="sys">QA/QC &amp; Calibration</span></td>
+      <td class="n">L40</td>
+      <td class="n big">1</td>
+      <td class="n">4</td>
+      <td>Passes or fails deliveries; keeps equipment calibrated.</td>
+    </tr>
+<tr>
+      <td><span class="tag">FIN</span> Accounts</td>
+      <td><span class="sys">Finance / Accounts</span></td>
+      <td class="n">L45</td>
+      <td class="n big">1</td>
+      <td class="n">8</td>
+      <td>Drafts and issues invoices, credit notes and supplier bills.</td>
+    </tr>
+<tr>
+      <td><span class="tag">FC</span> Finance Controller</td>
+      <td><span class="sys">Finance Controller</span></td>
+      <td class="n">L60</td>
+      <td class="n big">1</td>
+      <td class="n">5</td>
+      <td>Reports, VAT, cash flow and the period lock.</td>
+    </tr>
+<tr>
+      <td><span class="tag">HR</span> HR</td>
+      <td><span class="sys">HR Officer</span></td>
+      <td class="n">L30</td>
+      <td class="n big">1</td>
+      <td class="n">9</td>
+      <td>Employees, attendance, payroll, payslips and settlements.</td>
+    </tr>
+    </tbody>
+  </table></div>
+
+  <div class="note"><b>Four eyes needs different people.</b> Nobody can approve a request they raised, and nobody can decide two steps of the same request. So the Site Engineer, Project Manager, Operations Manager, Director and Procurement Officer must be <i>different people</i> — one person holding two of those logins will be refused at the second step, correctly.</div>
+  <div class="note"><b>Passwords.</b> Each login starts with a temporary password that must be changed at the first sign-in, to at least 10 characters. Temporary passwords are handed to each tester privately — never in a group chat or email thread.</div>
+
+  <h2>What each role can do</h2>
+  <p>Read across a row to see who can use a screen, or down a column to see everything one role can do. A dot means the screen is not in that role's menu at all. <b>Directors, the Managing Director and the Group Admin can do everything</b>, so they are not shown.</p>
+  <div class="legend">
+    <span><span class="r"><b class="view">V</b></span> View</span>
+    <span><span class="r"><b class="create">C</b></span> Create</span>
+    <span><span class="r"><b class="edit">E</b></span> Edit</span>
+    <span><span class="r"><b class="delete">D</b></span> Delete</span>
+    <span><span class="r"><b class="approve">A</b></span> Approve — issue, award, approve in the inbox, lock the books</span>
+  </div>
+  <div class="tw matrix"><table>
+    <thead><tr><th>Screen</th><th class="role" scope="col" title="Operations Manager (L70)">Ops Mgr</th><th class="role" scope="col" title="Finance Controller (L60)">Fin Ctrl</th><th class="role" scope="col" title="Finance / Accounts (L45)">Accounts</th><th class="role" scope="col" title="Project Manager (L50)">Proj Mgr</th><th class="role" scope="col" title="Site Engineer / Planner (L35)">Site Eng</th><th class="role" scope="col" title="Procurement Officer (L45)">Procure</th><th class="role" scope="col" title="Storekeeper (L20)">Store</th><th class="role" scope="col" title="QA/QC &amp; Calibration (L40)">QA/QC</th><th class="role" scope="col" title="Estimation / Sales Engineer (L40)">Estimator</th><th class="role" scope="col" title="HR Officer (L30)">HR</th></tr></thead>
+<tbody>
+    <tr class="mod"><th colspan="11" scope="rowgroup">Dashboard</th></tr>
+    <tr><th scope="row">Dashboard</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td></tr>
+  </tbody>
+<tbody>
+    <tr class="mod"><th colspan="11" scope="rowgroup">Companies</th></tr>
+    <tr><th scope="row">Companies &amp; Group</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+  </tbody>
+<tbody>
+    <tr class="mod"><th colspan="11" scope="rowgroup">Finance &amp; Accounting</th></tr>
+    <tr><th scope="row">Overview &amp; Journals</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Invoices</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="approve" title="approve">A</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Day Book</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Ledgers</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Reports (P&amp;L / Balance Sheet)</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Customers &amp; Suppliers</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Outstanding &amp; Ageing</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Cash Flow Forecast</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Cheque Register (PDC)</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Retention</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Advances</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Bank Reconciliation</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Job Costing</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Work in Progress</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Cost Centres</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">VAT Report</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Corporate Tax</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Electronic Invoicing</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Tally Sync</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Finance Settings</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+  </tbody>
+<tbody>
+    <tr class="mod"><th colspan="11" scope="rowgroup">HR &amp; Admin</th></tr>
+    <tr><th scope="row">Employees</th><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td></tr>
+    <tr><th scope="row">Onboarding</th><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td></tr>
+    <tr><th scope="row">Payroll</th><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td></tr>
+    <tr><th scope="row">Leave</th><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td></tr>
+    <tr><th scope="row">Attendance &amp; Muster</th><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td></tr>
+    <tr><th scope="row">Certifications</th><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td></tr>
+    <tr><th scope="row">Compliance &amp; Expiry</th><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td></tr>
+    <tr><th scope="row">Overtime</th><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td></tr>
+    <tr><th scope="row">Manhours</th><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td></tr>
+    <tr><th scope="row">Workforce Mix</th><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td></tr>
+    <tr><th scope="row">HR Policy</th><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td></tr>
+    <tr><th scope="row">Separation &amp; Settlement</th><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td></tr>
+    <tr><th scope="row">Job Assignments</th><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b><b class="approve" title="approve">A</b></span></td></tr>
+  </tbody>
+<tbody>
+    <tr class="mod"><th colspan="11" scope="rowgroup">Approvals</th></tr>
+    <tr><th scope="row">Approvals Inbox</th><td><span class="r"><b class="view" title="view">V</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="approve" title="approve">A</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td></tr>
+  </tbody>
+<tbody>
+    <tr class="mod"><th colspan="11" scope="rowgroup">Users &amp; Access <span>— Directors and the Group Admin only</span></th></tr>
+    <tr><th scope="row">Users</th><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Roles &amp; Access Control</th><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+  </tbody>
+<tbody>
+    <tr class="mod"><th colspan="11" scope="rowgroup">Inventory &amp; SCM</th></tr>
+    <tr><th scope="row">Items</th><td><span class="r"><b class="view" title="view">V</b><b class="approve" title="approve">A</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Stock on Hand</th><td><span class="r"><b class="view" title="view">V</b><b class="approve" title="approve">A</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Receive &amp; Issue</th><td><span class="r"><b class="view" title="view">V</b><b class="approve" title="approve">A</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Material Requests</th><td><span class="r"><b class="view" title="view">V</b><b class="approve" title="approve">A</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Enquiries &amp; Quotes</th><td><span class="r"><b class="view" title="view">V</b><b class="approve" title="approve">A</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Purchase Orders</th><td><span class="r"><b class="view" title="view">V</b><b class="approve" title="approve">A</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Supplier Performance</th><td><span class="r"><b class="view" title="view">V</b><b class="approve" title="approve">A</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Equipment &amp; Calibration</th><td><span class="r"><b class="view" title="view">V</b><b class="approve" title="approve">A</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Returns from Site</th><td><span class="r"><b class="view" title="view">V</b><b class="approve" title="approve">A</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Stores</th><td><span class="r"><b class="view" title="view">V</b><b class="approve" title="approve">A</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="approve" title="approve">A</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+  </tbody>
+<tbody>
+    <tr class="mod"><th colspan="11" scope="rowgroup">CRM &amp; Estimation</th></tr>
+    <tr><th scope="row">Pipeline</th><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Estimates</th><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Quotations</th><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="approve" title="approve">A</b></span></td><td class="none" aria-label="no access">·</td></tr>
+  </tbody>
+<tbody>
+    <tr class="mod"><th colspan="11" scope="rowgroup">Projects</th></tr>
+    <tr><th scope="row">Projects</th><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b><b class="delete" title="delete">D</b></span></td><td><span class="r"><b class="view" title="view">V</b><b class="create" title="create">C</b><b class="edit" title="edit">E</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td></tr>
+  </tbody>
+<tbody>
+    <tr class="mod"><th colspan="11" scope="rowgroup">HSE</th></tr>
+    <tr><th scope="row">HSE</th><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+  </tbody>
+<tbody>
+    <tr class="mod"><th colspan="11" scope="rowgroup">Audit</th></tr>
+    <tr><th scope="row">Audit Log</th><td><span class="r"><b class="view" title="view">V</b></span></td><td><span class="r"><b class="view" title="view">V</b></span></td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+  </tbody>
+<tbody>
+    <tr class="mod"><th colspan="11" scope="rowgroup">Settings <span>— Directors and the Group Admin only</span></th></tr>
+    <tr><th scope="row">General Settings</th><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Master Data</th><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Approval Routes</th><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Custom Fields</th><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Email</th><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+    <tr><th scope="row">Printed Documents</th><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td><td class="none" aria-label="no access">·</td></tr>
+  </tbody>
+  </table></div>
+
+  <h2>Changed for BAT</h2>
+  <p>Setting up the testers found six acceptance checks given to a role that could not do them — each tester would have recorded a failure that was really a missing permission. Decided on 21 September 2026:</p>
+  <ul>
+    <li><b>Accounts issues invoices.</b> Finance / Accounts has Approve on Invoices: issuing posts the invoice and gives it its number. (FIN-02, FIN-03, FIN-07)</li>
+    <li><b>The estimator issues approved quotations and records the order.</b> Estimation / Sales Engineer has Approve on Quotations. The Operations Manager and a Director must still approve the quotation first. (EST-09, EST-11)</li>
+    <li><b>The Finance Controller locks the books.</b> Finance → Setup → <i>Lock the books</i>, for anyone with Approve on Finance Settings. A future date is refused and every change is in the audit log. (FC-03)</li>
+  </ul>
+
+  <h2>Sending the tester list</h2>
+  <p>To create the logins, send the list as a spreadsheet saved as CSV with these four columns. Companies are codes separated by a semicolon. The rows below are examples only.</p>
+  <pre>name,email,role,companies
+Example Storekeeper,store.test@example.com,Storekeeper,WBE
+Example Accountant,accounts.test@example.com,Finance / Accounts,WBE
+Example Director,director.test@example.com,Director,WBE;WBTS</pre>
+  <p>Role names must match the “Signs in as” column exactly. An email that already has a login is left as it is.</p>
+
+  <footer>
+    Built 2026-09-21 from the role definitions the system uses and the Acceptance Scripts (84 checks). If a tester finds they can do something this page says they cannot — or cannot do something it says they can — record it as a failure: either the system or this page is wrong, and both matter.
+  </footer>
+</div>

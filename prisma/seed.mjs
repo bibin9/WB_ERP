@@ -80,14 +80,20 @@ const ROLES = [
   { name: "Operations Manager", approvalLevel: 70, permissions: { dashboard: V, companies: V, finance: V, hr: V, approvals: ["view", "approve"], inventory: ["view", "approve"], crm: V, projects: VCE, hse: V, audit: V } },
   { name: "Finance Controller", approvalLevel: 60, permissions: { dashboard: V, companies: V, finance: FULL, approvals: ["view", "approve"], audit: V } },
   { name: "Project Manager", approvalLevel: 50, permissions: { dashboard: V, projects: VCED, hr: V, inventory: VC, crm: V, approvals: ["view", "approve"], hse: V } },
-  { name: "Estimation / Sales Engineer", approvalLevel: 40, permissions: { dashboard: V, crm: VCE, projects: V } },
+  // Approve on Quotations is the right to issue a quotation management has
+  // already signed, and to record the customer's order — the estimator's job in
+  // the acceptance scripts and the Handbook, which the role could not do.
+  { name: "Estimation / Sales Engineer", approvalLevel: 40, permissions: { dashboard: V, crm: VCE, "crm.quotations": [...VCE, "approve"], projects: V } },
   { name: "Site Engineer / Planner", approvalLevel: 35, permissions: { dashboard: V, inventory: VC, projects: VCE, hr: V, hse: V, approvals: ["view", "approve"] } },
   { name: "Procurement Officer", approvalLevel: 45, permissions: { dashboard: V, inventory: ["view", "create", "edit", "approve"], crm: V, approvals: ["view", "approve"] } },
   { name: "Storekeeper", approvalLevel: 20, permissions: { dashboard: V, inventory: VCE } },
   { name: "QA/QC & Calibration", approvalLevel: 40, permissions: { dashboard: V, inventory: ["view", "edit"], hse: V } },
   { name: "HSE Officer", approvalLevel: 45, permissions: { dashboard: V, hse: FULL, hr: V } },
   { name: "HR Officer", approvalLevel: 30, permissions: { dashboard: V, hr: FULL, approvals: V } },
-  { name: "Finance / Accounts", approvalLevel: 45, permissions: { dashboard: V, finance: VCE, approvals: V } },
+  // Approve on Invoices is the right to issue: post it, number it, make it a
+  // tax invoice. Accounts raises and issues invoices; without it they could only
+  // draft them.
+  { name: "Finance / Accounts", approvalLevel: 45, permissions: { dashboard: V, finance: VCE, "finance.invoices": [...VCE, "approve"], approvals: V } },
   { name: "Vendor (external)", approvalLevel: 0, permissions: {} },
   { name: "Customer (external)", approvalLevel: 0, permissions: {} },
 ];

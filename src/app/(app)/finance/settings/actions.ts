@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { allow } from "@/lib/guard";
+import { allow, allowIn } from "@/lib/guard";
 import { audit } from "@/lib/audit";
 import {
   type FinancePolicy,
@@ -210,5 +210,48 @@ export async function copyFinancePolicy(fromCompanyId: string, toCompanyId: stri
     summary: `${to.code} finance settings copied from ${from.code}`,
   });
   revalidatePath("/finance/settings");
+  return { ok: true };
+}
+
+/**
+ * Lock the books up to a date: nothing can be posted on or before it.
+ *
+ * The lock lived only on the company record, which only a Director or the
+ * Group Admin can edit — so the Finance Controller, who files the VAT return
+ * and whose job it is to close the period, could not close it. Now anyone with
+ * Approve on Finance Settings can set it here, for their own companies.
+ *
+ * A lock is set after a filing, so it may not be in the future: a lock on a
+ * date not yet reached would refuse today's own postings. Moving it earlier
+ * reopens a closed period, which is sometimes needed and always recorded.
+ */
+export async function setBooksLock(companyId: string, date: string): Promise<Result> {
+  const session = await allowIn(companyId, "finance.settings", "approve");
+  if (!session) return { ok: false, error: "Only someone with Approve on Finance Settings can lock the books." };
+  const company = await db.company.findUnique({ where: { id: companyId }, select: { code: true, booksLockedTo: true } });
+  if (!company) return { ok: false, error: "Not found" };
+
+  const value = String(date ?? "").trim();
+  if (value && !/^\d{4}-\d{2}-\d{2}$/.test(value)) return { ok: false, error: "Choose a date." };
+  const lockTo = value ? new Date(value + "T23:59:59.999Z") : null;
+  if (lockTo && lockTo.getTime() > Date.now()) {
+    return { ok: false, error: "Lock only a period that has ended. A lock on a future date would refuse today's own postings." };
+  }
+
+  const before = company.booksLockedTo ? company.booksLockedTo.toISOString().slice(0, 10) : null;
+  await db.company.update({ where: { id: companyId }, data: { booksLockedTo: lockTo } });
+  const reopened = before && (!value || value < before);
+  await audit({
+    action: "Updated",
+    entity: "Company",
+    entityId: companyId,
+    summary: !value
+      ? `Books unlocked for ${company.code} (were locked to ${before})`
+      : reopened
+        ? `Books reopened for ${company.code}: lock moved back from ${before} to ${value}`
+        : `Books locked to ${value} for ${company.code}${before ? ` (was ${before})` : ""}`,
+  });
+  revalidatePath("/finance/settings");
+  revalidatePath("/companies");
   return { ok: true };
 }

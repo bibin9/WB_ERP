@@ -3,6 +3,8 @@ import PageHeader from "@/components/PageHeader";
 import FinanceTabs from "@/components/FinanceTabs";
 import CompanyPicker from "@/components/CompanyPicker";
 import FinanceSettingsForm from "@/components/finance/FinanceSettingsForm";
+import BooksLockForm from "@/components/finance/BooksLockForm";
+import { can } from "@/lib/rbac";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
@@ -106,6 +108,15 @@ export default async function FinanceSettingsPage({
           {company?.code} differs from the shipped defaults in {changes.length === 1 ? "one way" : `${changes.length} ways`}:{" "}
           {changes.join("; ")}.
         </p>
+      )}
+
+      {/* The period lock, for whoever may close the books (Approve on Finance Settings). */}
+      {companyId && can(session, "finance.settings", "approve") && (
+        <BooksLockForm
+          companyId={companyId}
+          companyCode={company?.code ?? ""}
+          lockedTo={(await db.company.findUnique({ where: { id: companyId }, select: { booksLockedTo: true } }))?.booksLockedTo?.toISOString().slice(0, 10) ?? null}
+        />
       )}
 
       {companyId && (

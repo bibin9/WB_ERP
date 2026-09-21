@@ -1441,6 +1441,18 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "Turn on 'Cautious view' before you promise anybody anything. It removes money you are owed but cannot be sure of — overdue invoices and retention still to be chased — while keeping every payment you have to make. If the answer is still yes with the cautious view on, it is a real yes.",
   },
   {
+    id: "books-lock", category: "Finance & Accounting", screens: ["/finance/settings"],
+    title: "Locking the books after a VAT filing",
+    summary: "Stop anything being posted into a period you have already reported.",
+    body: "Once a VAT return is filed, the figures behind it must not change. Locking the books up to a date means nothing can be posted on or before it — a late entry has to be dated after the lock.",
+    steps: [
+      "Open Finance → Setup. Under 'Lock the books', choose the last day of the period you filed and click Lock.",
+      "Anyone who tries to post into the locked period is told the books are closed up to that date.",
+      "If a closed period has to be corrected, move the date back or click Unlock. That is recorded in the audit log, so it is never done quietly.",
+    ],
+    tip: "Only a date that has already passed can be locked — a future lock would refuse today's own postings. You need Approve on Finance Settings (the Finance Controller has it).",
+  },
+  {
     id: "cash-flow-setup", category: "Finance & Accounting", screens: ["/finance/cash-flow", "/finance/settings", "/finance"],
     title: "Getting the cash flow forecast right",
     summary: "Two settings it depends on: which accounts are cash, and when you pay wages.",

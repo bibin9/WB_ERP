@@ -84,5 +84,44 @@ ok("a refused approval says why instead of doing nothing",
 ok("the inbox tells somebody without the grant, rather than offering buttons",
   fs.readFileSync("src/app/(app)/approvals/page.tsx", "utf8").includes('can(session, "approvals.inbox", "approve")'));
 
+/* ------------------------ each tester's role can do what its checks ask -- */
+// Setting up the business acceptance testers (September 2026) found six checks
+// handed to a role without the right to do them: Accounts could draft invoices
+// but not issue them, the estimator could not issue an approved quotation or
+// record the order, and the Finance Controller could not lock a period. Each
+// tester would have recorded a failure that was really a missing grant.
+{
+  const start = seed.indexOf("const V = ");
+  const end = seed.indexOf("];", seed.indexOf("const ROLES = [")) + 2;
+  const { ROLES, expandPerms } = new Function(seed.slice(start, end) + "\nreturn { ROLES, expandPerms };")();
+  const rights = (name) => expandPerms(ROLES.find((r) => r.name === name)?.permissions ?? {});
+  const NEEDS = [
+    ["Finance / Accounts", "finance.invoices", "approve", "FIN-02, FIN-03, FIN-07 — issue an invoice, a credit note, a reverse-charge bill"],
+    ["Estimation / Sales Engineer", "crm.quotations", "approve", "EST-09 — issue the approved quotation; EST-11 — record the customer's order"],
+    ["Estimation / Sales Engineer", "crm.quotations", "create", "EST-07, EST-10 — raise and revise a quotation"],
+    ["Finance Controller", "finance.settings", "approve", "FC-03 — lock a period from Finance → Setup"],
+    ["Storekeeper", "inventory.movements", "create", "STR-01, STR-05 — receive and issue"],
+    ["QA/QC & Calibration", "inventory.movements", "edit", "QA-01, QA-02 — pass or fail a delivery"],
+    ["Procurement Officer", "inventory.rfq", "approve", "PRC-06 — award an enquiry"],
+    ["HR Officer", "hr.payroll", "approve", "HR-04 — approve the payroll run"],
+    ["Site Engineer / Planner", "approvals.inbox", "approve", "SITE-03 — approve a material request"],
+    ["Project Manager", "approvals.inbox", "approve", "PM-01, PM-02 — approve requests and orders"],
+  ];
+  for (const [role, screen, action, why] of NEEDS) {
+    ok(`${role} can ${action} on ${screen}`, (rights(role)[screen] ?? []).includes(action), why);
+  }
+  // The code must ask for exactly those rights, or the grant proves nothing.
+  const read = (p) => fs.readFileSync(p, "utf8");
+  ok("issuing an invoice is gated on Approve on Invoices", /allowIn\(existing\.companyId, "finance\.invoices", "approve"\)/.test(read("src/app/(app)/finance/invoices/actions.ts")));
+  ok("issuing a quotation and recording the order are gated on Approve on Quotations",
+    (read("src/app/(app)/crm/quotations/actions.ts").match(/allow\("crm\.quotations", "approve"\)/g) ?? []).length >= 2);
+  const lock = read("src/app/(app)/finance/settings/actions.ts");
+  const setLock = lock.slice(lock.indexOf("export async function setBooksLock"));
+  ok("the period lock is gated on Approve on Finance Settings, for the user's own company",
+    /allowIn\(companyId, "finance\.settings", "approve"\)/.test(setLock));
+  ok("  a lock on a future date is refused, and every change is audited",
+    /lockTo\.getTime\(\) > Date\.now\(\)/.test(setLock) && /await audit\(/.test(setLock));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
