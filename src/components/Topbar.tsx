@@ -15,7 +15,10 @@ export default async function Topbar() {
   const unread = session ? await db.notification.count({ where: { userId: session.user.id, isRead: false } }) : 0;
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-line bg-surface px-4 sm:gap-4 sm:px-6">
+    <header className="flex h-16 shrink-0 items-center gap-2 border-b border-line bg-surface px-4 sm:gap-4 sm:px-6">
+      {/* On a phone the right-hand group ran ~100px off the screen, taking the
+          notifications and the menu with Sign out in it. Tighter gaps, and the
+          company shown by its code alone, keep it all within 375px. */}
       <NavToggle />
       <CompanySwitcher companies={(session?.companies ?? []).map((c) => ({ id: c.id, code: c.code, name: c.name }))} />
 
@@ -24,7 +27,7 @@ export default async function Topbar() {
         <input className="input pl-9" placeholder="Search (Ctrl + K) — coming soon" disabled />
       </div>
 
-      <div className="ml-auto flex items-center gap-3">
+      <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-3">
         <ThemeToggle />
         <HelpLauncher />
         <Link href="/notifications" className="relative grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-line/60" title="Notifications">

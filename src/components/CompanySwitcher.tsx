@@ -46,12 +46,12 @@ export default function CompanySwitcher({ companies }: { companies: SwitcherComp
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2.5 rounded-lg border border-line bg-surface px-3 py-2 text-sm hover:border-brand-blue"
+        className="flex items-center gap-2 rounded-lg border border-line bg-surface px-2 py-2 text-sm hover:border-brand-blue sm:gap-2.5 sm:px-3"
       >
         <span className="grid h-6 w-6 place-items-center rounded bg-brand-navy text-[10px] font-bold text-white">
           {current.code}
         </span>
-        <span className="max-w-[10rem] truncate font-medium text-ink">{current.name}</span>
+        <span className="hidden max-w-[10rem] truncate font-medium text-ink sm:inline">{current.name}</span>
         <ChevronDown className="h-4 w-4 text-muted" />
       </button>
 
