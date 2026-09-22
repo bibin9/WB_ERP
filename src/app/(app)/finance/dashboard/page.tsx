@@ -162,7 +162,11 @@ export default async function FinanceDashboard({ searchParams }: { searchParams:
             <Figures>
               <Figure label="Customers owe us" value={aed(owedToUs)} />
               <Figure label="We owe suppliers" value={aed(weOwe)} />
-              <Figure label="Difference" value={aed(owedToUs - weOwe)} tone={owedToUs - weOwe >= 0 ? "good" : "warn"} />
+              <Figure
+                label={owedToUs - weOwe >= 0 ? "More owed to us than we owe" : "We owe more than we are owed"}
+                value={aed(Math.abs(owedToUs - weOwe))}
+                tone={owedToUs - weOwe >= 0 ? "good" : "warn"}
+              />
             </Figures>
             {(!marked.has("Receivable") || !marked.has("Payable")) && (
               <p className="mt-3 text-xs text-muted">No account is marked as {!marked.has("Receivable") ? "Receivable" : "Payable"} yet, so it shows as zero.</p>
@@ -227,7 +231,7 @@ export default async function FinanceDashboard({ searchParams }: { searchParams:
         {jobs && (
           <Section title="Jobs" hint="Contracts collecting costs and billing." href={`/finance/jobs${q}`}>
             <Line label="Open jobs" value={String(jobs.find((j) => j.status === "Open")?._count ?? 0)} href={`/finance/jobs${q}`} />
-            <Line label="On hold" value={String(jobs.find((j) => j.status === "On hold")?._count ?? 0)} href={`/finance/jobs${q}`} tone="warn" />
+            <Line label="On hold" value={String(jobs.find((j) => j.status === "On hold")?._count ?? 0)} href={`/finance/jobs${q}`} tone={jobs.some((j) => j.status === "On hold") ? "warn" : "neutral"} />
           </Section>
         )}
       </Sections>

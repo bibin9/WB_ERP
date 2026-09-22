@@ -1,7 +1,7 @@
 import PageHeader from "@/components/PageHeader";
 import CompanyPicker from "@/components/CompanyPicker";
 import CrmTabs from "@/components/CrmTabs";
-import { Tile, Tiles, Section, Sections, Figure, Figures, Line, List, Bars, NothingToShow, aed, aedShort, daysFrom, dueText } from "@/components/dashboards/Kit";
+import { Tile, Tiles, Section, Sections, Figure, Figures, Line, List, Bars, NothingToShow, aed, aedShort, plural, daysFrom, dueText } from "@/components/dashboards/Kit";
 import { companyScope } from "@/lib/company-scope";
 import { requireAccess } from "@/lib/guard";
 import { can } from "@/lib/rbac";
@@ -79,7 +79,7 @@ export default async function CrmDashboard({ searchParams }: { searchParams: Pro
         {p && (
           <Section title="Pipeline by stage" hint="Open deals at their estimated value. The further along, the more likely." href="/crm">
             <Bars
-              rows={LEAD_STAGES.filter((s) => s !== "Won" && s !== "Lost").map((s) => ({ label: s, value: p.byStage[s]?.gross ?? 0, note: `${p.byStage[s]?.count ?? 0}` }))}
+              rows={LEAD_STAGES.filter((s) => s !== "Won" && s !== "Lost").map((s) => ({ label: s, value: p.byStage[s]?.gross ?? 0, note: plural(p.byStage[s]?.count ?? 0, "deal") }))}
               format={aedShort}
             />
           </Section>
@@ -102,7 +102,7 @@ export default async function CrmDashboard({ searchParams }: { searchParams: Pro
             <Figures>
               <Figure label="Drafts and approved, not yet issued" value={String(toIssue.length)} />
               <Figure label="Awaiting approval" value={String(toApprove.length)} tone={toApprove.length ? "warn" : "neutral"} />
-              <Figure label="Accepted this year" value={aed(acceptedThisYear?._sum.total ?? 0)} tone="good" sub={`${acceptedThisYear?._count ?? 0} orders`} />
+              <Figure label="Accepted this year" value={aed(acceptedThisYear?._sum.total ?? 0)} tone={acceptedThisYear?._count ? "good" : "neutral"} sub={plural(acceptedThisYear?._count ?? 0, "order")} />
             </Figures>
           </Section>
         )}

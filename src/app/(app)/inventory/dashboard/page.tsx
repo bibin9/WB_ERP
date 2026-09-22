@@ -102,7 +102,7 @@ export default async function InventoryDashboard({ searchParams }: { searchParam
         {g.stock && <Tile label="Running low" value={String(low.length)} hint="Items at or below their reorder level" tone={low.length ? "warn" : "good"} href="/inventory/stock" />}
         {requests && <Tile label="Requests to order" value={String(requests.length)} hint="Material requests submitted and not yet ordered" tone={requests.length ? "warn" : "neutral"} href="/inventory/requests" />}
         {orders && <Tile label="Orders to receive" value={String(toReceive.length)} hint={late.length ? `${late.length} past the expected date` : "Approved orders still arriving"} tone={late.length ? "bad" : "neutral"} href="/inventory/orders" />}
-        {cal && <Tile label="Instruments not usable" value={String(cal.blocked)} hint={cal.expired ? `${cal.expired} out of calibration` : `${cal.expiringSoon} due for calibration within 30 days`} tone={cal.expired ? "bad" : cal.expiringSoon ? "warn" : "good"} href="/inventory/equipment" />}
+        {cal && cal.equipment > 0 && <Tile label="Instruments not usable" value={String(cal.blocked)} hint={cal.expired ? `${cal.expired} out of calibration` : `${cal.expiringSoon} due for calibration within 30 days`} tone={cal.expired ? "bad" : cal.expiringSoon ? "warn" : "good"} href="/inventory/equipment" />}
       </Tiles>
 
       <Sections>
@@ -136,7 +136,7 @@ export default async function InventoryDashboard({ searchParams }: { searchParam
         )}
 
         {orders && (
-          <Section title="Purchase orders" hint="Approved orders still to arrive, the latest expected first." href="/inventory/orders">
+          <Section title="Purchase orders" hint="Approved orders still to arrive, the soonest expected first." href="/inventory/orders">
             <Figures>
               <Figure label="Awaiting approval" value={String(toApprove.length)} tone={toApprove.length ? "warn" : "neutral"} />
               <Figure label="Still to arrive" value={aed(toReceive.reduce((s, o) => s + o.total, 0))} sub={plural(toReceive.length, "order")} />
@@ -170,11 +170,15 @@ export default async function InventoryDashboard({ searchParams }: { searchParam
 
         {cal && (
           <Section title="Equipment and calibration" hint="An instrument out of calibration must not be used on site." href="/inventory/equipment">
+            {cal.equipment === 0 ? (
+              <p className="rounded-lg bg-brand-paper px-3 py-4 text-center text-sm text-muted">No equipment is registered yet. Add instruments under Equipment to track their calibration here.</p>
+            ) : (
             <Figures>
               <Figure label="Ready to use" value={String(cal.available)} tone="good" sub={`of ${cal.equipment}`} />
               <Figure label="Out of calibration" value={String(cal.expired)} tone={cal.expired ? "bad" : "neutral"} />
               <Figure label="Due within 30 days" value={String(cal.expiringSoon)} tone={cal.expiringSoon ? "warn" : "neutral"} />
             </Figures>
+            )}
             {cal.neverCalibrated > 0 && <Line label="Never calibrated" value={String(cal.neverCalibrated)} href="/inventory/equipment" tone="warn" />}
           </Section>
         )}

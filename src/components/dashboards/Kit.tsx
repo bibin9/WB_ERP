@@ -12,7 +12,8 @@ import { ArrowRight } from "lucide-react";
  * the module does.
  */
 
-export const aed = (v: number) => `AED ${Math.round(v).toLocaleString()}`;
+/** Minus before the currency, not inside it: "−AED 63,200", never "AED -63,200". */
+export const aed = (v: number) => `${Math.round(v) < 0 ? "−" : ""}AED ${Math.abs(Math.round(v)).toLocaleString()}`;
 /** AED 1.2M / AED 350K — for tiles, where the full figure does not fit. */
 export const aedShort = (v: number) => {
   const a = Math.abs(v);
@@ -47,8 +48,9 @@ export function Tile({ label, value, hint, href, tone = "neutral" }: { label: st
   return href ? <Link href={href} className="block h-full transition-opacity hover:opacity-90">{body}</Link> : body;
 }
 
+/** However many figures a role gets, they fill their rows: five never leaves one on its own. */
 export function Tiles({ children }: { children: React.ReactNode }) {
-  return <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{children}</div>;
+  return <div className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-4">{children}</div>;
 }
 
 export function Sections({ children }: { children: React.ReactNode }) {
@@ -76,14 +78,15 @@ export function Section({ title, hint, href, children }: { title: string; hint?:
 }
 
 /** A labelled figure inside a section. */
-export function Figure({ label, value, tone = "neutral", sub }: { label: string; value: string; tone?: Tone; sub?: string }) {
-  return (
-    <div className="rounded-lg bg-brand-paper p-3">
+export function Figure({ label, value, tone = "neutral", sub, href }: { label: string; value: string; tone?: Tone; sub?: string; href?: string }) {
+  const body = (
+    <div className={clsx("h-full rounded-lg bg-brand-paper p-3", href && "transition-colors hover:bg-line/60")}>
       <div className={clsx("text-lg font-bold tabular-nums", toneText[tone])}>{value}</div>
       <div className="text-xs text-muted">{label}</div>
       {sub && <div className="text-[11px] text-muted/80">{sub}</div>}
     </div>
   );
+  return href ? <Link href={href} className="block">{body}</Link> : body;
 }
 
 export function Figures({ children }: { children: React.ReactNode }) {

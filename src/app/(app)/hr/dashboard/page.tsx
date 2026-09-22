@@ -165,13 +165,11 @@ export default async function HrDashboard({ searchParams }: { searchParams: Prom
         )}
 
         {(month || hours) && (
-          <Section title="Hours this month" hint="Since the 1st, from attendance and the job timesheets.">
+          <Section title="Hours this month" hint="Since the 1st, from attendance and the job timesheets. Click a figure to see it by person or by job.">
             <Figures>
-              {month && <Figure label="Overtime hours" value={(month._sum.otHours ?? 0).toLocaleString()} />}
-              {hours && <Figure label="Hours booked to jobs" value={(hours._sum.hours ?? 0).toLocaleString()} />}
+              {month && <Figure label="Overtime hours" value={(month._sum.otHours ?? 0).toLocaleString()} href="/hr/overtime" />}
+              {hours && <Figure label="Hours booked to jobs" value={(hours._sum.hours ?? 0).toLocaleString()} href="/hr/manhours" />}
             </Figures>
-            {month && <Line label="Overtime" value="Open" href="/hr/overtime" />}
-            {hours && <Line label="Manhours by job" value="Open" href="/hr/manhours" />}
           </Section>
         )}
 
