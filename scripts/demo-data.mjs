@@ -343,6 +343,22 @@ const ITEMS = [
   ["TOO-TRQ", "Torque wrench 1/2in 40-200Nm", "Tools", "EA", 640, 6],
 ];
 
+/**
+ * Things bought that never reach a shelf: PRO work, hire, subcontract labour.
+ *
+ * Separate from ITEMS because they are created with "Keep stock of this"
+ * unticked — no reorder level, no stock, and they must never appear on a stock
+ * report. A tester ordering PRO work (PRC-11) starts from these rather than
+ * from an empty Items screen.
+ */
+const SERVICES = [
+  ["SVC-PRO-VISA", "PRO — new employment visa", "PRO services", "EA", 3500],
+  ["SVC-PRO-REN", "PRO — visa renewal", "PRO services", "EA", 2200],
+  ["SVC-PRO-LC", "PRO — labour card renewal", "PRO services", "EA", 850],
+  ["SVC-PRO-EID", "PRO — Emirates ID typing and biometrics", "PRO services", "EA", 370],
+  ["SVC-HIRE-CRN", "Crane hire, 50t, per day", "Plant hire", "DAY", 2400],
+];
+
 const SUPPLIERS = [
   ["SUP-EMCAB", "Emirates Cable Trading LLC", "procurement@example-emcab.test", "Fatima Al Zaabi"],
   ["SUP-GULFP", "Gulf Pipe & Fittings FZE", "sales@example-gulfp.test", "Rakesh Menon"],
@@ -350,6 +366,8 @@ const SUPPLIERS = [
   ["SUP-WELDC", "Weldcraft Consumables LLC", "info@example-weldc.test", "Priya Nair"],
   ["SUP-SAFEZ", "SafeZone PPE Distribution", "sales@example-safez.test", "Daniel Okafor"],
   ["SUP-STEEL", "Northern Steel Stockholders", "enquiries@example-steel.test", "Aisha Rahman"],
+  // Not a material supplier: the outsourced PRO company, for PRC-11 and FIN-09.
+  ["SUP-PROCO", "Gulf PRO Services LLC", "documents@example-proco.test", "Mariam Al Blooshi"],
 ];
 
 const CUSTOMERS = [
@@ -465,6 +483,18 @@ async function build() {
     });
   }
   tally("suppliers and customers, with two contacts each", SUPPLIERS.length + CUSTOMERS.length);
+
+  /* --- services, which are bought but never stocked ---------------------- */
+  for (const [code, name, category, unitCode, standardCost] of SERVICES) {
+    await db.item.create({
+      data: {
+        companyId: cid, code: P + code, name, category, unitCode, standardCost,
+        // The whole point of them: no shelf, so no reorder level and no stock.
+        isStocked: false, description: MARK,
+      },
+    });
+  }
+  tally("services, bought but never stocked", SERVICES.length);
 
   /* --- stock, through the real posting path ------------------------------ */
   const jobs = await db.job.findMany({ where: { companyId: cid, status: "Open" }, take: 6 });
