@@ -42,7 +42,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   const editable = inv.status === "Draft" && can(session, "finance.invoices", "edit");
   const mayIssue = inv.status === "Draft" && can(session, "finance.invoices", "approve");
 
-  const [parties, accounts, jobs, issued, policy] = await Promise.all([
+  const [parties, accounts, jobs, issued, policy, costCentres] = await Promise.all([
     db.party.findMany({
       where: {
         companyId: inv.companyId, isActive: true,
@@ -64,6 +64,10 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
       select: { id: true, number: true, partyName: true },
     }),
     financePolicyFor(inv.companyId),
+    db.costCentre.findMany({
+      where: { companyId: inv.companyId, isActive: true },
+      orderBy: { code: "asc" }, select: { id: true, code: true, name: true },
+    }),
   ]);
 
   const breakdown: { treatment: string; categoryCode: string; ratePercent: number; taxable: number; tax: number }[] =
@@ -100,6 +104,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
               parties={parties}
               accounts={accounts}
               jobs={jobs}
+              costCentres={costCentres}
               vatRate={policy?.vatRate ?? 0.05}
               invoices={issued}
               existing={{
@@ -111,6 +116,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                   description: l.description, quantity: String(l.quantity), unitCode: l.unitCode,
                   unitPrice: String(l.unitPrice), discount: l.discount ? String(l.discount) : "",
                   vatTreatment: l.vatTreatment as VatTreatment, accountId: l.accountId, jobId: l.jobId ?? "",
+                  costCentreId: l.costCentreId ?? "",
                 })),
               }}
             />

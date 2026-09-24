@@ -10,6 +10,7 @@ import { type VatTreatment } from "@/lib/vat";
 type Line = {
   description: string; quantity: string; unitCode: string; unitPrice: string;
   discount: string; vatTreatment: VatTreatment; accountId: string; jobId: string;
+  costCentreId: string;
 };
 
 /**
@@ -26,6 +27,7 @@ export default function InvoiceForm({
   parties,
   accounts,
   jobs,
+  costCentres = [],
   orders = [],
   vatRate,
   existing,
@@ -36,6 +38,7 @@ export default function InvoiceForm({
   parties: { id: string; code: string; name: string }[];
   accounts: { id: string; code: string; name: string }[];
   jobs: { id: string; code: string; name: string }[];
+  costCentres?: { id: string; code: string; name: string }[];
   /** Open purchase orders for this company, for a supplier's bill. */
   orders?: { id: string; number: string; partyName: string; total: string }[];
   vatRate: number;
@@ -158,7 +161,7 @@ export default function InvoiceForm({
         <div className="border-b border-line px-5 py-3">
           <h2 className="font-semibold text-heading">Lines</h2>
         </div>
-        <InvoiceLines accounts={accounts} jobs={jobs} vatRate={vatRate} initial={existing?.lines} />
+        <InvoiceLines accounts={accounts} jobs={jobs} costCentres={costCentres} vatRate={vatRate} initial={existing?.lines} />
       </div>
 
       <div className="flex items-center gap-3">

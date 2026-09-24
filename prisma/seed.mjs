@@ -645,6 +645,9 @@ async function main() {
     ["CC-02", "Workshop — Al Quoz", null],
     ["CC-03", "Vehicles", null],
     ["CC-04", "Cranes & lifting", "CC-03"],
+    // Where the overheads that belong to nobody's job land: PRO work and
+    // visa costs, recruitment, the HR side of running the company.
+    ["CC-05", "Administration & HR", null],
   ];
   for (const company of companies) {
     for (const [code, name, parentCode] of CENTRES) {

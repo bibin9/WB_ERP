@@ -15,12 +15,29 @@ type Row = {
   vatTreatment: VatTreatment;
   accountId: string;
   jobId: string;
+  costCentreId: string;
 };
 
 const blank = (accountId: string): Row => ({
   key: Math.random().toString(36).slice(2),
   description: "", quantity: "1", unitCode: DEFAULT_UNIT_CODE, unitPrice: "",
-  discount: "", vatTreatment: "Standard", accountId, jobId: "",
+  discount: "", vatTreatment: "Standard", accountId, jobId: "", costCentreId: "",
+});
+
+/**
+ * What a line is charged to, as one choice.
+ *
+ * A line carries a job or a cost centre and never both — the posting refuses
+ * it, because the same cost read on the job report and the overhead report
+ * would be counted twice. Two dropdowns would let somebody set both and find
+ * out at the end; one list of everything it could be charged to cannot.
+ */
+const chargeValue = (r: { jobId: string; costCentreId: string }) =>
+  r.jobId ? `job:${r.jobId}` : r.costCentreId ? `cc:${r.costCentreId}` : "";
+
+const chargeFrom = (value: string) => ({
+  jobId: value.startsWith("job:") ? value.slice(4) : "",
+  costCentreId: value.startsWith("cc:") ? value.slice(3) : "",
 });
 
 const n = (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -38,12 +55,15 @@ const n = (v: number) => v.toLocaleString(undefined, { minimumFractionDigits: 2,
 export default function InvoiceLines({
   accounts,
   jobs,
+  costCentres = [],
   vatRate,
   initial,
   readOnly = false,
 }: {
   accounts: { id: string; code: string; name: string }[];
   jobs: { id: string; code: string; name: string }[];
+  /** What the business carries itself — Head office, Administration & HR, Vehicles. */
+  costCentres?: { id: string; code: string; name: string }[];
   /** The company's rate, as a fraction. */
   vatRate: number;
   initial?: Omit<Row, "key">[];
@@ -159,12 +179,22 @@ export default function InvoiceLines({
                   </td>
                   <td className="px-2 py-2">
                     <select
-                      name="lineJobId" value={r.jobId} disabled={readOnly}
-                      onChange={(e) => set(r.key, { jobId: e.target.value })}
+                      name="lineCharge" value={chargeValue(r)} disabled={readOnly}
+                      onChange={(e) => set(r.key, chargeFrom(e.target.value))}
                       className="input h-9 py-1 text-sm"
+                      title="A customer's job, or a cost centre the business carries itself"
                     >
                       <option value="">—</option>
-                      {jobs.map((j) => <option key={j.id} value={j.id}>{j.code}</option>)}
+                      {jobs.length > 0 && (
+                        <optgroup label="Job">
+                          {jobs.map((j) => <option key={j.id} value={`job:${j.id}`}>{j.code}</option>)}
+                        </optgroup>
+                      )}
+                      {costCentres.length > 0 && (
+                        <optgroup label="Cost centre">
+                          {costCentres.map((c) => <option key={c.id} value={`cc:${c.id}`}>{c.code} {c.name}</option>)}
+                        </optgroup>
+                      )}
                     </select>
                   </td>
                   <td className="px-3 py-2 text-right">

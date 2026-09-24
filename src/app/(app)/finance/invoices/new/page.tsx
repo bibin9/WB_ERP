@@ -23,7 +23,7 @@ export default async function NewInvoicePage({
   const companyId = accessible.find((c) => c.id === sp.c)?.id ?? accessible[0]?.id ?? "";
   const side = sp.side === "Purchase" ? "Purchase" : "Sales";
 
-  const [parties, accounts, jobs, issued, policy, orders] = companyId
+  const [parties, accounts, jobs, issued, policy, orders, costCentres] = companyId
     ? await Promise.all([
         db.party.findMany({
           where: {
@@ -62,8 +62,13 @@ export default async function NewInvoicePage({
               select: { id: true, number: true, partyName: true, total: true },
             })
           : Promise.resolve([]),
+        db.costCentre.findMany({
+          where: { companyId, isActive: true },
+          orderBy: { code: "asc" },
+          select: { id: true, code: true, name: true },
+        }),
       ])
-    : [[], [], [], [], null, []];
+    : [[], [], [], [], null, [], []];
 
   return (
     <div>
@@ -85,6 +90,7 @@ export default async function NewInvoicePage({
         </div>
       ) : (
         <InvoiceForm
+          costCentres={costCentres}
           orders={orders.map((o) => ({ id: o.id, number: o.number, partyName: o.partyName, total: money(o.total) }))}
           companyId={companyId}
           side={side}

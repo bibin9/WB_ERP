@@ -175,7 +175,10 @@ export async function createInvoiceFromForm(
     discount: Number(all("discount")[i] ?? 0),
     vatTreatment: all("vatTreatment")[i] ?? "Standard",
     accountId: all("accountId")[i] ?? "",
-    jobId: all("lineJobId")[i] || null,
+    // One dropdown, because a line carries a job or a cost centre and never
+    // both (lib/posting.ts refuses the pair): "job:<id>" or "cc:<id>".
+    jobId: (all("lineCharge")[i] ?? "").startsWith("job:") ? all("lineCharge")[i].slice(4) : null,
+    costCentreId: (all("lineCharge")[i] ?? "").startsWith("cc:") ? all("lineCharge")[i].slice(3) : null,
   })).filter((l) => l.description || l.unitPrice > 0);
 
   if (lines.length === 0) return "Add at least one line before saving.";
@@ -217,7 +220,10 @@ export async function updateInvoice(
     discount: Number(all("discount")[i] ?? 0),
     vatTreatment: all("vatTreatment")[i] ?? "Standard",
     accountId: all("accountId")[i] ?? "",
-    jobId: all("lineJobId")[i] || null,
+    // One dropdown, because a line carries a job or a cost centre and never
+    // both (lib/posting.ts refuses the pair): "job:<id>" or "cc:<id>".
+    jobId: (all("lineCharge")[i] ?? "").startsWith("job:") ? all("lineCharge")[i].slice(4) : null,
+    costCentreId: (all("lineCharge")[i] ?? "").startsWith("cc:") ? all("lineCharge")[i].slice(3) : null,
   })).filter((l) => l.description || l.unitPrice > 0);
 
   if (lines.length === 0) return "An invoice needs at least one line.";
