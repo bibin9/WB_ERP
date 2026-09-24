@@ -13,7 +13,7 @@ import {
   expiryFrom,
   checkIssue as checkEquipmentIssue,
 } from "@/lib/calibration";
-import { createRequest, createOrder, submitOrder, cancelOrder, receiveAgainstOrder } from "@/lib/purchase-posting";
+import { createRequest, createOrder, submitOrder, cancelOrder, receiveAgainstOrder, completeServiceOrder } from "@/lib/purchase-posting";
 import { createRfq, inviteVendors, recordQuotation, awardRfq, cancelRfq } from "@/lib/rfq-posting";
 import { STORE_KINDS } from "@/lib/bins";
 
@@ -620,6 +620,35 @@ export async function sendOrderForApproval(orderId: string): Promise<Result> {
   });
   revalidatePath("/inventory/orders");
   revalidatePath("/approvals");
+  return { ok: true };
+}
+
+/**
+ * "The work was done" — the only way an order for services can be closed.
+ *
+ * Edit on orders rather than approve: the approval was the decision to buy it,
+ * this is the person who watched it happen saying so. Who and when is in the
+ * order's notes and in the audit trail, because that sentence is the whole
+ * evidence that the supplier's bill is due.
+ */
+export async function markServiceDelivered(orderId: string): Promise<Result> {
+  if (!(await allow("inventory.orders", "edit"))) return { ok: false, error: "Not authorised" };
+  const order = await db.purchaseOrder.findUnique({ where: { id: orderId } });
+  if (!order) return { ok: false, error: "Not found" };
+  const session = await scoped(order.companyId);
+  if (!session) return { ok: false, error: "No access" };
+
+  const res = await completeServiceOrder(orderId, session.user.name);
+  if (!res.ok) return res;
+
+  await audit({
+    action: "Updated",
+    entity: "PurchaseOrder",
+    entityId: orderId,
+    summary: `Marked service order ${order.number} as delivered — ${order.partyName}`,
+  });
+  revalidatePath("/inventory/orders");
+  revalidatePath("/inventory/dashboard");
   return { ok: true };
 }
 

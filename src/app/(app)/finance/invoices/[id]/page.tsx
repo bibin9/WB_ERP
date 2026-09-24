@@ -105,7 +105,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
               existing={{
                 id: inv.id, docType: inv.docType, number: inv.number,
                 issueDate: inv.issueDate.toISOString().slice(0, 10),
-                partyId: inv.partyId, jobId: inv.jobId ?? "", notes: inv.notes ?? "",
+                partyId: inv.partyId, jobId: inv.jobId ?? "", orderId: inv.orderId ?? "", notes: inv.notes ?? "",
                 originalInvoiceId: inv.originalInvoiceId ?? "",
                 lines: inv.lines.map((l) => ({
                   description: l.description, quantity: String(l.quantity), unitCode: l.unitCode,

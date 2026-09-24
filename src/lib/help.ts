@@ -88,6 +88,20 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "If a panel you expected is missing, your role does not include the screen it comes from. The dashboard never shows more than the module itself would.",
   },
   {
+    id: "service-orders", category: "Stores", screens: ["/inventory/orders", "/inventory", "/finance/invoices"],
+    title: "Buying services: PRO work, hire, subcontract labour",
+    summary: "Order them like anything else, but close them by confirming the work was done — there is no delivery.",
+    body: "Not everything you buy arrives in a store. PRO work, equipment hire, subcontract labour, consultancy, camp catering: there is no delivery note and nothing to put on a shelf. Set the item up with 'Keep stock of this' unticked, and it never appears on a stock report pretending to be there. The order goes through the usual approval route. When the work is done, 'Mark work as delivered' closes it, and who confirmed it and on what date is written into the order — that sentence is the evidence the supplier's bill is due. When the bill arrives, record it under Finance and pick the purchase order it is against.",
+    steps: [
+      "Inventory → Items: add the service, e.g. 'PRO — new employment visa', with 'Keep stock of this' unticked.",
+      "Inventory → Purchase Orders: raise the order against the supplier, one line per service, and send it for approval.",
+      "Once the work is done, open the order and click 'Mark work as delivered'.",
+      "Finance → Invoices → New, side Purchase: choose the supplier, then 'Against purchase order'.",
+      "Split the lines by VAT: the supplier's own fee is standard-rated; government fees they paid on your behalf are Out of scope.",
+    ],
+    tip: "An order with even one stock item on it cannot be closed this way — that material still has to be received into a store.",
+  },
+  {
     id: "data-retention", category: "Administration & Security", screens: ["/settings/retention", "/audit", "/notifications"],
     title: "How long records are kept",
     summary: "Three logs have a retention period you can set. Everything else is kept for as long as the system exists.",

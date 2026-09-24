@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { sendOrderForApproval, callOffOrder, receiveOrderLine } from "@/app/(app)/inventory/actions";
+import { sendOrderForApproval, callOffOrder, receiveOrderLine, markServiceDelivered } from "@/app/(app)/inventory/actions";
 import { binLabel } from "@/lib/bins";
 
 /**
@@ -12,7 +12,7 @@ import { binLabel } from "@/lib/bins";
  * be visible at the moment somebody types a figure against it.
  */
 export default function OrderActions(props: {
-  mode: "submit" | "cancel" | "receive";
+  mode: "submit" | "cancel" | "receive" | "deliver";
   orderId?: string;
   orderLineId?: string;
   label: string;
@@ -39,6 +39,7 @@ export default function OrderActions(props: {
 
   if (mode !== "receive") {
     const send = mode === "submit";
+    const deliver = mode === "deliver";
     return (
       <>
         <button
@@ -48,13 +49,16 @@ export default function OrderActions(props: {
             setBusy(true);
             const res = send
               ? await sendOrderForApproval(props.orderId!)
-              : await callOffOrder(props.orderId!);
+              : deliver
+                ? await markServiceDelivered(props.orderId!)
+                : await callOffOrder(props.orderId!);
             setBusy(false);
             if (!res.ok) setError(res.error || "Could not do that");
           }}
-          className={send ? "btn-primary disabled:opacity-50" : "btn-ghost disabled:opacity-50"}
+          className={send || deliver ? "btn-primary disabled:opacity-50" : "btn-ghost disabled:opacity-50"}
+          title={deliver ? "There is nothing to receive into a store, so the order is closed by confirming the work was done." : undefined}
         >
-          {busy ? "Working…" : send ? "Send for approval" : "Cancel this order"}
+          {busy ? "Working…" : send ? "Send for approval" : deliver ? "Mark work as delivered" : "Cancel this order"}
         </button>
         {error && <span className="self-center text-xs text-brand-gold">{error}</span>}
       </>

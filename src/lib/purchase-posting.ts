@@ -6,7 +6,7 @@ import { resolveRoute } from "./approval-engine";
 import { recordMovement } from "./stock-posting";
 import { toFils } from "./money";
 import {
-  orderTotal, lineTotal, statusFromReceipts, checkReceipt, RECEIVABLE, CLOSED,
+  orderTotal, lineTotal, statusFromReceipts, checkReceipt, isServiceOrder, RECEIVABLE, CLOSED,
 } from "./purchasing";
 
 /**
@@ -366,6 +366,47 @@ export async function cancelOrder(orderId: string, by: string): Promise<Outcome>
   }
 
   await db.purchaseOrder.update({ where: { id: orderId }, data: { status: "Cancelled", notes: order.notes } });
+  return { ok: true };
+}
+
+/**
+ * Close an order for work that never arrives in a store.
+ *
+ * PRO work, equipment hire, subcontract labour, consultancy: there is no
+ * delivery note and no shelf, so "received" cannot be worked out from
+ * movements the way it is for material. Somebody says the work was done, and
+ * that is the evidence — which is why this is a deliberate act by a named
+ * person on an approved order, and why it is refused the moment a single line
+ * is for something stocked: that line still has to turn up.
+ */
+export async function completeServiceOrder(orderId: string, by: string): Promise<Outcome> {
+  const order = await db.purchaseOrder.findUnique({
+    where: { id: orderId },
+    include: { lines: { include: { item: { select: { isStocked: true } } } } },
+  });
+  if (!order) return { ok: false, error: "Not found" };
+  if (CLOSED.has(order.status)) return { ok: false, error: `This order is already ${order.status.toLowerCase()}.` };
+  if (!RECEIVABLE.has(order.status)) {
+    return { ok: false, error: "Only an approved order can be marked as delivered. This one is still " + order.status.toLowerCase() + "." };
+  }
+  if (!isServiceOrder(order.lines)) {
+    return {
+      ok: false,
+      error: "This order has stock items on it, so it is completed by receiving them into a store rather than by marking it delivered.",
+    };
+  }
+
+  await db.purchaseOrder.update({
+    where: { id: orderId },
+    data: {
+      status: "Received",
+      // Said in the order's own notes, because "Received" on a service order
+      // otherwise reads as a delivery nobody can find a note for.
+      notes: [order.notes, `Work confirmed as delivered by ${by} on ${new Date().toISOString().slice(0, 10)}.`]
+        .filter(Boolean)
+        .join(" "),
+    },
+  });
   return { ok: true };
 }
 

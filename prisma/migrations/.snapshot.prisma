@@ -666,6 +666,15 @@ model Invoice {
   entryId String?       @unique
   entry   JournalEntry? @relation(fields: [entryId], references: [id])
 
+  /// The purchase order this bill is against, where there is one.
+  ///
+  /// Services — PRO work, hire, subcontract labour, consultancy — are ordered
+  /// like anything else but never arrive in a store, so nothing linked the
+  /// supplier's bill back to what was agreed. With this, an order shows what
+  /// has been billed against it and the bill shows what it was ordered on.
+  orderId String?
+  order   PurchaseOrder? @relation(fields: [orderId], references: [id])
+
   /// Where this document has got to on its way to the FTA.
   ///
   /// Not a boolean. A five-corner model has an asynchronous rejection: our own
@@ -1538,6 +1547,7 @@ model PurchaseOrder {
   notes    String?
 
   lines     PurchaseOrderLine[]
+  invoices  Invoice[]
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
 

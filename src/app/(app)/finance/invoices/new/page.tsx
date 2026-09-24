@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import FinanceTabs from "@/components/FinanceTabs";
 import InvoiceForm from "@/components/finance/InvoiceForm";
+import { money } from "@/lib/money";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
@@ -22,7 +23,7 @@ export default async function NewInvoicePage({
   const companyId = accessible.find((c) => c.id === sp.c)?.id ?? accessible[0]?.id ?? "";
   const side = sp.side === "Purchase" ? "Purchase" : "Sales";
 
-  const [parties, accounts, jobs, issued, policy] = companyId
+  const [parties, accounts, jobs, issued, policy, orders] = companyId
     ? await Promise.all([
         db.party.findMany({
           where: {
@@ -51,8 +52,18 @@ export default async function NewInvoicePage({
           select: { id: true, number: true, partyName: true },
         }),
         financePolicyFor(companyId),
+        // Orders a bill can arrive against: approved, and not called off. A
+        // draft order has been agreed with nobody.
+        side === "Purchase"
+          ? db.purchaseOrder.findMany({
+              where: { companyId, status: { in: ["Approved", "Partly received", "Received"] } },
+              orderBy: { date: "desc" },
+              take: 200,
+              select: { id: true, number: true, partyName: true, total: true },
+            })
+          : Promise.resolve([]),
       ])
-    : [[], [], [], [], null];
+    : [[], [], [], [], null, []];
 
   return (
     <div>
@@ -74,6 +85,7 @@ export default async function NewInvoicePage({
         </div>
       ) : (
         <InvoiceForm
+          orders={orders.map((o) => ({ id: o.id, number: o.number, partyName: o.partyName, total: money(o.total) }))}
           companyId={companyId}
           side={side}
           parties={parties}

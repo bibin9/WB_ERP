@@ -14,7 +14,7 @@ const { purchasing } = await importLibs(["purchasing"]);
 const {
   PO_STATUSES, PO_STATUS_HELP, REQUEST_STATUSES, REQUEST_STATUS_HELP, RECEIVABLE, CLOSED,
   lineTotal, orderTotal, lineProgress, statusFromReceipts, checkReceipt,
-  orderState, summarisePurchasing, purchasingVerdict,
+  orderState, summarisePurchasing, purchasingVerdict, isServiceOrder,
 } = purchasing;
 
 let pass = 0, fail = 0;
@@ -281,6 +281,22 @@ ok("receiving one more than ordered IS over-received",
   ok("a line ordering nothing has a share of nought, not NaN",
     p.share === 0 && !Number.isNaN(p.share), String(p.share));
 }
+
+/* ========================== orders for things that never arrive ========= */
+
+// PRO work, hire, subcontract labour: approved in January, still sitting under
+// "orders to receive" in December, because nothing was ever delivered into a
+// store. An order like this is closed by somebody saying the work was done.
+const svc = { item: { isStocked: false } };
+const stk = { item: { isStocked: true } };
+
+ok("an order of services only is a service order", isServiceOrder([svc, svc]));
+ok("a line with no item at all is a service line too — free text on an order",
+  isServiceOrder([{ item: null }, {}]));
+ok("an order of stock is not", isServiceOrder([stk, stk]) === false);
+ok("and nor is a mixed one — the cable still has to turn up",
+  isServiceOrder([svc, stk]) === false);
+ok("an order with no lines is not a service order", isServiceOrder([]) === false);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

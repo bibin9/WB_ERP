@@ -26,6 +26,7 @@ export default function InvoiceForm({
   parties,
   accounts,
   jobs,
+  orders = [],
   vatRate,
   existing,
   invoices,
@@ -35,11 +36,13 @@ export default function InvoiceForm({
   parties: { id: string; code: string; name: string }[];
   accounts: { id: string; code: string; name: string }[];
   jobs: { id: string; code: string; name: string }[];
+  /** Open purchase orders for this company, for a supplier's bill. */
+  orders?: { id: string; number: string; partyName: string; total: string }[];
   vatRate: number;
   /** Present when editing a draft. */
   existing?: {
     id: string; docType: string; number: string; issueDate: string;
-    partyId: string; jobId: string; notes: string; originalInvoiceId: string;
+    partyId: string; jobId: string; orderId: string; notes: string; originalInvoiceId: string;
     lines: Line[];
   };
   /** Issued invoices this document could be a note against. */
@@ -106,6 +109,22 @@ export default function InvoiceForm({
             </select>
             <p className="mt-1 text-xs text-muted">Payment terms come from their record.</p>
           </div>
+
+          {side === "Purchase" && orders.length > 0 && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted">Against purchase order (optional)</label>
+              <select name="orderId" defaultValue={existing?.orderId ?? ""} className="input">
+                <option value="">—</option>
+                {orders.map((o) => (
+                  <option key={o.id} value={o.id}>{o.number} — {o.partyName} · {o.total}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted">
+                Ties the bill to what was agreed. Services — PRO work, hire, subcontract labour — have no delivery
+                note, so this is what matches them.
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="mb-1 block text-xs font-medium text-muted">Job (optional)</label>

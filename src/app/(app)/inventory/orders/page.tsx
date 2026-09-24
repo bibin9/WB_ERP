@@ -17,7 +17,7 @@ import { money } from "@/lib/money";
 import { readPaging, pageInfo } from "@/lib/paging";
 import { readSearch, matchAny } from "@/lib/search";
 import {
-  lineProgress, orderState, summarisePurchasing, purchasingVerdict,
+  lineProgress, orderState, summarisePurchasing, purchasingVerdict, isServiceOrder,
   PO_STATUS_HELP, RECEIVABLE,
 } from "@/lib/purchasing";
 import { syncOrderApproval } from "@/lib/purchase-posting";
@@ -91,6 +91,7 @@ export default async function OrdersPage({
           job: { select: { code: true } },
           store: { select: { code: true } },
           request: { select: { number: true } },
+          invoices: { select: { id: true, number: true, grossTotal: true, status: true } },
         },
         orderBy: { date: "desc" },
       })
@@ -340,9 +341,27 @@ export default async function OrdersPage({
 
               {o.notes && <p className="mt-3 text-xs text-muted">{o.notes}</p>}
 
+              {o.invoices.length > 0 && (
+                <p className="mt-2 text-xs text-muted">
+                  Billed against this order:{" "}
+                  {o.invoices.map((i, n) => (
+                    <span key={i.id}>
+                      {n > 0 && ", "}
+                      <Link href="/finance/invoices" className="text-brand-blue-600 hover:underline">{i.number}</Link>{" "}
+                      {money(i.grossTotal)}{i.status === "Draft" ? " (draft)" : ""}
+                    </span>
+                  ))}
+                </p>
+              )}
+
               <div className="mt-3 flex flex-wrap justify-end gap-2 print:hidden">
                 <DocumentButtons kind="purchase-order" id={o.id} />
                 {o.status === "Draft" && <OrderActions mode="submit" orderId={o.id} label={o.number} />}
+                {/* Services never arrive in a store, so this is the only way
+                    such an order can be closed (lib/purchasing.ts). */}
+                {["Approved", "Partly received"].includes(o.status) && isServiceOrder(o.lines) && (
+                  <OrderActions mode="deliver" orderId={o.id} label={o.number} />
+                )}
                 {!["Received", "Cancelled", "Rejected"].includes(o.status) && (
                   <OrderActions mode="cancel" orderId={o.id} label={o.number} />
                 )}

@@ -45,6 +45,8 @@ export type NewInvoice = {
   issueDate: string;
   partyId: string;
   jobId?: string | null;
+  /** The purchase order this bill is against, on a supplier's bill. */
+  orderId?: string | null;
   originalInvoiceId?: string | null;
   notes?: string | null;
   lines: NewInvoiceLine[];
@@ -102,6 +104,26 @@ export async function createInvoice(input: NewInvoice): Promise<Result> {
     return { ok: false, error: "One of the lines points at an account on another company." };
   }
 
+  // The order it is against, on a supplier's bill. Checked rather than
+  // trusted: it must be this company's order and the same supplier's, or the
+  // link would say a bill was agreed with somebody who never saw it.
+  let orderId: string | null = null;
+  if (input.orderId) {
+    if (side !== "Purchase") return { ok: false, error: "Only a supplier's bill can be against a purchase order." };
+    const order = await db.purchaseOrder.findFirst({
+      where: { id: input.orderId, companyId: input.companyId },
+      select: { id: true, partyId: true, number: true, status: true },
+    });
+    if (!order) return { ok: false, error: "That purchase order is not in this company." };
+    if (order.partyId !== party.id) {
+      return { ok: false, error: `Order ${order.number} is with a different supplier. Choose the order this supplier raised it against, or leave it blank.` };
+    }
+    if (["Draft", "Awaiting approval", "Rejected", "Cancelled"].includes(order.status)) {
+      return { ok: false, error: `Order ${order.number} is ${order.status.toLowerCase()}, so nothing is owed against it yet.` };
+    }
+    orderId = order.id;
+  }
+
   const created = await db.invoice.create({
     data: {
       companyId: input.companyId,
@@ -113,6 +135,7 @@ export async function createInvoice(input: NewInvoice): Promise<Result> {
       partyName: party.name,
       partyTrn: party.trn,
       jobId: input.jobId || null,
+      orderId,
       originalInvoiceId: input.originalInvoiceId || null,
       notes: input.notes?.trim() || null,
       createdBy: session.user.name,
@@ -165,6 +188,7 @@ export async function createInvoiceFromForm(
     issueDate: get("issueDate"),
     partyId: get("partyId"),
     jobId: get("jobId") || null,
+    orderId: get("orderId") || null,
     originalInvoiceId: get("originalInvoiceId") || null,
     notes: get("notes"),
     lines,

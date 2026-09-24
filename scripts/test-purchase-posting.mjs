@@ -17,7 +17,7 @@ const libs = await importLibs([
 const { db } = libs["db"];
 const {
   createRequest, createOrder, submitOrder, syncOrderApproval,
-  cancelOrder, receiveAgainstOrder, openOrders,
+  cancelOrder, receiveAgainstOrder, openOrders, completeServiceOrder,
 } = libs["purchase-posting"];
 const { lineProgress } = libs["purchasing"];
 const { balanceFor } = libs["stock-posting"];
@@ -353,6 +353,62 @@ ok("a receipt can be tied to the order line it came from", /purchaseOrderLineId 
 ok("an order carries no VAT, and the schema says why", /No VAT anywhere on it/.test(schema));
 
 
+
+/* ================= an order for work that never reaches a store ========= */
+{
+  const service = await db.item.create({
+    data: {
+      companyId: co.id, code: `${tag}-PRO`, name: "PRO — new employment visa",
+      unitCode: "EA", isStocked: false, standardCost: 3500,
+    },
+  });
+  const stocked = await db.item.findFirst({ where: { companyId: co.id, isStocked: true } });
+
+  const made = await createOrder({
+    companyId: co.id, raisedBy: "hr", partyId: supplier.id, date: today(), expectedDate: today(),
+    lines: [{ itemId: service.id, description: "New employment visa, 3 staff", unitCode: "EA", quantity: 3, unitPrice: 3500 }],
+  });
+  ok("an order can be raised for a service", made.ok, made.ok ? "" : made.error);
+  orders.push(made.orderId);
+
+  const early = await completeServiceOrder(made.orderId, "hr");
+  ok("it cannot be marked delivered while it is still a draft", early.ok === false);
+  ok("  and it says the order is not approved", /approved/i.test(early.error || ""), early.error);
+
+  await db.purchaseOrder.update({ where: { id: made.orderId }, data: { status: "Approved" } });
+  const done = await completeServiceOrder(made.orderId, "Ahmed Al Balushi");
+  ok("an approved service order can be marked delivered", done.ok, done.ok ? "" : done.error);
+
+  const after = await db.purchaseOrder.findUnique({ where: { id: made.orderId } });
+  ok("  which closes it", after.status === "Received", after.status);
+  ok("  saying who confirmed it and when, since there is no delivery note",
+    /Ahmed Al Balushi/.test(after.notes || ""), after.notes || "");
+  ok("  and it drops out of the orders still to arrive",
+    !(await openOrders(co.id)).some((o) => o.id === made.orderId));
+
+  const twice = await completeServiceOrder(made.orderId, "hr");
+  ok("marking it delivered twice is refused", twice.ok === false, twice.error);
+
+  // The rule that stops this becoming a way to close real material orders.
+  if (stocked) {
+    const mixed = await createOrder({
+      companyId: co.id, raisedBy: "buyer", partyId: supplier.id, date: today(), expectedDate: today(),
+      lines: [
+        { itemId: service.id, description: "Labour to pull it", unitCode: "EA", quantity: 1, unitPrice: 500 },
+        { itemId: stocked.id, description: "Cable", unitCode: "MTR", quantity: 10, unitPrice: 12 },
+      ],
+    });
+    orders.push(mixed.orderId);
+    await db.purchaseOrder.update({ where: { id: mixed.orderId }, data: { status: "Approved" } });
+    const refused = await completeServiceOrder(mixed.orderId, "buyer");
+    ok("an order with stock on it cannot be closed this way", refused.ok === false);
+    ok("  and it says to receive the material instead",
+      /receiving them into a store/.test(refused.error || ""), refused.error);
+  }
+}
+
+ok("a supplier's bill can name the order it is against",
+  /orderId {2}String\?/.test(read("prisma/schema.prisma")) || /orderId String\?/.test(read("prisma/schema.prisma")));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 await db.$disconnect();

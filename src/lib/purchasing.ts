@@ -135,6 +135,25 @@ export function lineProgress(orderedQuantity: number, receipts: ReceiptLike[]): 
 export type OrderLineLike = { quantity: number; receipts: ReceiptLike[] };
 
 /**
+ * An order for things that never reach a shelf: PRO work, equipment hire,
+ * subcontract labour, consultancy, camp catering.
+ *
+ * It matters because "received" is worked out from deliveries into a store,
+ * and a service has none — so a service order approved in January was still
+ * sitting under "orders to receive", counted late, the following December.
+ * An order like this is closed by somebody saying the work was done, which is
+ * the only evidence there is.
+ *
+ * Every line has to be non-stock. A mixed order — cable, and the labour to
+ * pull it — is a stock order: the cable still has to arrive.
+ */
+export type ServiceLineLike = { item?: { isStocked: boolean } | null };
+
+export function isServiceOrder(lines: ServiceLineLike[]): boolean {
+  return lines.length > 0 && lines.every((l) => !l.item || l.item.isStocked === false);
+}
+
+/**
  * What an order's status should be, from what has actually arrived.
  *
  * Only an approved order moves on its own. A draft, a rejection or a
