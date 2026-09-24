@@ -574,6 +574,23 @@ These are done once, ahead of the promotion, and each one can stop it.
 4. **Production's database password has been changed** — see *Still to do on production*
    above. It was shared in a chat, and this release is the point where real client data
    starts going in. If you change it, update `PROD_DATABASE_URL` in `.env` to match.
+5. **Railway snapshots are switched on, for both volumes.** They are **off by default**,
+   and this release is where real employee data starts going in — the day HR loads two
+   hundred people, their passports, salaries and IBANs, the database becomes the one
+   thing the business cannot recreate. Nothing here needs a terminal or this PC:
+   Railway → the **Postgres** service → **Backups**, and again on the **app** service
+   (the uploads volume, which holds the passport and certificate files themselves — the
+   database keeps only their names). On each, add daily (kept 6 days), weekly (1 month)
+   and monthly (3 months). A few fils a month; see BACKUP.md.
+
+   **Then check a day later that a snapshot actually appeared.** A schedule nobody
+   verified is the usual way this is found out too late.
+6. **Decide where the off-platform copy runs** — the one that survives losing the Railway
+   account itself, which snapshots cannot (they live inside it). It does not have to run
+   on this PC: a scheduled GitHub Actions job, a service beside the app, or the client's
+   own always-on machine all work, and the dump is encrypted before it leaves. It need
+   not be running to promote, but it must be running **before the first real payroll** —
+   see *After go-live*, below, and BACKUP.md.
 
 #### On the day
 
@@ -642,9 +659,17 @@ These are done once, ahead of the promotion, and each one can stop it.
    - **Signing in:** passwords already set keep working; the 10-character rule applies at
      the next change. Sign-ins made before the promotion last until they expire (up to
      seven days); new ones last twelve hours, and signing out ends every session.
-5. **Back up production.** From `C:\Bibin\wb-erp`: `npm run db:backup` — see BACKUP.md. The backup contains
-   passports, salaries and IBANs: it stays in `backups/`, which is git-ignored, and is
-   never emailed or pasted.
+5. **Back up production, immediately before promoting.** Either way round, this is what
+   you go back to if the migrations do something nobody expected:
+
+   - **From a machine with the PostgreSQL tools:** in `C:\Bibin\wb-erp`,
+     `npm run db:backup` — a dump that can be restored anywhere, and one table at a time.
+     It contains passports, salaries and IBANs: it stays in `backups/`, which is
+     git-ignored, and is never emailed or pasted.
+   - **From the browser, if you cannot run the tools here:** Railway → **Postgres** →
+     **Backups** → take a snapshot by hand, and note its timestamp. It restores the whole
+     volume rather than one table, and it only helps while the Railway account exists —
+     enough for this promotion, not a substitute for step 6 of *Before the day*.
 6. **Promote**, from `C:\Bibin\wb-erp`:
 
    ```bash
@@ -684,6 +709,20 @@ These are done once, ahead of the promotion, and each one can stop it.
    the old lock-out rules until the fix is promoted.
 10. **Close up.** If Public Access was turned on for the production database to take the
     backup, turn it off again. Tell the client it is live, and which build.
+
+#### After go-live
+
+Neither of these blocks the promotion. Both must be done **before the client enters real
+employee data in earnest** — the first payroll run is the sensible deadline.
+
+1. **The off-platform backup is running on a schedule**, encrypted, somewhere that is
+   neither this PC nor Railway, and someone has restored one into a throwaway database to
+   prove it can be read (BACKUP.md, *Testing the restore*). Until this exists, a lost
+   Railway account means lost client data, snapshots and all.
+2. **The uploaded documents have a copy outside Railway.** `npm run db:backup` takes the
+   database only. Passport scans, visas and certificates live on the app's volume, so
+   today a Railway snapshot is the only thing standing behind them. The proper fix is
+   object storage (Cloudflare R2 / S3) — BACKUP.md, *Known gaps*.
 
 ---
 

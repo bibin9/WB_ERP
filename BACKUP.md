@@ -40,6 +40,13 @@ the cost is a few fils a month.
 
 ### Layer 2 — Off-platform dump (protects against losing Railway itself)
 
+**It does not have to run on this PC.** The command below is the manual version; where
+the PostgreSQL tools cannot be installed here, or the machine is not on at night, run the
+same dump on a schedule somewhere else — a GitHub Actions job in this repository, a small
+service beside the app, or the client's own always-on machine. Wherever it runs, the dump
+is encrypted before it leaves, and the key is held by a person, not stored beside the
+backups. This is a gate before the first real payroll: see DEPLOY.md, *After go-live*.
+
 Snapshots live inside Railway. If the account is suspended, billing fails, or the
 project is deleted, the snapshots go with it. So keep a copy you control:
 
