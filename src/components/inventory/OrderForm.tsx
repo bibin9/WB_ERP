@@ -37,7 +37,7 @@ export default function OrderForm({
 }: {
   companyId: string;
   parties: { id: string; code: string; name: string }[];
-  items: { id: string; code: string; name: string; unitCode: string; standardCost: number }[];
+  items: { id: string; code: string; name: string; unitCode: string; standardCost: number; isStocked: boolean }[];
   jobs: { id: string; code: string; name: string }[];
   stores: { id: string; code: string; name: string; isDefault: boolean }[];
   fromRequest?: PrefillRequest | null;
@@ -60,6 +60,14 @@ export default function OrderForm({
 
   const set = (key: number, patch: Partial<Line>) =>
     setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+
+  const [storeId, setStoreId] = useState(fromRequest?.storeId ?? stores.find((s) => s.isDefault)?.id ?? "");
+
+  // Every line picked is something that never reaches a shelf. A line with no
+  // catalogue item behind it is free text, which could be either, so it does
+  // not make the order a service order on its own.
+  const chosen = lines.map((l) => items.find((i) => i.id === l.itemId)).filter(Boolean) as { isStocked: boolean }[];
+  const servicesOnly = chosen.length > 0 && chosen.every((i) => !i.isStocked);
 
   const pickItem = (key: number, itemId: string) => {
     const item = items.find((i) => i.id === itemId);
@@ -153,12 +161,27 @@ export default function OrderForm({
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-ink">Deliver to</label>
-              <select name="storeId" className="input" defaultValue={fromRequest?.storeId ?? stores.find((s) => s.isDefault)?.id ?? ""}>
-                <option value="">Not decided</option>
+              {/* Services are not delivered anywhere: PRO work, hire, subcontract
+                  labour. The field stayed on the form and defaulted to the main
+                  store, so an order for three visas read "deliver to Main store,
+                  Mussafah". It empties itself as soon as the lines are services. */}
+              <select
+                name="storeId"
+                className="input disabled:bg-brand-paper disabled:text-muted"
+                value={servicesOnly ? "" : storeId}
+                disabled={servicesOnly}
+                onChange={(e) => setStoreId(e.target.value)}
+              >
+                <option value="">{servicesOnly ? "Nothing is delivered to a store" : "Not decided"}</option>
                 {stores.map((s) => (
                   <option key={s.id} value={s.id}>{s.code} — {s.name}</option>
                 ))}
               </select>
+              <p className="mt-1 text-xs text-muted">
+                {servicesOnly
+                  ? "This order is for work, not material, so it is closed by confirming the work was done rather than by a delivery."
+                  : "Where the material is to arrive."}
+              </p>
             </div>
           </div>
 
@@ -173,9 +196,19 @@ export default function OrderForm({
                   <div className="col-span-4">
                     <select className="input h-9 py-1.5 text-sm" value={l.itemId} onChange={(e) => pickItem(l.key, e.target.value)}>
                       <option value="">Not a catalogue item&hellip;</option>
-                      {items.map((i) => (
-                        <option key={i.id} value={i.id}>{i.code} — {i.name}</option>
-                      ))}
+                      {/* Split, because "PRO — new employment visa" among the
+                          cable and the gloves looks like something that arrives
+                          on a lorry. */}
+                      <optgroup label="Stock items">
+                        {items.filter((i) => i.isStocked).map((i) => (
+                          <option key={i.id} value={i.id}>{i.code} — {i.name}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Services — never stocked">
+                        {items.filter((i) => !i.isStocked).map((i) => (
+                          <option key={i.id} value={i.id}>{i.code} — {i.name}</option>
+                        ))}
+                      </optgroup>
                     </select>
                   </div>
                   <div className="col-span-2">

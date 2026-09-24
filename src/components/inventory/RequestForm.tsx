@@ -24,7 +24,7 @@ export default function RequestForm({
   stores,
 }: {
   companyId: string;
-  items: { id: string; code: string; name: string; unitCode: string }[];
+  items: { id: string; code: string; name: string; unitCode: string; isStocked: boolean }[];
   jobs: { id: string; code: string; name: string }[];
   stores: { id: string; code: string; name: string; isDefault: boolean }[];
 }) {
@@ -126,9 +126,18 @@ export default function RequestForm({
                       onChange={(e) => pickItem(l.key, e.target.value)}
                     >
                       <option value="">Something not in the catalogue&hellip;</option>
-                      {items.map((i) => (
-                        <option key={i.id} value={i.id}>{i.code} — {i.name}</option>
-                      ))}
+                      <optgroup label="Stock items">
+                        {items.filter((i) => i.isStocked).map((i) => (
+                          <option key={i.id} value={i.id}>{i.code} — {i.name}</option>
+                        ))}
+                      </optgroup>
+                      {items.some((i) => !i.isStocked) && (
+                        <optgroup label="Services — never stocked">
+                          {items.filter((i) => !i.isStocked).map((i) => (
+                            <option key={i.id} value={i.id}>{i.code} — {i.name}</option>
+                          ))}
+                        </optgroup>
+                      )}
                     </select>
                   </div>
                   <div className="col-span-4">
