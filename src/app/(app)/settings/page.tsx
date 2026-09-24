@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Palette, Building2, Users, SlidersHorizontal, GitBranch, ChevronRight, Mail, FileText } from "lucide-react";
+import { Palette, Building2, Users, SlidersHorizontal, GitBranch, ChevronRight, Mail, FileText, Archive } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { requireAccess } from "@/lib/guard";
 import { activeTenant } from "@/config/tenant";
@@ -106,6 +106,18 @@ export default async function SettingsPage() {
               <div className="font-medium text-ink">Printed Documents</div>
               <div className="text-xs text-muted">
                 Letterhead, footer and standard terms on quotations, orders and notes
+              </div>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted" />
+          </Link>
+          <Link href="/settings/retention" className="card flex items-center gap-3 p-5 hover:border-brand-blue">
+            <span className="grid h-10 w-10 place-items-center rounded-lg bg-brand-navy/10 text-heading">
+              <Archive className="h-5 w-5" />
+            </span>
+            <div className="flex-1">
+              <div className="font-medium text-ink">Data Retention</div>
+              <div className="text-xs text-muted">
+                How long the audit trail, sent emails and notifications are kept
               </div>
             </div>
             <ChevronRight className="h-4 w-4 text-muted" />

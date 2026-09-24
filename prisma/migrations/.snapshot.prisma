@@ -33,25 +33,35 @@ datasource db {
 
 /// A customer of the product (white-label). White & Bright is one tenant.
 model Tenant {
-  id                 String           @id @default(cuid())
-  key                String           @unique // e.g. "wandb"
-  name               String
+  id                        String           @id @default(cuid())
+  key                       String           @unique // e.g. "wandb"
+  name                      String
   // Branding (mirrors src/config/tenant.ts so it can move to the DB later)
-  logoUrl            String?
-  theme              String? // JSON string: { navy, blue, green, gold, paper } as RGB triplets
-  companies          Company[]
-  users              User[]
-  roles              Role[]
-  approvalRoutes     ApprovalRoute[]
-  customFields       CustomFieldDef[]
-  masterItems        MasterItem[]
+  logoUrl                   String?
+  theme                     String? // JSON string: { navy, blue, green, gold, paper } as RGB triplets
+  companies                 Company[]
+  users                     User[]
+  roles                     Role[]
+  approvalRoutes            ApprovalRoute[]
+  customFields              CustomFieldDef[]
+  masterItems               MasterItem[]
   /// How many days an entry stays on the live audit trail before it is moved
   /// to the archive. Nothing is deleted — the archive is readable from the same
   /// screen — so this controls how much history the default view carries, not
   /// how much history exists.
-  auditRetentionDays Int              @default(365)
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  auditRetentionDays        Int              @default(365)
+  /// How many days a sent-email record stays on the live table before it moves
+  /// to the archive. Three years by default: it is the evidence that a
+  /// quotation or purchase order was sent, to whom and when, which is asked
+  /// for long after the email itself has gone from anybody's mailbox.
+  emailLogRetentionDays     Int              @default(1095)
+  /// How long a notification somebody has already read is kept. Six months by
+  /// default, and these are REMOVED rather than archived: a notification is a
+  /// copy of something the system recorded elsewhere. Unread ones are never
+  /// touched, however old.
+  notificationRetentionDays Int              @default(180)
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
 }
 
 /// A legal company within a tenant's group (multi-company).
@@ -180,20 +190,20 @@ model CompanyMembership {
 }
 
 model Role {
-  id            String              @id @default(cuid())
-  tenantId      String
-  tenant        Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name          String // e.g. "Group Admin", "Project Manager", "Director"
+  id                String              @id @default(cuid())
+  tenantId          String
+  tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name              String // e.g. "Group Admin", "Project Manager", "Director"
   // Permissions as JSON string: { "module": ["create","read","update","delete","approve"] }
-  permissions   String              @default("{}")
-  approvalLevel Int                 @default(0) // sign-off rank (higher = more authority)
+  permissions       String              @default("{}")
+  approvalLevel     Int                 @default(0) // sign-off rank (higher = more authority)
   /// The default screen permissions the seed has already applied to this role,
   /// in the same shape as `permissions`. The seed runs on every boot; it adds
   /// only defaults recorded here as never applied, so a screen or action an
   /// administrator removed in Access Control stays removed across deploys,
   /// while a screen added to the system later still reaches the role.
-  seededPermissions String          @default("{}")
-  memberships   CompanyMembership[]
+  seededPermissions String              @default("{}")
+  memberships       CompanyMembership[]
 
   @@unique([tenantId, name])
 }
@@ -225,22 +235,21 @@ model JobAssignment {
 /// Approval Engine (FSD FS-PLT-02) — one configurable sign-off workflow reused
 /// by any document type (PO, expense, company onboarding, etc.).
 model ApprovalRequest {
-  id          String         @id @default(cuid())
-  companyId   String
-  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  docType     String // e.g. "Purchase Order", "Expense", "Company Onboarding"
-  title       String
-  amount      Float?
-  currency    String         @default("AED")
-  requestedBy String
+  id            String         @id @default(cuid())
+  companyId     String
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  docType       String // e.g. "Purchase Order", "Expense", "Company Onboarding"
+  title         String
+  amount        Float?
+  currency      String         @default("AED")
+  requestedBy   String
   /// Who raised it, by account: the name alone cannot stop them approving it.
   requestedById String?
-  status      String         @default("Pending") // Pending | Approved | Rejected
-  currentStep Int            @default(1)
-  steps       ApprovalStep[]
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-
+  status        String         @default("Pending") // Pending | Approved | Rejected
+  currentStep   Int            @default(1)
+  steps         ApprovalStep[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([companyId, status])
@@ -255,7 +264,7 @@ model ApprovalStep {
   requiredLevel Int // minimum approval level required to act
   status        String          @default("Pending") // Pending | Approved | Rejected
   decidedBy     String?
-  decidedById String?
+  decidedById   String?
   decidedAt     DateTime?
   comment       String?
 
@@ -336,7 +345,6 @@ model JournalEntry {
   /// the date in the index the database reads all of a company's history to
   /// answer a question about one year, and that is the cost that grows.
   @@index([companyId, date])
-
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([partyId])
   @@index([reversalOfId])
@@ -692,7 +700,6 @@ model Invoice {
   @@index([partyId])
   @@index([jobId])
   @@index([status])
-
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([originalInvoiceId])
 }
@@ -827,7 +834,6 @@ model Payslip {
   netPay             Float
 
   @@index([runId])
-
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([employeeId])
 }
@@ -1325,7 +1331,7 @@ model Store {
 
   /// Main store | Site store | Plant yard | Lay-down area. What kind of place
   /// this is, so a yard is not read as a shelved store (INV-14).
-  kind      String  @default("Main store")
+  kind String @default("Main store")
 
   isActive         Boolean           @default(true)
   bins             StorageBin[]
@@ -1355,9 +1361,9 @@ model StockMovement {
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   itemId  String
-  item    Item   @relation(fields: [itemId], references: [id])
+  item    Item        @relation(fields: [itemId], references: [id])
   storeId String
-  store   Store  @relation(fields: [storeId], references: [id])
+  store   Store       @relation(fields: [storeId], references: [id])
   /// Which bin inside the store (INV-14). Null in a store that is not divided
   /// into bins — valuation is per store either way.
   binId   String?
@@ -1413,7 +1419,6 @@ model StockMovement {
   @@index([jobId])
   @@index([entryId])
   @@index([date])
-
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([storeId])
   @@index([binId])
@@ -1457,7 +1462,6 @@ model MaterialRequest {
   @@unique([companyId, number])
   @@index([status])
   @@index([jobId])
-
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([storeId])
 }
@@ -1541,7 +1545,6 @@ model PurchaseOrder {
   @@index([status])
   @@index([partyId])
   @@index([jobId])
-
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([storeId])
   @@index([requestId])
@@ -1573,7 +1576,6 @@ model PurchaseOrderLine {
 
   @@index([orderId])
   @@index([itemId])
-
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([jobId])
 }
@@ -1621,7 +1623,6 @@ model Equipment {
   @@unique([companyId, serialNo])
   @@index([status])
   @@index([itemId])
-
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([storeId])
   @@index([jobId])
@@ -1696,7 +1697,6 @@ model MaterialReturn {
   @@unique([companyId, number])
   @@index([status])
   @@index([jobId])
-
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([storeId])
 }
@@ -1725,7 +1725,6 @@ model MaterialReturnLine {
 
   @@index([returnId])
   @@index([itemId])
-
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([movementId])
 }
@@ -1820,7 +1819,6 @@ model Job {
 
   @@unique([companyId, code])
   @@index([parentId])
-
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([partyId])
 }
@@ -2089,7 +2087,6 @@ model Rfq {
   @@unique([companyId, number])
   @@index([status])
   @@index([jobId])
-
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([requestId])
   @@index([awardedPartyId])
@@ -2111,7 +2108,6 @@ model RfqLine {
   quoteLines RfqQuoteLine[]
 
   @@index([rfqId])
-
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([itemId])
 }
@@ -2131,7 +2127,7 @@ model RfqQuote {
   /// Snapshotted, like every other document that names a party.
   partyName String
 
-  invitedAt DateTime  @default(now())
+  invitedAt  DateTime  @default(now())
   /// Null until a price actually comes back.
   receivedAt DateTime?
 
@@ -2165,7 +2161,6 @@ model RfqQuoteLine {
   unitPrice Float @default(0)
 
   @@unique([quoteId, rfqLineId])
-
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([rfqLineId])
 }
@@ -2220,7 +2215,7 @@ model Lead {
   title  String
   /// New | Qualifying | Site visit | Estimating | Quoted | Negotiating | Won |
   /// Lost. The probability used in the forecast comes from this, never typed.
-  stage  String @default("New")
+  stage  String  @default("New")
   source String?
 
   /// The customer, once they are on the master. Null while it is only a name.
@@ -2238,7 +2233,7 @@ model Lead {
   estimatedValue Float   @default(0)
 
   /// The five qualification facts. Counted, never scored by hand.
-  budgetStated Float?
+  budgetStated  Float?
   decisionMaker String?
   requiredBy    DateTime?
   scopeDefined  Boolean   @default(false)
@@ -2248,10 +2243,10 @@ model Lead {
 
   /// Why it was lost, and to whom. Required on losing, because six months
   /// later the file says Lost and nobody can reconstruct it.
-  lostReason String?
-  lostTo     String?
-  closedAt   DateTime?
-  closedBy   String?
+  lostReason      String?
+  lostTo          String?
+  closedAt        DateTime?
+  closedBy        String?
   /// The stage it had reached when it was won or lost.
   ///
   /// Without this every closed enquiry looks as though it went the whole way,
@@ -2277,7 +2272,6 @@ model Lead {
   @@unique([companyId, number])
   @@index([stage])
   @@index([partyId])
-
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([jobId])
 }
@@ -2401,7 +2395,7 @@ model EstimateLine {
   subcontractCost Float @default(0)
 
   notes     String?
-  sortOrder Int    @default(0)
+  sortOrder Int     @default(0)
 
   takeoffs TakeoffLine[]
 
@@ -2433,7 +2427,6 @@ model TakeoffLine {
   sortOrder Int @default(0)
 
   @@index([lineId])
-
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([itemId])
 }
@@ -2453,19 +2446,19 @@ model Quotation {
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  number String
+  number       String
   /// Draft | Awaiting approval | Approved | Issued | Accepted | Declined |
   /// Superseded.
-  status String @default("Draft")
+  status       String     @default("Draft")
   /// 1, then 2 for the first revision, and so on.
-  revision Int @default(1)
+  revision     Int        @default(1)
   /// The quotation this one replaces, when it is a revision.
   supersedesId String?    @unique
   supersedes   Quotation? @relation("QuoteRevision", fields: [supersedesId], references: [id])
   supersededBy Quotation? @relation("QuoteRevision")
 
-  leadId String?
-  lead   Lead?   @relation(fields: [leadId], references: [id])
+  leadId     String?
+  lead       Lead?     @relation(fields: [leadId], references: [id])
   /// The estimate it is priced from. The total below is a snapshot of that
   /// estimate at the moment the quotation was raised — the estimate can carry
   /// on being edited for the next revision without changing what the customer
@@ -2477,21 +2470,21 @@ model Quotation {
   party        Party?  @relation(fields: [partyId], references: [id])
   customerName String
 
-  title      String
+  title         String
   /// What was quoted. Snapshotted from the estimate, never entered.
-  total      Float     @default(0)
+  total         Float     @default(0)
   /// What it was costed at, so the margin on the accepted job can be checked.
-  costAtQuote Float    @default(0)
-  budgetHours Float    @default(0)
+  costAtQuote   Float     @default(0)
+  budgetHours   Float     @default(0)
   /// The priced lines exactly as the customer received them, as JSON.
   ///
   /// The estimate goes on being edited for the next revision, and a reprint of
   /// a quotation already sent must be the same document — the same reason an
   /// invoice snapshots its customer. Written when the quotation is raised.
   linesSnapshot String?
-  validUntil DateTime?
-  terms      String?
-  notes      String?
+  validUntil    DateTime?
+  terms         String?
+  notes         String?
 
   approvalRequestId String?
   approvedBy        String?
@@ -2503,13 +2496,13 @@ model Quotation {
   issuedTo String?
 
   /// CRM-17: the customer's own order.
-  poNumber      String?
-  poDate        DateTime?
+  poNumber       String?
+  poDate         DateTime?
   /// What they actually committed to, which is not always what was quoted.
-  poValue       Float?
-  poRef         String?
+  poValue        Float?
+  poRef          String?
   /// Somebody looked at the difference and said it was right.
-  poAcknowledged Boolean @default(false)
+  poAcknowledged Boolean   @default(false)
 
   declinedReason String?
   closedAt       DateTime?
@@ -2528,7 +2521,6 @@ model Quotation {
   @@index([status])
   @@index([leadId])
   @@index([estimateId])
-
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([partyId])
   @@index([jobId])
@@ -2612,6 +2604,30 @@ model PartyContact {
 /// honest answer needs a record. It says what reached the mail server, which
 /// is not the same as what reached the customer — no sending system can know
 /// the second — and the wording on screen says so.
+/// Sent-email records past their retention window (lib/retention.ts).
+///
+/// The same rows, moved rather than deleted, for the same reason the audit
+/// archive exists: "we emailed it on the 3rd" is a question asked years later,
+/// usually by somebody disputing it.
+model EmailLogArchive {
+  id          String   @id
+  companyId   String
+  kind        String
+  entity      String?
+  entityId    String?
+  toAddresses String
+  ccAddresses String?
+  subject     String
+  sentAt      DateTime
+  sentBy      String?
+  ok          Boolean  @default(false)
+  error       String?
+  messageId   String?
+  archivedAt  DateTime @default(now())
+
+  @@index([companyId, sentAt])
+}
+
 model EmailLog {
   id        String  @id @default(cuid())
   companyId String
@@ -2627,11 +2643,11 @@ model EmailLog {
   ccAddresses String?
   subject     String
 
-  sentAt   DateTime @default(now())
-  sentBy   String?
-  ok       Boolean  @default(false)
+  sentAt    DateTime @default(now())
+  sentBy    String?
+  ok        Boolean  @default(false)
   /// What the server said when it refused. Never contains the password.
-  error    String?
+  error     String?
   /// The id the mail server gave it, for tracing with IT.
   messageId String?
 
@@ -2661,9 +2677,9 @@ model DocumentSettings {
   /// Artwork across the foot of every page. Replaces the footer text.
   footerImage String?
 
-  phone   String?
-  email   String?
-  website String?
+  phone      String?
+  email      String?
+  website    String?
   /// Extra footer line — registration numbers, bank details, a slogan.
   footerNote String?
 

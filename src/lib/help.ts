@@ -88,6 +88,19 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "If a panel you expected is missing, your role does not include the screen it comes from. The dashboard never shows more than the module itself would.",
   },
   {
+    id: "data-retention", category: "Administration & Security", screens: ["/settings/retention", "/audit", "/notifications"],
+    title: "How long records are kept",
+    summary: "Three logs have a retention period you can set. Everything else is kept for as long as the system exists.",
+    body: "Settings \u2192 Data Retention sets how long the audit trail, the record of sent emails and the notifications are kept. Past that window the first two move to an archive that stays readable, and read notifications are removed \u2014 an unread one is never removed, however old. Nothing else on this page: invoices, journal entries, payroll runs, attendance, settlements and stock movements are kept for as long as the system exists, because reports read years of them. It runs by itself each time the system is updated; the buttons only do it sooner.",
+    steps: [
+      "Open Settings \u2192 Data Retention.",
+      "Each of the three says what the records are, how long they are kept and what happens next.",
+      "Change a period with the dropdown, or type a number of days, then Save.",
+      "'Archive now' or 'Remove now' does it immediately, for the records already past the window.",
+    ],
+    tip: "Every change here is written to the audit trail, including a shortened window \u2014 which is how somebody would try to push their own activity out of view.",
+  },
+  {
     id: "roles-access", category: "Getting Started", screens: [],
     title: "Why some screens are hidden",
     summary: "Your role decides what you can see and do.",

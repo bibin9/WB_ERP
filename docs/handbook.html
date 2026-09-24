@@ -976,6 +976,21 @@
 </section>
 
 <section id="audit">
+  <h2>How long records are kept</h2>
+  <p>Two different things, often confused, so they are separated here.</p>
+  <p><strong>Your business records are kept for as long as the system exists.</strong> Invoices, journal entries, payroll runs, attendance, settlements, stock movements, quotations: nothing removes them, and no setting anywhere shortens them. They have to stay, because a trial balance, a job cost report and an end-of-service calculation all read years of history — and because UAE law expects accounting records to be kept for several years. Confirm the exact periods with your auditor; the system’s job is to still have them.</p>
+  <p><strong>Three logs have a period you can set</strong>, at Settings &rarr; Data Retention, because they grow with every action and nothing reports on them:</p>
+  <table>
+    <thead><tr><th>What</th><th>Kept by default</th><th>Then</th></tr></thead>
+    <tbody>
+      <tr><td>Audit trail — who changed what</td><td>1 year</td><td>Moves to the audit archive, still readable on the Audit Log screen</td></tr>
+      <tr><td>Sent emails — the record that a quotation or order went out</td><td>3 years</td><td>Moves to the sent-email archive. It is the evidence a document was sent, asked for long afterwards</td></tr>
+      <tr><td>Notifications — the alerts in the bell menu</td><td>6 months</td><td>Removed once read, because each is a copy of something recorded elsewhere. Unread ones are never removed</td></tr>
+    </tbody>
+  </table>
+  <p>The housekeeping runs by itself each time the system is updated. The buttons on that page only do it sooner, and the page shows how many records are waiting. Only an administrator can change a period, every change is written to the audit trail, and no period can be set shorter than its floor — 30 days for the audit trail, a year for sent emails.</p>
+  <div class="note do"><b>What this is not for</b>Archiving is about keeping log tables from growing without limit, and about being able to tell an auditor what is kept and for how long. It is not a speed control: the system is not slowed by having last year’s invoices in it.</div>
+
   <h2>The audit trail</h2>
   <div class="entry">
     <h4>Audit Log</h4>
