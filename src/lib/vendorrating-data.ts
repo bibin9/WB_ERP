@@ -52,6 +52,10 @@ export async function ratingsFor(
         select: {
           quantity: true,
           receipts: { select: { quantity: true, date: true } },
+          // To tell an order for material from an order for work: a service
+          // has no receipts and never will, so counting one as a delivery
+          // that never arrived would score a supplier at nought for ever.
+          item: { select: { isStocked: true } },
         },
       },
     },
@@ -117,6 +121,17 @@ export async function ratingsFor(
   for (const partyId of ids) {
     const theirOrders = orders
       .filter((o) => o.partyId === partyId)
+      // Delivery is measured from what arrived in a store, so an order has to
+      // be capable of arriving. An order whose every line is a service — PRO
+      // work, hire, subcontract labour — is closed by somebody confirming the
+      // work was done and will never carry a receipt; counted here it reads as
+      // a delivery that never came, and scores that supplier at nought for
+      // ever.
+      //
+      // Only that case. An order typed as free text with no catalogue item
+      // behind it is ordinary material as far as anybody knows, and a
+      // cancelled one still says something about the supplier.
+      .filter((o) => !(o.lines.length > 0 && o.lines.every((l) => l.item && !l.item.isStocked)))
       .map((o) => {
         const ordered = o.lines.reduce((s, l) => s + l.quantity, 0);
         const received = o.lines.reduce(

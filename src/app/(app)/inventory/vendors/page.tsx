@@ -213,8 +213,10 @@ export default async function VendorsPage({
       <div className="mt-6 flex items-start gap-2 text-xs text-muted">
         <Gauge className="mt-0.5 h-4 w-4 shrink-0" />
         <p className="max-w-3xl">
-          Nothing on this page is typed in. On time in full comes from purchase orders against the dates the
-          supplier promised; rejections from QA/QC inspections; replies from enquiries they were asked to price.
+          Nothing on this page is typed in. On time in full comes from purchase orders for material, against the dates the
+          supplier promised &mdash; orders for work rather than material are left out of it, since nothing is
+          delivered to a store and there is no arrival to be late; rejections from QA/QC inspections; replies
+          from enquiries they were asked to price.
           A rating somebody enters by hand is a rating of the last conversation they had, and it is always five
           stars for whoever they like. Every figure carries the count it is out of, and below {MIN_HISTORY} it is
           not shown at all &mdash; a supplier with one late order is not &ldquo;0% on time&rdquo; in any sense

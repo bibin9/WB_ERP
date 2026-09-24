@@ -216,6 +216,50 @@ try {
       String(onlyLate[late.id].price.compared));
   }
 
+  /* ===================== an order for work is not a delivery ============ */
+  {
+    // A PRO company, a crane hire firm, a labour supplier: the order is closed
+    // by somebody confirming the work was done, and no receipt will ever exist
+    // against it. Counted as a delivery it reads as one that never arrived, and
+    // the supplier sits at 0% on time for ever.
+    const service = await db.item.create({
+      data: { companyId: co.id, code: tag + "-SVC", name: "PRO — new employment visa", unitCode: "EA", isStocked: false },
+    });
+    const proCo = await db.party.create({
+      data: { companyId: co.id, code: tag + "-PRO", name: "PRO Services " + tag, type: "Supplier" },
+    });
+    for (let i = 0; i < 3; i++) {
+      await db.purchaseOrder.create({
+        data: {
+          companyId: co.id, number: tag + "-SVC-" + i, status: "Received",
+          partyId: proCo.id, partyName: proCo.name, date: new Date(), raisedBy: "tester",
+          expectedDate: new Date(day(-20) + "T00:00:00.000Z"),
+          lines: { create: [{ itemId: service.id, description: "New employment visa", unitCode: "EA", quantity: 3, unitPrice: 3500, netAmount: 10500 }] },
+        },
+      });
+    }
+    const r = await ratingFor(co.id, proCo.id);
+    ok("three closed service orders are not judged as deliveries", r.delivery.considered === 0,
+      r.delivery.considered + " considered");
+    ok("  so there is no on-time figure to mislead anybody", r.delivery.enough === false);
+
+    // And the moment one line on it is material, it is an ordinary order again.
+    await db.purchaseOrder.create({
+      data: {
+        companyId: co.id, number: tag + "-MIX", status: "Received",
+        partyId: proCo.id, partyName: proCo.name, date: new Date(), raisedBy: "tester",
+        expectedDate: new Date(day(-20) + "T00:00:00.000Z"),
+        lines: { create: [
+          { itemId: service.id, description: "Labour to fit it", unitCode: "EA", quantity: 1, unitPrice: 500, netAmount: 500 },
+          { itemId: item.id, description: "cable", unitCode: "MTR", quantity: 100, unitPrice: 10, netAmount: 1000 },
+        ] },
+      },
+    });
+    const mixed = await ratingFor(co.id, proCo.id);
+    ok("an order with material on it still counts", mixed.delivery.considered === 1,
+      mixed.delivery.considered + " considered");
+  }
+
   /* ============================================== nothing is stored ===== */
   {
     const before = await ratingFor(co.id, punctual.id);

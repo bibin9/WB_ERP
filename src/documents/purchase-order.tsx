@@ -12,6 +12,7 @@ import React from "react";
 import { db } from "@/lib/db";
 import { letterheadFor, type Letterhead } from "@/lib/document-settings";
 import { amountInWords } from "@/lib/amount-words";
+import { isServiceOrder } from "@/lib/purchasing";
 import {
   DocumentFile, TitleBlock, PartyRow, PartyBox, ItemsTable, TotalsBox, TextSection, Signatures, SmallPrint,
   money, quantity, date, type Column,
@@ -31,6 +32,8 @@ export type PurchaseOrderDoc = {
   currency: string;
   supplier: (string | null | undefined)[];
   supplierContact: (string | null | undefined)[];
+  /** True when nothing on the order is material, so nothing is delivered. */
+  servicesOnly: boolean;
   deliverTo: (string | null | undefined)[];
   lines: Line[];
   total: number;
@@ -57,9 +60,12 @@ export async function loadPurchaseOrder(id: string, companyIds: string[]): Promi
       company: { include: { documentSettings: true } },
       party: true,
       store: true,
+      // Whether anything on it is material: an order for work is delivered
+      // nowhere, and "Deliver to: Main store" on a visa order is wrong on the
+      // face of the document the supplier receives.
       job: { select: { code: true, name: true } },
       request: { select: { number: true } },
-      lines: { include: { job: { select: { code: true } } }, orderBy: { sortOrder: "asc" } },
+      lines: { include: { job: { select: { code: true } }, item: { select: { isStocked: true } } }, orderBy: { sortOrder: "asc" } },
     },
   });
   if (!o) return null;
@@ -67,6 +73,7 @@ export async function loadPurchaseOrder(id: string, companyIds: string[]): Promi
   const p = o.party;
   const lh = letterheadFor(o.company, o.company.documentSettings);
   const orderJob = o.job?.code ?? null;
+  const servicesOnly = isServiceOrder(o.lines);
   return {
     filename: `${o.number.replace(/[^\w-]+/g, "-")}.pdf`,
     lh,
@@ -84,6 +91,7 @@ export async function loadPurchaseOrder(id: string, companyIds: string[]): Promi
       p.trn ? `TRN ${p.trn}` : null,
     ],
     supplierContact: [p.contactPerson, p.phone, p.email],
+    servicesOnly,
     deliverTo: o.store
       ? [o.store.name, o.store.location, lh.companyName]
       : [lh.companyName, lh.addressLine],
@@ -132,7 +140,7 @@ export function PurchaseOrderPdf(d: PurchaseOrderDoc) {
 
       <PartyRow>
         <PartyBox label="Supplier" lines={[...d.supplier, ...d.supplierContact]} />
-        <PartyBox label="Deliver to" lines={d.deliverTo} />
+        <PartyBox label={d.servicesOnly ? "Work for" : "Deliver to"} lines={d.deliverTo} />
       </PartyRow>
 
       <ItemsTable lh={d.lh} columns={columns} rows={d.lines} />
