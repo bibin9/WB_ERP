@@ -412,6 +412,14 @@
     { id:"PRC-10", r:"PRC", p:"2", t:"Read supplier performance",
       s:["Open Supplier Performance."],
       e:"Each supplier shows on-time-in-full, rejections, replies and price, each with how many orders or inspections it is out of. Where there are too few, it says so rather than showing a percentage." },
+    { id:"PRC-11", r:"PRC", p:"1", t:"Order work that never arrives in a store",
+      s:["Open Items and add the PRO company’s services — for example “PRO — new employment visa” — with “Keep stock of this” UNTICKED.","Check the PRO company is already in Customers & Suppliers. Only Accounts can add one — ask them first if it is missing (FIN-09).","Raise a purchase order to them: 3 new visas and 2 labour card renewals at the agreed rates. Send it for approval.","Open Stock on Hand and search for the service you added."],
+      e:"The order is raised and goes to Project Manager → Operations Manager → Director like any other. The service does not appear on Stock on Hand at all — it is not on a shelf, and it never pretends to be.",
+      n:"The same applies to equipment hire, subcontract labour, consultancy and camp catering." },
+    { id:"PRC-12", r:"PRC", p:"1", t:"Close it when the work is done",
+      s:["Once the order is approved, open it and click “Mark work as delivered”.","Read the order’s notes.","Open the Stores Dashboard.","Look at an ordinary material order that has stock on it."],
+      e:"The order becomes Received, and its notes say who confirmed the work and on what date — there is no delivery note, so that sentence is the evidence. It leaves “Orders to receive” on the dashboard. On a material order the button is not offered at all: that material still has to be received into a store.",
+      n:"Needs PRC-11." },
 
     // ================= Storekeeper
     { id:"STR-01", r:"STR", p:"2", t:"Receive a delivery against an approved order",
@@ -491,6 +499,10 @@
     { id:"FIN-08", r:"FIN", p:"1", t:"Who owes us and how late",
       s:["Open Outstanding & Ageing."],
       e:"Balances sit in not yet due, 1–30, 31–60, 61–90 and over 90 days, and agree to the customer's statement in Ledgers." },
+    { id:"FIN-09", r:"FIN", p:"1", t:"A PRO bill: against the order, split for VAT, charged to the right place",
+      s:["If the PRO company is not in Customers & Suppliers yet, add it there first — type Supplier, with its TRN and payment terms.","Open Invoices → New, side Purchase. Choose the PRO company.","Under “Against purchase order” choose the order from PRC-12.","Line 1: their own service fee, VAT treatment Standard, charged to the cost centre Administration & HR.","Line 2: the government fees they paid on your behalf (MOHRE, ICP), VAT treatment Out of scope, same cost centre.","Save, then Issue it.","Open Finance → Cost Centres, then open the purchase order again."],
+      e:"VAT is charged on the service fee only — 5% of that line, nothing on the government fees. The voucher debits the cost and credits the supplier, with both cost lines tagged to Administration & HR. The Cost Centres report shows the total against Administration & HR, and the purchase order now lists the bill under “Billed against this order”.",
+      n:"Needs PRC-12. A line takes a job or a cost centre, never both." },
 
     // ================= Finance Controller
     { id:"FC-01", r:"FC", p:"1", t:"The books balance",
