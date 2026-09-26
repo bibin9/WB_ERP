@@ -153,3 +153,103 @@ export async function decideStep(stepId: string, decision: "Approved" | "Rejecte
   revalidatePath("/dashboard");
   return { ok: true };
 }
+
+/**
+ * Handing a request back to an earlier stage.
+ *
+ * Asked for by the client: an approver who cannot agree has two blunt options,
+ * and rejecting kills the document. What is usually meant is "nearly right —
+ * the site engineer should correct the quantity". So a request goes back down
+ * the route, is put right, and comes back up, rather than being rejected and
+ * raised again as a new document with a new number and no history.
+ *
+ * Everything from the target stage onwards is set waiting again, including the
+ * stage doing the sending: the approvals already given above the correction
+ * were given to a document that has now changed, and letting them stand would
+ * mean the version that ends up approved is not the version anybody approved.
+ *
+ * The reason is required. A request handed back without one only goes round
+ * again, and the person receiving it has to guess.
+ */
+export async function sendBackStep(stepId: string, toOrder: number, reason: string): Promise<DecisionResult> {
+  if (!(await allow("approvals.inbox", "approve"))) {
+    return { ok: false, error: "Your role can see approvals but not act on them. An administrator can grant Approve on Approvals in Access Control." };
+  }
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Your session has ended. Sign in again." };
+
+  const said = String(reason ?? "").trim().slice(0, 500);
+  if (said.length < 3) {
+    return { ok: false, error: "Say what needs correcting. Whoever gets this back has only your words to go on." };
+  }
+
+  const step = await db.approvalStep.findUnique({
+    where: { id: stepId },
+    include: { request: { include: { steps: true } } },
+  });
+  if (!step) return { ok: false, error: "That approval no longer exists." };
+  const request = step.request;
+  if (request.status !== "Pending" || step.order !== request.currentStep || step.status !== "Pending") {
+    return { ok: false, error: "Somebody has already decided this step. Refresh to see where it has got to." };
+  }
+  if (!Number.isInteger(toOrder) || toOrder < 1 || toOrder >= step.order) {
+    return { ok: false, error: "Choose a stage before this one to send it back to." };
+  }
+
+  const membership = session.companies.find((c) => c.id === request.companyId);
+  if (!membership || membership.approvalLevel < step.requiredLevel) {
+    return { ok: false, error: `This step needs ${step.roleName} or above in ${membership ? "this company" : "a company you do not have access to"}.` };
+  }
+
+  const me = session.user;
+  const raisedIt = request.requestedById ? request.requestedById === me.id : request.requestedBy === me.name;
+  if (raisedIt) return { ok: false, error: "You raised this request, so someone else has to act on it." };
+
+  const target = request.steps.find((s) => s.order === toOrder);
+  if (!target) return { ok: false, error: "That stage is not on this route." };
+
+  // Recorded only while this step is still the one waiting, so two approvers
+  // acting at the same moment cannot both move it.
+  const claimed = await db.approvalStep.updateMany({
+    where: { id: stepId, status: "Pending" },
+    data: { comment: said },
+  });
+  if (claimed.count === 0) {
+    return { ok: false, error: "Somebody has already decided this step. Refresh to see where it has got to." };
+  }
+
+  await db.$transaction([
+    // Every stage from the target up, waiting again and with its old decision
+    // cleared: those approvals were for the document as it was.
+    db.approvalStep.updateMany({
+      where: { requestId: request.id, order: { gte: toOrder } },
+      data: { status: "Pending", decidedBy: null, decidedById: null, decidedAt: null },
+    }),
+    db.approvalRequest.update({ where: { id: request.id }, data: { currentStep: toOrder } }),
+    db.approvalReturn.create({
+      data: {
+        requestId: request.id,
+        fromOrder: step.order,
+        toOrder,
+        reason: said,
+        sentBy: me.name,
+        sentById: me.id,
+      },
+    }),
+  ]);
+
+  await notifyApprovers(session.tenant.id, request.companyId, target.requiredLevel, {
+    title: `Sent back for correction: ${request.title}`,
+    body: `${request.docType} — returned to ${target.roleName} by ${me.name}: ${said}`,
+    link: "/approvals",
+  });
+  await audit({
+    action: "Updated",
+    entity: "ApprovalRequest",
+    entityId: request.id,
+    summary: `Sent "${request.title}" back from step ${step.order} (${step.roleName}) to step ${toOrder} (${target.roleName}): ${said}`,
+  });
+  revalidatePath("/approvals");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}

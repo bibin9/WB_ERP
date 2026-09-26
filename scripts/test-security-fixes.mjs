@@ -133,6 +133,23 @@ const decide = fn(read("src/app/(app)/approvals/actions.ts"), "decideStep");
 ok("whoever raised a request cannot approve it", /request\.requestedById === me\.id/.test(decide) && /You raised this request/.test(decide));
 ok("nobody decides two steps of the same request", /already decided an earlier step/.test(decide));
 ok("the decision is recorded only if the step is still waiting", /approvalStep\.updateMany\(\{\s*where: \{ id: stepId, status: "Pending" \}/.test(decide) && /taken\.count === 0/.test(decide));
+const back = fn(read("src/app/(app)/approvals/actions.ts"), "sendBackStep");
+ok("sending back needs the same permission as approving", /allow\("approvals\.inbox", "approve"\)/.test(back));
+ok("  and the level the step itself requires", /membership\.approvalLevel < step\.requiredLevel/.test(back));
+ok("  and refuses whoever raised it", /You raised this request/.test(back));
+ok("  and only while that step is the one waiting",
+  /step\.order !== request\.currentStep/.test(back) && /status: "Pending"/.test(back));
+ok("it only goes backwards, never forwards", /toOrder < 1 \|\| toOrder >= step\.order/.test(back));
+ok("a reason is required, because the next person has only those words",
+  /said\.length < 3/.test(back) && /Say what needs correcting/.test(back));
+ok("every stage from there up waits again, its old decision cleared",
+  /order: \{ gte: toOrder \}/.test(back) && /decidedBy: null, decidedById: null, decidedAt: null/.test(back),
+  "an approval given above the correction was given to a different document");
+ok("the send-back is kept as its own record, with who and why",
+  /approvalReturn\.create/.test(back) && /fromOrder/.test(back) && /reason: said/.test(back));
+ok("  and the approvers it lands on are told", /notifyApprovers/.test(back));
+ok("  and it is on the audit trail", /Sent "\$\{request\.title\}" back/.test(back));
+
 const sources = ["src/app/(app)/approvals/actions.ts", "src/lib/purchase-posting.ts", "src/lib/quote-posting.ts"];
 const creates = sources.flatMap((f) => [...read(f).matchAll(/approvalRequest\.create\(\{[\s\S]*?requestedBy: [^\n]+\n([^\n]+)/g)].map((m) => [f, m[1]]));
 ok("every place that raises a request records who, by account", creates.length >= 4 && creates.every(([, next]) => /requestedById/.test(next)), `${creates.length} places`);

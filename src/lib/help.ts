@@ -88,6 +88,20 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "If a panel you expected is missing, your role does not include the screen it comes from. The dashboard never shows more than the module itself would.",
   },
   {
+    id: "send-back", category: "Approvals", screens: ["/approvals"],
+    title: "Sending a request back instead of rejecting it",
+    summary: "Return it to an earlier stage with a reason, so it can be corrected rather than raised again.",
+    body: "Approve and Reject are blunt: rejecting kills the document, and it has to be raised again from scratch with a new number and no history. Where the real answer is \u201cnearly right, the quantity is wrong\u201d, use Send back. Choose which earlier stage it goes to, say what needs correcting, and it returns there. Everything from that stage upwards waits again \u2014 including any approval already given above it, because those were given to the document as it was, and it is about to change. The reason is shown to whoever receives it and kept on the request, so how many times something went round, and why, is on the record.",
+    steps: [
+      "Open Approvals and find the request waiting for you.",
+      "Click Send back.",
+      "Choose the stage it should go back to.",
+      "Write what needs correcting \u2014 it is required, and it is all the next person sees.",
+      "Send. The approvers at that stage are notified.",
+    ],
+    tip: "Reject is for a request that should not have been raised at all. Send back is for one that should have been raised differently.",
+  },
+  {
     id: "bill-first-orders", category: "Stores", screens: ["/finance/invoices", "/inventory/orders"],
     title: "When the bill arrives before the order",
     summary: "Raise the purchase order from the supplier's bill, attach their receipts, and approve it before paying.",

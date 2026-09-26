@@ -43,7 +43,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
 
   const requests = await db.approvalRequest.findMany({
     where: { companyId: { in: companyIds } },
-    include: { company: true, steps: { orderBy: { order: "asc" } } },
+    include: { company: true, steps: { orderBy: { order: "asc" } }, returns: { orderBy: { sentAt: "desc" } } },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
   });
 
@@ -105,9 +105,17 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
                     <div className="text-xs text-muted">
                       {r.docType} · {r.company.code} · {amountWithCurrency(r.amount, r.currency)} · by {r.requestedBy} · needs {step.roleName}
                     </div>
+                    {/* Why it is back here. Whoever sent it back wrote one
+                        sentence; it is the only thing the next person has. */}
+                    {r.returns.length > 0 && (
+                      <div className="mt-1 text-xs text-brand-gold">
+                        Sent back by {r.returns[0].sentBy} from step {r.returns[0].fromOrder}: {r.returns[0].reason}
+                        {r.returns.length > 1 && <span className="text-muted"> · {r.returns.length} times in all</span>}
+                      </div>
+                    )}
                   </div>
                   {mayApprove ? (
-                    <ApprovalDecision stepId={step.id} />
+                    <ApprovalDecision stepId={step.id} earlier={r.steps.filter((x) => x.order < step.order).sort((a, b) => a.order - b.order).map((x) => ({ order: x.order, roleName: x.roleName }))} />
                   ) : (
                     <span className="text-xs text-muted">
                       Waiting for your level, but your role cannot approve. Ask an administrator.

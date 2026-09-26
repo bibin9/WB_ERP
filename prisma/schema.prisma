@@ -236,24 +236,49 @@ model JobAssignment {
 /// Approval Engine (FSD FS-PLT-02) — one configurable sign-off workflow reused
 /// by any document type (PO, expense, company onboarding, etc.).
 model ApprovalRequest {
-  id            String         @id @default(cuid())
+  id            String           @id @default(cuid())
   companyId     String
-  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company       Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   docType       String // e.g. "Purchase Order", "Expense", "Company Onboarding"
   title         String
   amount        Float?
-  currency      String         @default("AED")
+  currency      String           @default("AED")
   requestedBy   String
   /// Who raised it, by account: the name alone cannot stop them approving it.
   requestedById String?
-  status        String         @default("Pending") // Pending | Approved | Rejected
-  currentStep   Int            @default(1)
+  status        String           @default("Pending") // Pending | Approved | Rejected
+  currentStep   Int              @default(1)
   steps         ApprovalStep[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  returns       ApprovalReturn[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   // Foreign keys and filters the screens use; see scripts/profile-pages.mjs.
   @@index([companyId, status])
+}
+
+/// A request handed back to an earlier stage, and why.
+///
+/// An approver who cannot agree has two blunt options — approve it, or reject
+/// it and kill the document. What is usually wanted is "nearly right, the site
+/// engineer should correct the quantity": the request goes back down the
+/// route, is put right, and comes back up. Kept as its own record rather than
+/// by rewriting the step, because that a request went round twice, who sent it
+/// back and what they said is exactly what somebody asks about later.
+model ApprovalReturn {
+  id        String          @id @default(cuid())
+  requestId String
+  request   ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  /// The stage it was sent back FROM, and the one it went back TO.
+  fromOrder Int
+  toOrder   Int
+  /// Why. Required: a request handed back without a reason only goes round again.
+  reason    String
+  sentBy    String
+  sentById  String?
+  sentAt    DateTime        @default(now())
+
+  @@index([requestId])
 }
 
 model ApprovalStep {
