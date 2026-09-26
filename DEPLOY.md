@@ -51,7 +51,14 @@ Employee documents are saved to a folder, so the service needs a persistent disk
 
 1. On the **app service**, open **Settings → Volumes → New Volume** (or the "Data" tab).
 2. Set the **Mount path** to `/app/uploads`.
-3. Save.
+3. Set the **size** to **5 GB** on production. Railway charges for data stored,
+   not capacity, so a generous cap costs nothing until it is used — and it can
+   only ever be grown, never shrunk. 500 MB sounds ample and is not: one file may
+   be 10 MB, and two hundred employees with a passport, visa, Emirates ID, contract
+   and certificates each is roughly a gigabyte before a single supplier invoice is
+   attached. A full volume fails the upload of whoever happens to be mid-way
+   through an employee file. Pre-Prod can stay small; it holds test data.
+4. Save.
 
 Without this, uploaded documents would be lost on every redeploy.
 
