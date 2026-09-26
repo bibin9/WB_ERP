@@ -59,6 +59,26 @@ export async function issueInvoice(invoiceId: string, issuedBy: string): Promise
   if (inv.status === "Cancelled") return { ok: false, error: "That invoice was cancelled." };
   if (inv.entryId) return { ok: false, error: "That invoice has already been issued." };
 
+  // A bill raised against a purchase order waits for that order to be
+  // approved. This is the whole point of the order in the client's way of
+  // working: the basic order goes out, the supplier bills what they actually
+  // charged, and the order carrying that amount is approved before the money
+  // is committed. Posting the bill first would put the approval after the fact.
+  if (inv.orderId) {
+    const order = await db.purchaseOrder.findUnique({
+      where: { id: inv.orderId },
+      select: { number: true, status: true },
+    });
+    if (order && !["Approved", "Partly received", "Received"].includes(order.status)) {
+      return {
+        ok: false,
+        error: order.status === "Awaiting approval"
+          ? `Purchase order ${order.number} is still waiting for approval. This bill can be issued once it is approved.`
+          : `Purchase order ${order.number} is ${order.status.toLowerCase()}. A bill cannot be issued against an order nobody has approved.`,
+      };
+    }
+  }
+
   const side = inv.side as InvoiceSide;
   const docType = inv.docType as DocType;
 

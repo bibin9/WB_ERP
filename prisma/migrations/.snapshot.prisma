@@ -1020,6 +1020,36 @@ model Appraisal {
 }
 
 /// Uploaded employee documents (Emirates ID copy, passport, visa, photo, etc.)
+/// A file kept beside a document: the supplier's bill as they sent it, the
+/// government fee receipts behind it, a quote, an approval by email.
+///
+/// One table for every kind of document rather than one per screen, because
+/// the rules that matter — what may be uploaded, where it is written, who may
+/// read it back — are the same in each case and are worth having in one place.
+/// What differs is who may see it, and that is the screen key in
+/// lib/attachments.ts, checked on upload and again on download.
+model Attachment {
+  id         String   @id @default(cuid())
+  companyId  String
+  /// "Invoice" or "PurchaseOrder" — see ATTACHABLE in lib/attachments.ts.
+  entity     String
+  entityId   String
+  /// What it is for, in the words of the person filing it: Supplier invoice,
+  /// Government fee receipt, Quotation, Approval email, Other.
+  kind       String   @default("Other")
+  fileName   String
+  /// Sixteen random bytes plus the detected extension. Nothing the uploader
+  /// wrote ever reaches the filesystem.
+  storedName String
+  mimeType   String
+  size       Int
+  uploadedBy String
+  createdAt  DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([companyId])
+}
+
 model EmployeeDocument {
   id         String   @id @default(cuid())
   companyId  String

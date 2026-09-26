@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { allowIn } from "@/lib/guard";
 import { audit } from "@/lib/audit";
+import { createOrder } from "@/lib/purchase-posting";
 import { toFils } from "@/lib/money";
 import {
   DOC_TYPES, INVOICE_SIDES, UNIT_CODES, DEFAULT_UNIT_CODE, dueDateFrom,
@@ -298,4 +299,61 @@ export async function cancelDraft(id: string): Promise<Result> {
   });
   revalidatePath("/finance/invoices");
   return { ok: true, id };
+}
+
+/**
+ * Raise the purchase order that approves a bill already in hand.
+ *
+ * The client's own way round, and the reason this exists: a basic order goes
+ * to the supplier, the supplier sends their invoice with the government fee
+ * receipts behind it, and the order that goes for approval carries the amount
+ * actually charged. Raising it from the bill copies the supplier and the lines,
+ * so the document approvers see is the document accounts will pay.
+ *
+ * It is a draft when it lands, deliberately: whoever raised it sends it for
+ * approval once the receipts are attached, rather than the system deciding
+ * that for them.
+ */
+export async function raiseOrderForBill(invoiceId: string): Promise<Result> {
+  const inv = await db.invoice.findUnique({
+    where: { id: invoiceId },
+    include: { lines: { orderBy: { order: "asc" } } },
+  });
+  if (!inv) return { ok: false, error: "Invoice not found." };
+  const session = await allowIn(inv.companyId, "inventory.orders", "create");
+  if (!session) return { ok: false, error: "You do not have permission to raise a purchase order." };
+
+  if (inv.side !== "Purchase") return { ok: false, error: "Only a supplier's bill can have a purchase order raised against it." };
+  if (inv.status !== "Draft") return { ok: false, error: "This bill has already been issued. The order should have been approved before it was." };
+  if (inv.orderId) return { ok: false, error: "This bill is already against an order." };
+  if (!inv.lines.length) return { ok: false, error: "Add the lines to the bill first — the order copies them." };
+
+  const made = await createOrder({
+    companyId: inv.companyId,
+    raisedBy: session.user.name,
+    partyId: inv.partyId,
+    jobId: inv.jobId,
+    date: new Date().toISOString().slice(0, 10),
+    notes: `Raised against supplier bill ${inv.number}${inv.notes ? ` — ${inv.notes}` : ""}`,
+    lines: inv.lines.map((l) => ({
+      description: l.description,
+      unitCode: l.unitCode,
+      quantity: l.quantity || 1,
+      // The bill's line is net of VAT, which is what an order carries: there
+      // is no VAT on an order, the tax point is the supplier's invoice.
+      unitPrice: l.quantity ? l.netAmount / l.quantity : l.netAmount,
+    })),
+  });
+  if (!made.ok) return { ok: false, error: made.error };
+
+  await db.invoice.update({ where: { id: invoiceId }, data: { orderId: made.orderId } });
+  await audit({
+    action: "Created",
+    entity: "PurchaseOrder",
+    entityId: made.orderId,
+    summary: `Raised ${made.number} against supplier bill ${inv.number} (${inv.partyName})`,
+  });
+  revalidatePath(`/finance/invoices/${invoiceId}`);
+  revalidatePath("/inventory/orders");
+  return { ok: true, id: made.orderId };
 }

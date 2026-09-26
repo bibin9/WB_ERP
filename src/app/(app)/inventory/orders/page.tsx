@@ -9,10 +9,13 @@ import SearchBox from "@/components/SearchBox";
 import Pager from "@/components/Pager";
 import OrderForm from "@/components/inventory/OrderForm";
 import OrderActions from "@/components/inventory/OrderActions";
+import Attachments from "@/components/Attachments";
+import { attachableFor } from "@/lib/attachments";
 import DocumentButtons from "@/components/DocumentButtons";
 import { requireAccess } from "@/lib/guard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { can } from "@/lib/rbac";
 import { money } from "@/lib/money";
 import { readPaging, pageInfo } from "@/lib/paging";
 import { readSearch, matchAny } from "@/lib/search";
@@ -105,6 +108,14 @@ export default async function OrdersPage({
           lines: { select: { quantity: true, unitPrice: true, receipts: { select: { quantity: true } } } },
         },
       })
+    : [];
+  // The evidence filed against these orders: the supplier's bill, the receipts
+  // behind it, the quote it was awarded from.
+  const canAttach = can(session, "inventory.orders", "create");
+  const canRemoveAttachment = can(session, "inventory.orders", "delete");
+  const fmtDate = (d: Date) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  const files = ids.length
+    ? await db.attachment.findMany({ where: { entity: "PurchaseOrder", entityId: { in: ids } }, orderBy: { createdAt: "asc" } })
     : [];
   const totals = summarisePurchasing(allForTotals);
   const verdict = purchasingVerdict(allForTotals);
@@ -353,6 +364,21 @@ export default async function OrdersPage({
                   ))}
                 </p>
               )}
+
+              <div className="mt-3">
+                <Attachments
+                  entity="PurchaseOrder"
+                  entityId={o.id}
+                  kinds={attachableFor("PurchaseOrder")!.kinds}
+                  rows={files.filter((f) => f.entityId === o.id).map((f) => ({
+                    id: f.id, kind: f.kind, fileName: f.fileName, size: f.size,
+                    uploadedBy: f.uploadedBy, createdAt: fmtDate(f.createdAt),
+                  }))}
+                  canAdd={canAttach}
+                  canRemove={canRemoveAttachment && o.status === "Draft"}
+                  note="The supplier's invoice and the receipts behind it, a quotation, an approval by email. Whoever approves this order sees them with it."
+                />
+              </div>
 
               <div className="mt-3 flex flex-wrap justify-end gap-2 print:hidden">
                 <DocumentButtons kind="purchase-order" id={o.id} />

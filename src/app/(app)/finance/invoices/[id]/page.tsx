@@ -7,6 +7,9 @@ import DocumentButtons from "@/components/DocumentButtons";
 import FinanceTabs from "@/components/FinanceTabs";
 import InvoiceForm from "@/components/finance/InvoiceForm";
 import IssueInvoice from "@/components/finance/IssueInvoice";
+import Attachments from "@/components/Attachments";
+import OrderForBill from "@/components/finance/OrderForBill";
+import { attachableFor } from "@/lib/attachments";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
@@ -33,12 +36,22 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
       lines: { orderBy: { order: "asc" }, include: { account: { select: { code: true, name: true } }, job: { select: { code: true } } } },
       entry: { select: { id: true, reference: true } },
       originalInvoice: { select: { id: true, number: true } },
+      order: { select: { id: true, number: true, status: true, total: true } },
       adjustments: { select: { id: true, number: true, docType: true, grossTotal: true, status: true } },
     },
   });
   if (!inv) notFound();
 
   const side = inv.side as "Sales" | "Purchase";
+
+  // The evidence behind the bill: the supplier's own invoice as they sent it,
+  // and the government fee receipts an approver needs to see before agreeing
+  // to pay them.
+  const files = await db.attachment.findMany({
+    where: { entity: "Invoice", entityId: inv.id },
+    orderBy: { createdAt: "asc" },
+  });
+  const attachable = attachableFor("Invoice")!;
   const editable = inv.status === "Draft" && can(session, "finance.invoices", "edit");
   const mayIssue = inv.status === "Draft" && can(session, "finance.invoices", "approve");
 
@@ -141,6 +154,29 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
           )}
           <Readonly inv={inv} breakdown={breakdown} />
         </>
+      )}
+
+      {side === "Purchase" && (
+        <div className="mt-5 space-y-5">
+          <OrderForBill
+            invoiceId={inv.id}
+            status={inv.status}
+            order={inv.order}
+            canRaise={can(session, "inventory.orders", "create") && inv.status === "Draft"}
+          />
+          <Attachments
+            entity="Invoice"
+            entityId={inv.id}
+            kinds={attachable.kinds}
+            rows={files.map((f) => ({
+              id: f.id, kind: f.kind, fileName: f.fileName, size: f.size,
+              uploadedBy: f.uploadedBy, createdAt: fmt(f.createdAt),
+            }))}
+            canAdd={can(session, "finance.invoices", "create")}
+            canRemove={can(session, "finance.invoices", "delete") && inv.status === "Draft"}
+            note="The supplier's invoice as they sent it, and the receipts behind it — government fees, payments made on your behalf. An approver seeing the amount should be able to see what it is for, and an auditor asking next year should find it here rather than in somebody's mailbox."
+          />
+        </div>
       )}
 
       {inv.originalInvoice && (

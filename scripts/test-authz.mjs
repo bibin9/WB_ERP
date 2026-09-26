@@ -67,9 +67,16 @@ for (const f of actionFiles) {
   for (const b of bodies) {
     const name = b.slice(0, b.indexOf("("));
     const head = b.slice(0, 900);
-    // An admin() helper counts only if it is the one that asks canAdminister().
-    const viaAdminHelper = /await admin\(\)/.test(head) && /async function admin\(\)[\s\S]{0,200}canAdminister\(\)/.test(src);
-    if (!/await allow\(|await allowIn\(|canAdminister\(\)|await guard\(\)/.test(head) && !viaAdminHelper) gaps.push(`${f}:${name}`);
+    // A local helper counts as the guard only if the helper itself asks. Two
+    // files do it that way — admin() in users/actions.ts, target() in
+    // attachments/actions.ts — because the same question is asked by every
+    // action in them, and a copy of it per action is a copy to forget to
+    // update. Anything else awaited is not a guard, whatever it is called.
+    const viaHelper = [...head.matchAll(/await (\w+)\(/g)].some(([, helper]) => {
+      const defined = src.match(new RegExp(`async function ${helper}\\(([\\s\\S]{0,600})`));
+      return !!defined && /await allow\(|await allowIn\(|canAdminister\(\)/.test(defined[1]);
+    });
+    if (!/await allow\(|await allowIn\(|canAdminister\(\)|await guard\(\)/.test(head) && !viaHelper) gaps.push(`${f}:${name}`);
   }
 }
 ok("every server action checks permissions", gaps.length === 0, gaps.join(", ") || `${actionFiles.length} files checked`);
