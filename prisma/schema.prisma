@@ -139,6 +139,7 @@ model Company {
   Invoice             Invoice[]
   materialRequests    MaterialRequest[]
   purchaseOrders      PurchaseOrder[]
+  orderTemplates      OrderTemplate[]
   Equipment           Equipment[]
   MaterialReturn      MaterialReturn[]
   rfqs                Rfq[]
@@ -1534,6 +1535,49 @@ model MaterialRequestLine {
 /// No VAT anywhere on it. An order is a commitment, not a tax document: the tax
 /// point is the supplier's invoice, and a VAT figure here invites somebody to
 /// reclaim tax on a document the FTA has never seen.
+/// A purchase order somebody expects to raise again: the monthly PRO package,
+/// the standard consumables run, a hire that comes back every shutdown.
+///
+/// It holds what is typed every time — the supplier, the lines, the agreed
+/// rates — and nothing that belongs to one order: no dates, no job, no
+/// approval. Applying one fills the form in; what is raised from it is an
+/// ordinary order that goes through approval like any other.
+model OrderTemplate {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  name    String
+  /// The usual supplier, where there is one. Left empty for a template used
+  /// with whoever quotes best that month.
+  partyId String?
+  notes   String?
+
+  lines     OrderTemplateLine[]
+  createdBy String
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@unique([companyId, name])
+}
+
+model OrderTemplateLine {
+  id         String        @id @default(cuid())
+  templateId String
+  template   OrderTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  itemId      String?
+  description String
+  unitCode    String  @default("EA")
+  quantity    Float   @default(1)
+  /// The rate last agreed, as a starting point. Prices move; whoever raises
+  /// the order is the one who checks it.
+  unitPrice   Float   @default(0)
+  sortOrder   Int     @default(0)
+
+  @@index([templateId])
+}
+
 model PurchaseOrder {
   id        String  @id @default(cuid())
   companyId String

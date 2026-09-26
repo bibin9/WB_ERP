@@ -10,6 +10,7 @@ import Pager from "@/components/Pager";
 import OrderForm from "@/components/inventory/OrderForm";
 import OrderActions from "@/components/inventory/OrderActions";
 import Attachments from "@/components/Attachments";
+import SaveAsTemplate from "@/components/inventory/SaveAsTemplate";
 import { attachableFor } from "@/lib/attachments";
 import DocumentButtons from "@/components/DocumentButtons";
 import { requireAccess } from "@/lib/guard";
@@ -111,6 +112,15 @@ export default async function OrdersPage({
     : [];
   // The evidence filed against these orders: the supplier's bill, the receipts
   // behind it, the quote it was awarded from.
+  // Orders somebody expects to raise again, for the picker at the top of the
+  // form: the monthly PRO package, the consumables run, the shutdown hire.
+  const templates = companyId
+    ? await db.orderTemplate.findMany({
+        where: { companyId },
+        orderBy: { name: "asc" },
+        include: { lines: { orderBy: { sortOrder: "asc" } } },
+      })
+    : [];
   const canAttach = can(session, "inventory.orders", "create");
   const canRemoveAttachment = can(session, "inventory.orders", "delete");
   const fmtDate = (d: Date) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
@@ -185,6 +195,10 @@ export default async function OrdersPage({
               items={items}
               jobs={jobs}
               stores={stores}
+              templates={templates.map((t) => ({
+                id: t.id, name: t.name, partyId: t.partyId, notes: t.notes,
+                lines: t.lines.map((l) => ({ itemId: l.itemId, description: l.description, unitCode: l.unitCode, quantity: l.quantity, unitPrice: l.unitPrice })),
+              }))}
               fromRequest={
                 fromRequest
                   ? {
@@ -382,6 +396,7 @@ export default async function OrdersPage({
 
               <div className="mt-3 flex flex-wrap justify-end gap-2 print:hidden">
                 <DocumentButtons kind="purchase-order" id={o.id} />
+                {canAttach && <SaveAsTemplate orderId={o.id} suggestion={`${o.partyName} — ${o.lines[0]?.description ?? "order"}`.slice(0, 60)} />}
                 {o.status === "Draft" && <OrderActions mode="submit" orderId={o.id} label={o.number} />}
                 {/* Services never arrive in a store, so this is the only way
                     such an order can be closed (lib/purchasing.ts). */}

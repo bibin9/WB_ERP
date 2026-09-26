@@ -906,3 +906,73 @@ export async function saveCalibration(formData: FormData): Promise<Result> {
   revalidatePath("/inventory/equipment");
   return { ok: true };
 }
+
+/* ======================================================= order templates = */
+
+/**
+ * Keeping an order to raise again.
+ *
+ * The monthly PRO package, the consumables run, the hire that comes back every
+ * shutdown: the same supplier and the same lines, typed out each time. A
+ * template holds what repeats — supplier, lines, agreed rates — and nothing
+ * that belongs to one order: no dates, no job, no approval. What is raised
+ * from it is an ordinary order and goes through approval like any other.
+ */
+export async function saveOrderAsTemplate(orderId: string, name: string): Promise<Result> {
+  if (!(await allow("inventory.orders", "create"))) return { ok: false, error: "Not authorised" };
+  const order = await db.purchaseOrder.findUnique({
+    where: { id: orderId },
+    include: { lines: { orderBy: { sortOrder: "asc" } } },
+  });
+  if (!order) return { ok: false, error: "Not found" };
+  const session = await scoped(order.companyId);
+  if (!session) return { ok: false, error: "No access" };
+
+  const clean = String(name ?? "").trim().slice(0, 80);
+  if (!clean) return { ok: false, error: "Name the template — \"Monthly PRO package\" tells the next person what it is; \"Template 1\" does not." };
+  if (!order.lines.length) return { ok: false, error: "This order has no lines to keep." };
+
+  const taken = await db.orderTemplate.findFirst({ where: { companyId: order.companyId, name: clean } });
+  if (taken) return { ok: false, error: `There is already a template called "${clean}" in this company.` };
+
+  await db.orderTemplate.create({
+    data: {
+      companyId: order.companyId,
+      name: clean,
+      partyId: order.partyId,
+      notes: order.notes,
+      createdBy: session.user.name,
+      lines: {
+        create: order.lines.map((l, i) => ({
+          itemId: l.itemId,
+          description: l.description,
+          unitCode: l.unitCode,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          sortOrder: i,
+        })),
+      },
+    },
+  });
+  await audit({
+    action: "Created",
+    entity: "OrderTemplate",
+    summary: `Saved "${clean}" as a purchase order template, from ${order.number}`,
+  });
+  revalidatePath("/inventory/orders");
+  return { ok: true };
+}
+
+/** Removing one. The orders raised from it are untouched: they are their own documents. */
+export async function deleteOrderTemplate(id: string): Promise<Result> {
+  if (!(await allow("inventory.orders", "delete"))) return { ok: false, error: "Not authorised" };
+  const t = await db.orderTemplate.findUnique({ where: { id } });
+  if (!t) return { ok: false, error: "Not found" };
+  const session = await scoped(t.companyId);
+  if (!session) return { ok: false, error: "No access" };
+
+  await db.orderTemplate.delete({ where: { id } });
+  await audit({ action: "Deleted", entity: "OrderTemplate", summary: `Removed the purchase order template "${t.name}"` });
+  revalidatePath("/inventory/orders");
+  return { ok: true };
+}

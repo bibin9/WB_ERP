@@ -11,6 +11,14 @@ type Line = { key: number; itemId: string; description: string; unitCode: string
 let nextKey = 1;
 const blank = (): Line => ({ key: nextKey++, itemId: "", description: "", unitCode: "EA", quantity: "", unitPrice: "" });
 
+export type OrderTemplate = {
+  id: string;
+  name: string;
+  partyId: string | null;
+  notes: string | null;
+  lines: { itemId: string | null; description: string; unitCode: string; quantity: number; unitPrice: number }[];
+};
+
 export type PrefillRequest = {
   id: string;
   number: string;
@@ -33,6 +41,7 @@ export default function OrderForm({
   items,
   jobs,
   stores,
+  templates = [],
   fromRequest,
 }: {
   companyId: string;
@@ -40,6 +49,8 @@ export default function OrderForm({
   items: { id: string; code: string; name: string; unitCode: string; standardCost: number; isStocked: boolean }[];
   jobs: { id: string; code: string; name: string }[];
   stores: { id: string; code: string; name: string; isDefault: boolean }[];
+  /** Orders somebody expects to raise again — the monthly PRO package, the consumables run. */
+  templates?: OrderTemplate[];
   fromRequest?: PrefillRequest | null;
 }) {
   const [open, setOpen] = useState(!!fromRequest);
@@ -62,6 +73,26 @@ export default function OrderForm({
     setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
 
   const [storeId, setStoreId] = useState(fromRequest?.storeId ?? stores.find((s) => s.isDefault)?.id ?? "");
+  const [partyId, setPartyId] = useState(fromRequest ? "" : "");
+  const [notes, setNotes] = useState("");
+
+  // A template fills the form in and then steps out of the way: what is raised
+  // from it is an ordinary order, and the rates it carries are last month's,
+  // so whoever raises it is the one who checks them.
+  const applyTemplate = (id: string) => {
+    const t = templates.find((x) => x.id === id);
+    if (!t) return;
+    setLines(t.lines.map((l) => ({
+      key: nextKey++,
+      itemId: l.itemId ?? "",
+      description: l.description,
+      unitCode: l.unitCode,
+      quantity: String(l.quantity),
+      unitPrice: l.unitPrice ? String(l.unitPrice) : "",
+    })));
+    if (t.partyId) setPartyId(t.partyId);
+    if (t.notes) setNotes(t.notes);
+  };
 
   // Every line picked is something that never reaches a shelf. A line with no
   // catalogue item behind it is free text, which could be either, so it does
@@ -128,10 +159,30 @@ export default function OrderForm({
             saves as a draft, and goes to the supplier only once it has been approved.
           </p>
 
+          {templates.length > 0 && !fromRequest && (
+            <div className="rounded-lg border border-line bg-brand-paper p-3">
+              <label className="mb-1 block text-sm font-medium text-ink">Start from a template</label>
+              <select
+                className="input"
+                defaultValue=""
+                onChange={(e) => { applyTemplate(e.target.value); e.target.value = ""; }}
+              >
+                <option value="">Type it out fresh…</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name} · {t.lines.length} line{t.lines.length === 1 ? "" : "s"}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted">
+                Fills in the supplier and the lines at the rates last agreed. Check the prices before you send it —
+                a template remembers what was, not what is.
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium text-ink">Supplier</label>
-              <select name="partyId" className="input" required>
+              <select name="partyId" className="input" required value={partyId} onChange={(e) => setPartyId(e.target.value)}>
                 <option value="">Choose&hellip;</option>
                 {parties.map((p) => (
                   <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
@@ -260,7 +311,7 @@ export default function OrderForm({
 
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">Notes</label>
-            <input name="notes" className="input" placeholder="Delivery instructions, terms, anything the supplier needs" />
+            <input name="notes" className="input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Delivery instructions, terms, anything the supplier needs" />
           </div>
 
           {error && <p className="text-sm text-brand-gold">{error}</p>}

@@ -748,6 +748,27 @@
   <div class="note do"><b>VAT on a PRO invoice</b>These usually mix two things: the PRO company&rsquo;s own service fee, which carries 5% VAT, and government fees they paid on your behalf, which are outside VAT. Put them on separate lines and set the second line&rsquo;s treatment to <em>Out of scope</em>. One line at 5% over the whole invoice claims input tax you are not entitled to.</div>
   <p>An order with even one stock item on it cannot be closed this way. The material still has to be received into a store, because that is what puts it on the shelf and into the accounts.</p>
 
+  <h2>When the bill arrives before the order</h2>
+  <p>Some suppliers are given a basic order and then bill for what the work actually came to. A PRO company is the common case: nobody knows the government fees until they are paid. The order that matters is then the one carrying the real figure.</p>
+  <ol>
+    <li><strong>Enter the supplier&rsquo;s bill</strong> as a draft, under Finance &rarr; Invoices, side Purchase.</li>
+    <li><strong>Attach their invoice and the receipts</strong> behind it, labelling each one &mdash; &ldquo;Supplier invoice&rdquo;, &ldquo;Government fee receipt&rdquo;. Whoever approves sees them with the order.</li>
+    <li><strong>Click &ldquo;Raise a purchase order from this bill&rdquo;.</strong> The supplier and the lines are copied across, so what goes for approval is what will be paid.</li>
+    <li><strong>Send that order for approval</strong> from Inventory &rarr; Purchase Orders.</li>
+    <li><strong>Issue the bill</strong> once the order is approved. Until then the system refuses it, and says which order it is waiting for.</li>
+  </ol>
+  <p>This applies only to bills you link to an order. A courier charge or a small purchase is entered and issued as before, with no order at all.</p>
+  <div class="note do"><b>Why the order is refused until approval</b>The approval is the decision to pay. Posting the bill first and approving afterwards is an approval of something already done, which is the thing an auditor asks about.</div>
+
+  <h2>Orders you raise every month</h2>
+  <p>An order that comes round again &mdash; the monthly PRO package, the consumables run, the hire for every shutdown &mdash; does not need typing out each time.</p>
+  <ul>
+    <li><strong>Save it once.</strong> On an order, click <em>Save as template</em> and name it for the job it does: &ldquo;Monthly PRO package&rdquo;, not &ldquo;Template 2&rdquo;.</li>
+    <li><strong>Start from it.</strong> The order form offers <em>Start from a template</em>, which fills in the supplier and the lines at the rates last agreed.</li>
+    <li><strong>Check the prices.</strong> A template remembers what was, not what is. Rates move, and the person raising the order is the one who checks them.</li>
+  </ul>
+  <p>A template holds nothing that belongs to a single order &mdash; no dates, no job, no approval &mdash; so what you raise from it is an ordinary order and goes through the usual route.</p>
+
   <h2>Receiving, inspecting and issuing</h2>
   <div class="entry">
     <h4>Receive &amp; Issue</h4>

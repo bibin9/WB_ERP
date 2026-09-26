@@ -88,6 +88,33 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tip: "If a panel you expected is missing, your role does not include the screen it comes from. The dashboard never shows more than the module itself would.",
   },
   {
+    id: "bill-first-orders", category: "Stores", screens: ["/finance/invoices", "/inventory/orders"],
+    title: "When the bill arrives before the order",
+    summary: "Raise the purchase order from the supplier's bill, attach their receipts, and approve it before paying.",
+    body: "Some suppliers are given a basic order and then bill for what the work actually came to \u2014 PRO companies, where government fees are only known afterwards, are the common case. Open the supplier's bill as a draft, attach their invoice and the fee receipts, then use 'Raise a purchase order from this bill'. The supplier and the lines are copied across, so what goes for approval is what will be paid. The bill cannot be issued until that order is approved: the approval is the decision to pay, and it happens before the money is committed rather than after. A bill with no order behind it \u2014 a courier, a small purchase \u2014 posts as it always did.",
+    steps: [
+      "Finance \u2192 Invoices \u2192 New, side Purchase. Enter the supplier's bill as a draft.",
+      "Attach their invoice and any receipts, labelling each one.",
+      "Click 'Raise a purchase order from this bill'.",
+      "Open Inventory \u2192 Purchase Orders and send that order for approval.",
+      "Once approved, come back to the bill and issue it.",
+    ],
+    tip: "Attach the receipts before sending the order for approval \u2014 approvers see them with it, and an approver who cannot see what AED 11,450 of government fees is for will ask.",
+  },
+  {
+    id: "order-templates", category: "Stores", screens: ["/inventory/orders"],
+    title: "Purchase order templates",
+    summary: "Keep an order you raise every month, and start the next one from it.",
+    body: "An order you will raise again \u2014 the monthly PRO package, the consumables run, the hire that comes back every shutdown \u2014 can be saved as a template: the supplier, the lines, the quantities and the rates last agreed. Starting a new order from it fills the form in, and you change what has moved. A template carries nothing that belongs to a single order: no dates, no job, no approval. What you raise from it is an ordinary order and goes through the same approval route.",
+    steps: [
+      "Raise an order the way you want it, once.",
+      "On that order, click 'Save as template' and give it a name somebody else will recognise.",
+      "Next time, open the order form and choose it under 'Start from a template'.",
+      "Check the prices before sending it: a template remembers what was, not what is.",
+    ],
+    tip: "Name it for the job it does \u2014 'Monthly PRO package' rather than 'Template 2'. The name is the only thing the next person sees.",
+  },
+  {
     id: "service-orders", category: "Stores", screens: ["/inventory/orders", "/inventory", "/finance/invoices"],
     title: "Buying services: PRO work, hire, subcontract labour",
     summary: "Order them like anything else, but close them by confirming the work was done — there is no delivery.",
