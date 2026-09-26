@@ -10,6 +10,8 @@ import { activeTenant } from "@/config/tenant";
 import { requireAccess } from "@/lib/guard";
 import CompanyPicker from "@/components/CompanyPicker";
 import { companyScope } from "@/lib/company-scope";
+import Pager from "@/components/Pager";
+import { readPaging, pageInfo } from "@/lib/paging";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +26,7 @@ const prioColor: Record<string, string> = {
   Low: "text-muted/70",
 };
 
-export default async function TasksPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
+export default async function TasksPage({ searchParams }: { searchParams: Promise<{ c?: string; p?: string; per?: string }> }) {
   const session = await requireAccess("hr.tasks");
   const tenant = await db.tenant.findUnique({ where: { key: activeTenant.key } });
   // Only the companies this user belongs to. It used to be every company in
@@ -32,14 +34,26 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const companies = tenant
     ? await db.company.findMany({ where: { tenantId: tenant.id, id: { in: session.companies.map((c) => c.id) } }, orderBy: { code: "asc" } })
     : [];
-  const scoped = companyScope(companies, (await searchParams).c);
+  const sp = await searchParams;
+  const scoped = companyScope(companies, sp.c);
   const companyIds = scoped.ids;
+  // A page at a time, and the tile counted by the database rather than from
+  // the rows on screen: every assignment ever made lives here, and "open" has
+  // to mean all of them, not the fifty being looked at.
+  const where = { companyId: { in: companyIds } };
+  const paging = readPaging(sp);
+  const [total, open] = await Promise.all([
+    db.jobAssignment.count({ where }),
+    db.jobAssignment.count({ where: { ...where, status: { not: "Closed" } } }),
+  ]);
+  const info = pageInfo(paging, total);
   const jobs = await db.jobAssignment.findMany({
-    where: { companyId: { in: companyIds } },
+    where,
     include: { company: true },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+    skip: (info.page - 1) * info.perPage,
+    take: info.perPage,
   });
-  const open = jobs.filter((j) => j.status !== "Closed").length;
 
   // Master-data + people for the assignment dropdowns
   const mi = tenant ? await db.masterItem.findMany({ where: { tenantId: tenant.id, isActive: true }, orderBy: { order: "asc" } }) : [];
@@ -121,6 +135,9 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="px-5 pb-4">
+          <Pager info={info} label="assignments" />
         </div>
       </div>
     </div>

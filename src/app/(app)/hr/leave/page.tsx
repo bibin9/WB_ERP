@@ -12,6 +12,8 @@ import { requireAccess } from "@/lib/guard";
 import { leaveBalance } from "@/lib/leave";
 import { withDefaults } from "@/lib/hrpolicy";
 import ExportButton from "@/components/ExportButton";
+import Pager from "@/components/Pager";
+import { readPaging, pageInfo } from "@/lib/paging";
 
 export const dynamic = "force-dynamic";
 const fmt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
@@ -21,7 +23,7 @@ const badge: Record<string, string> = {
   Rejected: "bg-red-50 text-red-600",
 };
 
-export default async function LeavePage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
+export default async function LeavePage({ searchParams }: { searchParams: Promise<{ c?: string; p?: string; per?: string }> }) {
   await requireAccess("hr.leave");
   const session = await getSession();
   const sp = await searchParams;
@@ -51,8 +53,20 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
     e,
     bal: leaveBalance(e.joinDate, asAt, takenMap.get(e.id) ?? 0, e.annualLeaveBalance, policy),
   }));
+  // A page at a time: every request anybody has ever made accumulates here,
+  // and on a company of two hundred that becomes a table nobody can read and a
+  // query that fetches a year of history to show the top of it.
+  const paging = readPaging(sp);
+  const requestTotal = companyId ? await db.leaveRequest.count({ where: { companyId } }) : 0;
+  const info = pageInfo(paging, requestTotal);
   const requests = companyId
-    ? await db.leaveRequest.findMany({ where: { companyId }, include: { employee: true }, orderBy: [{ status: "asc" }, { createdAt: "desc" }] })
+    ? await db.leaveRequest.findMany({
+        where: { companyId },
+        include: { employee: true },
+        orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+        skip: (info.page - 1) * info.perPage,
+        take: info.perPage,
+      })
     : [];
   const leaveTypes = session?.tenant.id
     ? (await db.masterItem.findMany({ where: { tenantId: session.tenant.id, type: "Leave Type", isActive: true }, orderBy: { order: "asc" } })).map((m) => m.value)
@@ -107,6 +121,9 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="px-5 pb-4">
+            <Pager info={info} label="leave requests" />
           </div>
         </div>
 

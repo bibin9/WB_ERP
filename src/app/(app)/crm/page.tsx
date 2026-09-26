@@ -2,6 +2,8 @@ import Link from "next/link";
 import { TrendingUp } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import PrintHeader from "@/components/finance/PrintHeader";
+import Pager from "@/components/Pager";
+import { readPaging, pageInfo } from "@/lib/paging";
 import CompanyPicker from "@/components/CompanyPicker";
 import PrintReport from "@/components/finance/PrintReport";
 import SearchBox from "@/components/SearchBox";
@@ -44,7 +46,7 @@ const OPEN_STAGES = LEAD_STAGES.filter((s) => !CLOSED_STAGES.has(s));
 export default async function CrmPage({
   searchParams,
 }: {
-  searchParams: Promise<{ c?: string; q?: string; show?: string }>;
+  searchParams: Promise<{ c?: string; q?: string; show?: string; p?: string; per?: string }>;
 }) {
   await requireAccess("crm.leads");
   const session = await getSession();
@@ -57,17 +59,44 @@ export default async function CrmPage({
   const term = readSearch(sp);
   const showClosed = sp.show === "all";
 
-  const rows = companyId
-    ? await db.lead.findMany({
-        where: {
-          companyId,
-          ...(showClosed ? {} : { stage: { notIn: ["Won", "Lost"] } }),
-          ...(matchAny(term, ["number", "title", "customerName", "ownerName"]) ?? {}),
-        },
-        include: { visits: { select: { reportOn: true } } },
-        orderBy: [{ estimatedValue: "desc" }],
-      })
-    : [];
+  // The board shows what is open — as many columns as there are stages, and
+  // an open deal is worked on, so the count is bounded by what the business
+  // can actually chase. Closed deals are the ones that accumulate for ever,
+  // so those are paged.
+  const openWhere = {
+    companyId,
+    stage: { notIn: ["Won", "Lost"] },
+    ...(matchAny(term, ["number", "title", "customerName", "ownerName"]) ?? {}),
+  };
+  const closedWhere = {
+    companyId,
+    stage: { in: ["Won", "Lost"] },
+    ...(matchAny(term, ["number", "title", "customerName", "ownerName"]) ?? {}),
+  };
+
+  const paging = readPaging(sp);
+  const closedTotal = companyId && showClosed ? await db.lead.count({ where: closedWhere }) : 0;
+  const info = pageInfo(paging, closedTotal);
+
+  const [openRows, closedRows] = companyId
+    ? await Promise.all([
+        db.lead.findMany({
+          where: openWhere,
+          include: { visits: { select: { reportOn: true } } },
+          orderBy: [{ estimatedValue: "desc" }],
+        }),
+        showClosed
+          ? db.lead.findMany({
+              where: closedWhere,
+              include: { visits: { select: { reportOn: true } } },
+              orderBy: [{ closedAt: "desc" }],
+              skip: (info.page - 1) * info.perPage,
+              take: info.perPage,
+            })
+          : Promise.resolve([]),
+      ])
+    : [[], []];
+  const rows = [...openRows, ...closedRows];
 
   /** Everything, closed included, so the win rate has something to work from. */
   const all = companyId
@@ -264,12 +293,12 @@ export default async function CrmPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {rows.filter((l) => CLOSED_STAGES.has(l.stage)).length === 0 && (
+                {closedRows.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-4 py-8 text-center text-muted">Nothing decided yet.</td>
                   </tr>
                 )}
-                {rows.filter((l) => CLOSED_STAGES.has(l.stage)).map((l) => (
+                {closedRows.map((l) => (
                   <tr key={l.id}>
                     <td className="px-4 py-2.5">
                       <Link href={`/crm/${l.id}`} className="font-mono text-xs text-brand-blue-600 hover:underline">
@@ -308,6 +337,9 @@ export default async function CrmPage({
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="mt-3">
+            <Pager info={info} label="decided enquiries" />
           </div>
         </div>
       )}

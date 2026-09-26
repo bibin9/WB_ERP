@@ -7,6 +7,8 @@ import { db } from "@/lib/db";
 import { partyControlVouchers } from "@/lib/ledger-query";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
+import Pager from "@/components/Pager";
+import { readPaging, pageInfo } from "@/lib/paging";
 import { ageParty, type PartyDoc, type Ageing } from "@/lib/ageing";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +22,7 @@ type Row = { id: string; code: string; name: string; creditDays: number; ageing:
 export default async function OutstandingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ c?: string; side?: string; p?: string }>;
+  searchParams: Promise<{ c?: string; side?: string; p?: string; per?: string }>;
 }) {
   await requireAccess("finance.outstanding");
   const session = await getSession();
@@ -73,6 +75,14 @@ export default async function OutstandingPage({
       ageing: ageParty(byParty.get(p.id) ?? [], asAt, p.creditDays),
     }))
     .filter((r) => Math.abs(r.ageing.total) > 0.001 || r.ageing.unapplied > 0.001);
+
+  // The ageing itself has to read every voucher against the control account
+  // — that is what "as at today" means — but the table does not have to render
+  // every party who owes something. A group with six hundred customers put
+  // six hundred rows on one page.
+  const paging = readPaging(sp);
+  const info = pageInfo(paging, rows.length);
+  const shown = rows.slice((info.page - 1) * info.perPage, (info.page - 1) * info.perPage + info.perPage);
 
   const sum = (pick: (a: Ageing) => number) => rows.reduce((s, r) => s + pick(r.ageing), 0);
   const selected = sp.p ? rows.find((r) => r.id === sp.p) : undefined;
@@ -138,6 +148,7 @@ export default async function OutstandingPage({
             {rows.length === 0 ? (
               <p className="px-5 py-12 text-center text-sm text-muted">Nothing outstanding — everything is settled.</p>
             ) : (
+              <>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -152,7 +163,7 @@ export default async function OutstandingPage({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
-                    {rows.map((r) => (
+                    {shown.map((r) => (
                       <tr key={r.id} className={sp.p === r.id ? "bg-brand-blue/5" : ""}>
                         <td className="px-4 py-2.5">
                           <Link href={q({ p: r.id })} className="font-medium text-ink hover:text-brand-blue-600">{r.name}</Link>
@@ -185,6 +196,10 @@ export default async function OutstandingPage({
                   </tfoot>
                 </table>
               </div>
+              <div className="px-5 pb-4">
+                <Pager info={info} label={side === "receivable" ? "customers" : "suppliers"} />
+              </div>
+              </>
             )}
           </div>
 

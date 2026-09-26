@@ -34,7 +34,7 @@ const statusColor: Record<string, string> = {
 export default async function JobsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ c?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ c?: string; from?: string; to?: string; show?: string }>;
 }) {
   await requireAccess("finance.jobs");
   const session = await getSession();
@@ -46,13 +46,22 @@ export default async function JobsPage({
   const company = companyId ? await db.company.findUnique({ where: { id: companyId } }) : null;
   const period = resolvePeriod(sp, company?.fyStartMonth ?? 1);
 
+  // Finished contracts stay on the record for ever and are read once a year.
+  // The page opens on what is live; "Show closed jobs as well" brings back the
+  // rest. Not paged, deliberately: this is a tree, parents rolling up their
+  // children, and a page boundary through it would show a parent whose costs
+  // include children that are not on the page.
+  const showClosed = sp.show === "all";
   const jobs = companyId
     ? await db.job.findMany({
-        where: { companyId },
+        where: { companyId, ...(showClosed ? {} : { status: { in: ["Open", "On hold"] } }) },
         include: { party: { select: { name: true } } },
         orderBy: { code: "asc" },
       })
     : [];
+  const closedCount = companyId
+    ? await db.job.count({ where: { companyId, status: { notIn: ["Open", "On hold"] } } })
+    : 0;
 
   // The period's lines totalled by the database per job and account, rather
   // than every line loaded with its account and added up here.
@@ -151,6 +160,14 @@ export default async function JobsPage({
         subtitle="What each job earned, what it cost, and whether it is inside its budget."
       >
         <div className="flex flex-wrap items-center gap-2">
+          {closedCount > 0 && (
+            <Link
+              href={{ query: { ...(companyId ? { c: companyId } : {}), ...(sp.from ? { from: sp.from } : {}), ...(sp.to ? { to: sp.to } : {}), ...(showClosed ? {} : { show: "all" }) } }}
+              className="rounded-lg border border-line px-3 py-1.5 text-sm text-ink hover:bg-line print:hidden"
+            >
+              {showClosed ? "Live jobs only" : closedCount === 1 ? "Show 1 closed job as well" : "Show " + closedCount + " closed jobs as well"}
+            </Link>
+          )}
           <PrintReport />
           {companyId && (
             <PostLabour
