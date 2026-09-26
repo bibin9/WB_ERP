@@ -20,7 +20,15 @@
  *                            one. An email already in use is skipped, not changed.
  *
  *   node scripts/uat-testers.mjs --confirm-host=<host:port> --report
+ *   --reset=<logins.csv>     a fresh temporary password for logins that already
+ *                            exist, for handing over before acceptance testing.
+ *                            The CSV needs only an "email" column — the sheet
+ *                            written by --create will do. Administrator logins
+ *                            are refused: a bulk reset that locks out the only
+ *                            administrator has nobody left to undo it.
+ *
  *   node scripts/uat-testers.mjs --confirm-host=<host:port> --create=testers.csv
+ *   node scripts/uat-testers.mjs --confirm-host=<host:port> --reset=logins.csv
  *
  * Uses UAT_DATABASE_URL from .env (never printed). Refuses production, and
  * anything whose host was not confirmed on the command line. Puts the local
@@ -57,7 +65,7 @@ if (!process.argv.includes("--inner")) {
     console.error(`\nThis reads${process.argv.some((a) => a.startsWith("--create=")) ? " and writes" : ""} Pre-Prod at ${hostPort(url)}.\nIf that is right, run again with --confirm-host=${hostPort(url)}\n`);
     process.exit(1);
   }
-  if (!process.argv.includes("--report") && !arg("create")) { console.error("\nChoose --report or --create=<testers.csv>.\n"); process.exit(1); }
+  if (!process.argv.includes("--report") && !arg("create") && !arg("reset")) { console.error("\nChoose --report, --create=<testers.csv> or --reset=<logins.csv>.\n"); process.exit(1); }
 
   const SCHEMA = "prisma/schema.prisma";
   const original = readFileSync(SCHEMA, "utf8");
@@ -102,7 +110,7 @@ const roles = await db.role.findMany({ where: { tenantId: tenant.id }, orderBy: 
 if (process.argv.includes("--report")) {
   const users = await db.user.findMany({
     where: { tenantId: tenant.id },
-    select: { name: true, email: true, isActive: true, mustReset: true, lockedUntil: true, memberships: { select: { company: { select: { code: true } }, role: { select: { name: true } } } } },
+    select: { name: true, email: true, isActive: true, mustReset: true, lockedUntil: true, createdAt: true, passwordChangedAt: true, memberships: { select: { company: { select: { code: true } }, role: { select: { name: true } } } } },
     orderBy: { name: "asc" },
   });
   // What each role can really do, screen by screen. Level 80 and above, and the
@@ -123,6 +131,8 @@ if (process.argv.includes("--report")) {
       name: u.name,
       active: u.isActive,
       mustReset: u.mustReset,
+      createdAt: u.createdAt,
+      passwordChangedAt: u.passwordChangedAt,
       roles: [...new Set(u.memberships.map((m) => m.role.name))],
       companies: u.memberships.map((m) => m.company.code),
     })),
@@ -180,6 +190,66 @@ if (createFrom) {
     for (const s of skipped) console.log(`  ${s}`);
   }
   if (!made.length && !skipped.length) console.log("\nThe CSV had no testers in it.");
+}
+
+const resetFrom = (process.argv.find((a) => a.startsWith("--reset=")) ?? "").slice("--reset=".length);
+if (resetFrom) {
+  // Handing over a sheet of passwords somebody else already knows is not a
+  // handover. Testers whose accounts were driven by an automated run, or whose
+  // temporary password has been sitting in a file for a fortnight, get a fresh
+  // one and are made to choose their own at first sign-in — otherwise "raised
+  // by Procurement, approved by the Director" records two accounts rather than
+  // two people, and the four-eyes rule is decoration.
+  const rows = readFileSync(resetFrom, "utf8").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const head = rows.shift().toLowerCase().split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
+  if (!head.includes("email")) { console.error("The CSV needs a header row with an email column."); process.exit(1); }
+  const emailAt = head.indexOf("email");
+
+  const done = [], skipped = [];
+  for (const line of rows) {
+    const email = (line.split(",")[emailAt] ?? "").trim().replace(/^"|"$/g, "").toLowerCase();
+    if (!email) continue;
+    const user = await db.user.findUnique({
+      where: { tenantId_email: { tenantId: tenant.id, email } },
+      select: { id: true, name: true, memberships: { select: { company: { select: { code: true } }, role: { select: { name: true, approvalLevel: true } } } } },
+    });
+    if (!user) { skipped.push(`${email}: no such login on Pre-Prod`); continue; }
+    // An administrator locked out by a bulk reset has nobody to let them back
+    // in. Those are changed one at a time, by the person who owns them.
+    if (user.memberships.some((m) => m.role.name === "Group Admin")) {
+      skipped.push(`${email}: an administrator login — reset it yourself, not from a list`);
+      continue;
+    }
+
+    const password = temporaryPassword();
+    await db.user.update({
+      where: { id: user.id },
+      data: { passwordHash: await bcrypt.hash(password, 10), mustReset: true, passwordChangedAt: new Date(), failedAttempts: 0, lockedUntil: null },
+    });
+    await db.auditLog.create({
+      data: { tenantId: tenant.id, userName: "BAT setup (script)", action: "Updated", entity: "User", entityId: user.id, summary: `Reissued the temporary password for ${user.name} (${email}) before acceptance testing — must choose their own at first sign-in` },
+    });
+    const roleName = user.memberships[0]?.role.name ?? "";
+    const codes = [...new Set(user.memberships.map((m) => m.company.code))].join(";");
+    done.push({ name: user.name, email, role: roleName, companies: codes, password });
+  }
+
+  if (done.length) {
+    mkdirSync("tester-logins", { recursive: true });
+    const file = `tester-logins/pre-prod-logins-${new Date().toISOString().slice(0, 10)}-${Date.now().toString().slice(-5)}.csv`;
+    const q = (v) => `"${String(v).replace(/"/g, '""')}"`;
+    writeFileSync(file, ["name,email,role,companies,temporary password", ...done.map((m) => [m.name, m.email, m.role, m.companies, m.password].map(q).join(","))].join("\r\n") + "\r\n");
+    console.log(`\nReissued ${done.length} password(s):`);
+    for (const m of done) console.log(`  ${m.name.padEnd(28)} ${m.email.padEnd(34)} ${m.role} · ${m.companies}`);
+    console.log(`\nThe new temporary passwords are in ${file} — git-ignored, on this PC only, never printed above.`);
+    console.log("Hand each tester their own line privately, then delete the file and every earlier one.");
+    console.log("Each must choose their own password at first sign-in; after that nobody else knows it.");
+  }
+  if (skipped.length) {
+    console.log(`\nSkipped ${skipped.length}:`);
+    for (const x of skipped) console.log(`  ${x}`);
+  }
+  if (!done.length && !skipped.length) console.log("\nThe CSV had no logins in it.");
 }
 
 await db.$disconnect();
