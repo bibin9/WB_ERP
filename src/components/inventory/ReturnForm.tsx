@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, X, Trash2 } from "lucide-react";
 import { saveReturn } from "@/app/(app)/inventory/actions";
+import StoreForm, { type CreatedStore } from "./StoreForm";
 import { RETURN_CONDITIONS, CONDITION_HELP, checkReturn, returnVerdict } from "@/lib/returns";
 import { binLabel } from "@/lib/bins";
 
@@ -24,6 +25,7 @@ const blank = (): Line => ({ key: nextKey++, itemId: "", condition: "Reusable", 
  */
 export default function ReturnForm({
   companyId,
+  canAddStore = false,
   items,
   jobs,
   stores,
@@ -32,6 +34,8 @@ export default function ReturnForm({
   averageCost,
 }: {
   companyId: string;
+  /** Whether this person keeps the stores list. */
+  canAddStore?: boolean;
   items: { id: string; code: string; name: string; unitCode: string }[];
   jobs: { id: string; code: string; name: string }[];
   stores: { id: string; code: string; name: string; isDefault: boolean }[];
@@ -43,6 +47,10 @@ export default function ReturnForm({
   averageCost: Record<string, number>;
 }) {
   const [open, setOpen] = useState(false);
+  // A store created here: held so the picker offers it before the page behind
+  // this dialog has been told about it.
+  const [addingStore, setAddingStore] = useState(false);
+  const [extraStores, setExtraStores] = useState<{ id: string; code: string; name: string; isDefault: boolean }[]>([]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [jobId, setJobId] = useState("");
@@ -175,10 +183,15 @@ export default function ReturnForm({
                 name="storeId" className="input" value={storeId}
                 onChange={(e) => setStoreId(e.target.value)} required
               >
-                {stores.map((s) => (
+                {[...stores, ...extraStores].map((s) => (
                   <option key={s.id} value={s.id}>{s.code} — {s.name}</option>
                 ))}
               </select>
+              {canAddStore && (
+                <button type="button" onClick={() => setAddingStore(true)} className="mt-1 text-xs font-medium text-brand-blue-600 hover:underline">
+                  + New store
+                </button>
+              )}
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-ink">Date</label>
@@ -333,6 +346,20 @@ export default function ReturnForm({
           </div>
         </form>
       </div>
+
+      {/* Outside the form: a form element cannot be nested inside another. */}
+      {addingStore && (
+        <StoreForm
+          companyId={companyId}
+          controlled
+          onClose={() => setAddingStore(false)}
+          onCreated={(st: CreatedStore) => {
+            setExtraStores((xs) => [...xs, st]);
+            setStoreId(st.id);
+            setAddingStore(false);
+          }}
+        />
+      )}
     </div>
   );
 }

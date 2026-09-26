@@ -32,6 +32,7 @@ type Result = {
   /** What was just created, where a caller can use it (saveItem). */
   item?: { id: string; code: string; name: string; unitCode: string; standardCost: number; isStocked: boolean };
   store?: { id: string; code: string; name: string; isDefault: boolean };
+  bin?: { id: string; code: string; zone: string | null; materialType: string | null };
 };
 
 async function scoped(companyId: string) {
@@ -368,13 +369,17 @@ export async function saveBin(formData: FormData): Promise<Result> {
   if (editing) {
     await db.storageBin.update({ where: { id }, data });
     await audit({ action: "Updated", entity: "StorageBin", entityId: id, summary: `Updated bin ${code} in ${store.code}` });
-  } else {
-    const created = await db.storageBin.create({ data: { storeId, ...data } });
-    await audit({ action: "Created", entity: "StorageBin", entityId: created.id, summary: `Added bin ${code} to ${store.code}` });
+    revalidatePath("/inventory/stores");
+    revalidatePath("/inventory/movements");
+    return { ok: true };
   }
+
+  const created = await db.storageBin.create({ data: { storeId, ...data } });
+  await audit({ action: "Created", entity: "StorageBin", entityId: created.id, summary: `Added bin ${code} to ${store.code}` });
   revalidatePath("/inventory/stores");
   revalidatePath("/inventory/movements");
-  return { ok: true };
+  // Handed back so a delivery being put away can choose the bin it just made.
+  return { ok: true, bin: { id: created.id, code: created.code, zone: created.zone, materialType: created.materialType } };
 }
 
 export async function deleteBin(id: string): Promise<Result> {

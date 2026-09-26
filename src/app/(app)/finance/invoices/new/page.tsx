@@ -4,6 +4,7 @@ import PageHeader from "@/components/PageHeader";
 import FinanceTabs from "@/components/FinanceTabs";
 import InvoiceForm from "@/components/finance/InvoiceForm";
 import { money } from "@/lib/money";
+import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAccess } from "@/lib/guard";
@@ -90,6 +91,7 @@ export default async function NewInvoicePage({
         </div>
       ) : (
         <InvoiceForm
+          canAddParty={can(session, "finance.parties", "create")}
           costCentres={costCentres}
           orders={orders.map((o) => ({ id: o.id, number: o.number, partyName: o.partyName, total: money(o.total) }))}
           companyId={companyId}

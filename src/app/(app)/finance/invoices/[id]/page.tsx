@@ -112,6 +112,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
           )}
           {editable ? (
             <InvoiceForm
+              canAddParty={can(session, "finance.parties", "create")}
               companyId={inv.companyId}
               side={side}
               parties={parties}

@@ -5,6 +5,7 @@ import { Plus, X } from "lucide-react";
 import { saveMovement } from "@/app/(app)/inventory/actions";
 import ItemForm, { type CreatedItem } from "./ItemForm";
 import StoreForm, { type CreatedStore } from "./StoreForm";
+import BinForm, { type CreatedBin } from "./BinForm";
 import PartyForm, { type CreatedParty } from "@/components/finance/PartyForm";
 import { MOVEMENT_HELP, isInward } from "@/lib/stock";
 import { binLabel, binMismatch } from "@/lib/bins";
@@ -74,7 +75,8 @@ export default function MovementForm({
   // A delivery turns up with something not in the catalogue, from a supplier
   // nobody has set up. The dialogs live outside this form — a form element
   // cannot be nested — so what is open is held here.
-  const [adding, setAdding] = useState<"item" | "store" | "party" | null>(null);
+  const [adding, setAdding] = useState<"item" | "store" | "party" | "bin" | null>(null);
+  const [extraBins, setExtraBins] = useState<Record<string, { id: string; code: string; zone: string | null; materialType: string | null }[]>>({});
   const [extraItems, setExtraItems] = useState<{ id: string; code: string; name: string; unitCode: string; category?: string | null }[]>([]);
   const [extraStores, setExtraStores] = useState<{ id: string; code: string; name: string; isDefault: boolean }[]>([]);
   const [extraParties, setExtraParties] = useState<{ id: string; code: string; name: string }[]>([]);
@@ -87,7 +89,7 @@ export default function MovementForm({
 
   // INV-14: a store either uses bins or does not, and the form asks the store
   // rather than a setting — the same question the server asks.
-  const fromBins = bins[storeId] ?? [];
+  const fromBins = [...(bins[storeId] ?? []), ...(extraBins[storeId] ?? [])];
   const toBins = bins[toStoreId] ?? [];
   const chosenBin = fromBins.find((b) => b.id === binId);
   const inBin = binHoldings[`${itemId}:${binId}`] ?? 0;
@@ -209,6 +211,11 @@ export default function MovementForm({
                   </option>
                 ))}
               </select>
+              {canAddStore && storeId && (
+                <button type="button" onClick={() => setAdding("bin")} className="mt-1 text-xs font-medium text-brand-blue-600 hover:underline">
+                  + New bin
+                </button>
+              )}
               <p className="mt-1 text-xs text-muted">
                 This store is divided into bins, so every movement in it has to say which one.
                 {binId && itemId && !isInward(kind) && kind !== "Transfer" && (
@@ -382,6 +389,19 @@ export default function MovementForm({
             setExtraStores((xs) => [...xs, s]);
             setStoreId(s.id);
             setBinId("");
+            setAdding(null);
+          }}
+        />
+      )}
+      {adding === "bin" && storeId && (
+        <BinForm
+          storeId={storeId}
+          storeCode={[...stores, ...extraStores].find((s) => s.id === storeId)?.code ?? ""}
+          controlled
+          onClose={() => setAdding(null)}
+          onCreated={(b: CreatedBin) => {
+            setExtraBins((xs) => ({ ...xs, [storeId]: [...(xs[storeId] ?? []), b] }));
+            setBinId(b.id);
             setAdding(null);
           }}
         />

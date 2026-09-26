@@ -31,6 +31,7 @@ for (const [file, master] of [
   ["src/components/inventory/ItemForm.tsx", "item"],
   ["src/components/inventory/StoreForm.tsx", "store"],
   ["src/components/finance/PartyForm.tsx", "customer or supplier"],
+  ["src/components/inventory/BinForm.tsx", "bin"],
 ]) {
   const src = read(file);
   ok(`the ${master} dialog can be opened by another form`, /controlled\s*=\s*false/.test(src) && /onClose\?/.test(src));
@@ -44,6 +45,7 @@ ok("saving an item returns it, so the line can take it", /item: \{\s*id: created
 ok("saving a store returns it", /store: \{ id: created\.id/.test(inv));
 const parties = read("src/app/(app)/finance/parties/actions.ts");
 ok("creating a party returns it", /party: \{ id: party\.id/.test(parties));
+ok("saving a bin returns it", /bin: \{ id: created\.id/.test(inv));
 
 /* ============ the dialog is outside the form that opens it ============== */
 
@@ -51,7 +53,11 @@ const FORMS = [
   ["src/components/inventory/OrderForm.tsx", "purchase order", ["ItemForm", "StoreForm", "PartyForm"]],
   ["src/components/inventory/RequestForm.tsx", "material request", ["ItemForm"]],
   ["src/components/inventory/RfqForm.tsx", "enquiry", ["ItemForm"]],
-  ["src/components/inventory/MovementForm.tsx", "receive & issue", ["ItemForm", "StoreForm", "PartyForm"]],
+  ["src/components/inventory/MovementForm.tsx", "receive & issue", ["ItemForm", "StoreForm", "PartyForm", "BinForm"]],
+  ["src/components/inventory/ReturnForm.tsx", "returns from site", ["StoreForm"]],
+  ["src/components/crm/TakeoffForm.tsx", "estimate take-off", ["ItemForm"]],
+  ["src/components/crm/LeadForm.tsx", "new enquiry", ["PartyForm"]],
+  ["src/components/finance/InvoiceForm.tsx", "invoice", ["PartyForm"]],
 ];
 
 for (const [file, screen, dialogs] of FORMS) {

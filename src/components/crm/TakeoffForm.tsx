@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, X, Pencil } from "lucide-react";
 import { saveTakeoffLine } from "@/app/(app)/crm/estimates/actions";
+import ItemForm, { type CreatedItem } from "@/components/inventory/ItemForm";
 import { money } from "@/lib/money";
 
 export type EditingTakeoff = {
@@ -26,14 +27,23 @@ export type EditingTakeoff = {
  */
 export default function TakeoffForm({
   lineId,
+  companyId,
   items,
   row,
+  itemCategories = [],
+  canAddItem = false,
 }: {
   lineId: string;
+  /** The company the estimate belongs to, for the item dialog this can open. */
+  companyId: string;
   items: { id: string; code: string; name: string; unitCode: string; standardCost: number }[];
   row?: EditingTakeoff;
+  itemCategories?: string[];
+  canAddItem?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [addingItem, setAddingItem] = useState(false);
+  const [extraItems, setExtraItems] = useState<{ id: string; code: string; name: string; unitCode: string; standardCost: number }[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const editing = !!row;
@@ -107,10 +117,15 @@ export default function TakeoffForm({
             <label className="mb-1 block text-sm font-medium text-ink">From the catalogue</label>
             <select name="itemId" className="input" defaultValue={row?.itemId ?? ""} onChange={(e) => pick(e.target.value)}>
               <option value="">Not a catalogue item</option>
-              {items.map((i) => (
+              {[...items, ...extraItems].map((i) => (
                 <option key={i.id} value={i.id}>{i.code} — {i.name}</option>
               ))}
             </select>
+            {canAddItem && (
+              <button type="button" onClick={() => setAddingItem(true)} className="mt-1 text-xs font-medium text-brand-blue-600 hover:underline">
+                + New item
+              </button>
+            )}
           </div>
 
           <div>
@@ -179,6 +194,21 @@ export default function TakeoffForm({
           </div>
         </form>
       </div>
+
+      {/* Outside the form: a form element cannot be nested inside another. */}
+      {addingItem && (
+        <ItemForm
+          companyId={companyId}
+          categories={itemCategories}
+          inline
+          controlled
+          onClose={() => setAddingItem(false)}
+          onCreated={(i: CreatedItem) => {
+            setExtraItems((xs) => [...xs, { id: i.id, code: i.code, name: i.name, unitCode: i.unitCode, standardCost: i.standardCost }]);
+            setAddingItem(false);
+          }}
+        />
+      )}
     </div>
   );
 }

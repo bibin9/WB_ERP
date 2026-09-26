@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { saveLead } from "@/app/(app)/crm/actions";
+import PartyForm, { type CreatedParty } from "@/components/finance/PartyForm";
 import { LEAD_SOURCES, qualify } from "@/lib/leads";
 
 /**
@@ -18,15 +19,22 @@ import { LEAD_SOURCES, qualify } from "@/lib/leads";
 export default function LeadForm({
   companyId,
   parties,
+  canAddParty = false,
 }: {
   companyId: string;
   parties: { id: string; code: string; name: string }[];
+  /** Whether this person keeps the customer list. */
+  canAddParty?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
   const [customerName, setCustomerName] = useState("");
+  const [partyId, setPartyId] = useState("");
+  // A customer added from here, offered before the page behind has heard of it.
+  const [addingParty, setAddingParty] = useState(false);
+  const [extraParties, setExtraParties] = useState<{ id: string; code: string; name: string }[]>([]);
   const [budgetStated, setBudget] = useState("");
   const [decisionMaker, setDecisionMaker] = useState("");
   const [requiredBy, setRequiredBy] = useState("");
@@ -44,7 +52,8 @@ export default function LeadForm({
   });
 
   const pickParty = (id: string) => {
-    const p = parties.find((x) => x.id === id);
+    setPartyId(id);
+    const p = [...parties, ...extraParties].find((x) => x.id === id);
     if (p) setCustomerName(p.name);
   };
 
@@ -100,12 +109,17 @@ export default function LeadForm({
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium text-ink">Existing customer</label>
-              <select name="partyId" className="input" onChange={(e) => pickParty(e.target.value)}>
+              <select name="partyId" className="input" value={partyId} onChange={(e) => pickParty(e.target.value)}>
                 <option value="">Not on the list yet</option>
-                {parties.map((p) => (
+                {[...parties, ...extraParties].map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
+              {canAddParty && (
+                <button type="button" onClick={() => setAddingParty(true)} className="mt-1 text-xs font-medium text-brand-blue-600 hover:underline">
+                  + New customer
+                </button>
+              )}
             </div>
             <div className="col-span-2">
               <label className="mb-1 block text-sm font-medium text-ink">Who it is from</label>
@@ -233,6 +247,20 @@ export default function LeadForm({
           </div>
         </form>
       </div>
+
+      {/* Outside the form: a form element cannot be nested inside another. */}
+      {addingParty && (
+        <PartyForm
+          companyId={companyId}
+          controlled
+          onClose={() => setAddingParty(false)}
+          onCreated={(c: CreatedParty) => {
+            setExtraParties((xs) => [...xs, { id: c.id, code: c.code, name: c.name }]);
+            pickParty(c.id);
+            setAddingParty(false);
+          }}
+        />
+      )}
     </div>
   );
 }

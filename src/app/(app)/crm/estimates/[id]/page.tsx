@@ -12,6 +12,7 @@ import BasisForm from "@/components/crm/BasisForm";
 import FinishEstimate from "@/components/crm/FinishEstimate";
 import { deleteEstimateLine, deleteTakeoffLine } from "../actions";
 import { requireAccess } from "@/lib/guard";
+import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { money } from "@/lib/money";
@@ -74,6 +75,15 @@ export default async function EstimatePage({ params }: { params: Promise<{ id: s
     orderBy: { code: "asc" },
     select: { id: true, code: true, name: true, unitCode: true, standardCost: true },
   });
+
+  // For the item dialog a take-off line can open when the material being
+  // priced is not in the catalogue yet.
+  const itemCategories = (await db.item.groupBy({
+    by: ["category"],
+    where: { companyId: estimate.companyId, category: { not: null } },
+    orderBy: { category: "asc" },
+  })).map((c) => c.category!);
+  const canAddItem = can(session, "inventory.items", "create");
 
   return (
     <div>
@@ -300,7 +310,7 @@ export default async function EstimatePage({ params }: { params: Promise<{ id: s
                   <span className="text-xs font-medium uppercase tracking-wide text-muted">
                     What one {isLumpSum(l.unit) ? "package" : l.unit.toLowerCase()} needs
                   </span>
-                  {editable && <TakeoffForm lineId={l.id} items={items} />}
+                  {editable && <TakeoffForm lineId={l.id} companyId={estimate.companyId} items={items} itemCategories={itemCategories} canAddItem={canAddItem} />}
                 </div>
 
                 {l.takeoffs.length === 0 ? (
@@ -345,7 +355,7 @@ export default async function EstimatePage({ params }: { params: Promise<{ id: s
                             <td className="py-1 text-right print:hidden">
                               {editable && (
                                 <div className="flex items-center justify-end gap-1">
-                                  <TakeoffForm lineId={l.id} items={items} row={t} />
+                                  <TakeoffForm lineId={l.id} companyId={estimate.companyId} items={items} row={t} itemCategories={itemCategories} canAddItem={canAddItem} />
                                   <GuardedDelete
                                     screen="crm.estimates"
                                     action={deleteTakeoffLine.bind(null, t.id)}

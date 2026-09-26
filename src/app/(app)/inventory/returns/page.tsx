@@ -10,6 +10,7 @@ import Pager from "@/components/Pager";
 import ReturnForm from "@/components/inventory/ReturnForm";
 import DocumentButtons from "@/components/DocumentButtons";
 import { requireAccess } from "@/lib/guard";
+import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { money } from "@/lib/money";
@@ -127,6 +128,7 @@ export default async function ReturnsPage({
 
   const anyOut = Object.values(positions).some((p) => p.issued - p.returned > 0);
 
+  const canAddStore = can(session, "inventory.stores", "create");
   return (
     <div>
       <PrintHeader companyName={companyName} logoUrl={company?.logoUrl} title="Material Returns" />
@@ -139,6 +141,7 @@ export default async function ReturnsPage({
           <PrintReport />
           {companyId && stores.length > 0 && items.length > 0 && jobs.length > 0 && (
             <ReturnForm
+              canAddStore={canAddStore}
               companyId={companyId}
               items={items}
               jobs={jobs}

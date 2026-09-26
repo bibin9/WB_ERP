@@ -13,6 +13,7 @@ import PipelineFunnel from "@/components/crm/PipelineFunnel";
 import QualificationDots from "@/components/crm/QualificationDots";
 import StageTracker from "@/components/crm/StageTracker";
 import { requireAccess } from "@/lib/guard";
+import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { money } from "@/lib/money";
@@ -119,6 +120,7 @@ export default async function CrmPage({
 
   const byStage = (stage: string) => rows.filter((l) => l.stage === stage);
 
+  const canAddParty = can(session, "finance.parties", "create");
   return (
     <div>
       <PrintHeader companyName={companyName} logoUrl={company?.logoUrl} title="Sales Pipeline" />
@@ -126,7 +128,7 @@ export default async function CrmPage({
       <PageHeader title="CRM &amp; Estimation" subtitle={verdict}>
         <div className="flex flex-wrap items-center gap-2">
           <PrintReport />
-          {companyId && <LeadForm companyId={companyId} parties={parties} />}
+          {companyId && <LeadForm companyId={companyId} parties={parties} canAddParty={canAddParty} />}
         </div>
       </PageHeader>
       <CrmTabs />

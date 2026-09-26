@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { AlertCircle } from "lucide-react";
 import InvoiceLines from "./InvoiceLines";
+import PartyForm, { type CreatedParty } from "./PartyForm";
 import { createInvoiceFromForm, updateInvoice } from "@/app/(app)/finance/invoices/actions";
 import { DOC_TYPES } from "@/lib/invoice";
 import { type VatTreatment } from "@/lib/vat";
@@ -28,6 +29,7 @@ export default function InvoiceForm({
   accounts,
   jobs,
   costCentres = [],
+  canAddParty = false,
   orders = [],
   vatRate,
   existing,
@@ -39,6 +41,8 @@ export default function InvoiceForm({
   accounts: { id: string; code: string; name: string }[];
   jobs: { id: string; code: string; name: string }[];
   costCentres?: { id: string; code: string; name: string }[];
+  /** Whether this person keeps the customer and supplier list. */
+  canAddParty?: boolean;
   /** Open purchase orders for this company, for a supplier's bill. */
   orders?: { id: string; number: string; partyName: string; total: string }[];
   vatRate: number;
@@ -51,6 +55,10 @@ export default function InvoiceForm({
   /** Issued invoices this document could be a note against. */
   invoices: { id: string; number: string; partyName: string }[];
 }) {
+  const [partyId, setPartyId] = useState(existing?.partyId ?? "");
+  const [addingParty, setAddingParty] = useState(false);
+  const [extraParties, setExtraParties] = useState<{ id: string; code: string; name: string }[]>([]);
+
   const [error, action, pending] = useActionState(
     existing ? updateInvoice : createInvoiceFromForm,
     undefined,
@@ -59,6 +67,7 @@ export default function InvoiceForm({
   const today = new Date().toISOString().slice(0, 10);
 
   return (
+    <>
     <form action={action} className="space-y-5">
       <input type="hidden" name="companyId" value={companyId} />
       <input type="hidden" name="side" value={side} />
@@ -106,10 +115,15 @@ export default function InvoiceForm({
             <label className="mb-1 block text-xs font-medium text-muted">
               {side === "Sales" ? "Customer" : "Supplier"}
             </label>
-            <select name="partyId" defaultValue={existing?.partyId ?? ""} className="input" required>
+            <select name="partyId" value={partyId} onChange={(e) => setPartyId(e.target.value)} className="input" required>
               <option value="">Choose…</option>
-              {parties.map((p) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+              {[...parties, ...extraParties].map((p) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
             </select>
+            {canAddParty && (
+              <button type="button" onClick={() => setAddingParty(true)} className="mt-1 text-xs font-medium text-brand-blue-600 hover:underline">
+                + New {side === "Sales" ? "customer" : "supplier"}
+              </button>
+            )}
             <p className="mt-1 text-xs text-muted">Payment terms come from their record.</p>
           </div>
 
@@ -173,5 +187,20 @@ export default function InvoiceForm({
         </span>
       </div>
     </form>
+
+    {/* Beside the form, not inside it: a form element cannot be nested. */}
+    {addingParty && (
+      <PartyForm
+        companyId={companyId}
+        controlled
+        onClose={() => setAddingParty(false)}
+        onCreated={(c: CreatedParty) => {
+          setExtraParties((xs) => [...xs, { id: c.id, code: c.code, name: c.name }]);
+          setPartyId(c.id);
+          setAddingParty(false);
+        }}
+      />
+    )}
+    </>
   );
 }

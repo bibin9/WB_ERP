@@ -22,18 +22,32 @@ export type EditingBin = {
  * a bin. That is the right rule — half-binned stock stops the bin totals
  * agreeing with the shelf — but it is a surprise if nobody said so.
  */
+export type CreatedBin = { id: string; code: string; zone: string | null; materialType: string | null };
+
 export default function BinForm({
   storeId,
   storeCode,
   isFirst,
   row,
+  /** Opened from inside another form, which holds the open state itself. */
+  controlled = false,
+  onClose,
+  onCreated,
 }: {
   storeId: string;
   storeCode: string;
   isFirst?: boolean;
   row?: EditingBin;
+  controlled?: boolean;
+  onClose?: () => void;
+  onCreated?: (bin: CreatedBin) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [ownOpen, setOwnOpen] = useState(false);
+  const open = controlled ? true : ownOpen;
+  const setOpen = (next: boolean) => {
+    if (controlled) { if (!next) onClose?.(); return; }
+    setOwnOpen(next);
+  };
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const editing = !!row;
@@ -78,7 +92,7 @@ export default function BinForm({
             setSaving(true);
             const res = await saveBin(fd);
             setSaving(false);
-            if (res?.ok) setOpen(false);
+            if (res?.ok) { setOpen(false); if (res.bin && onCreated) onCreated(res.bin); }
             else setError(res?.error || "Could not save");
           }}
           className="space-y-4 p-5"
