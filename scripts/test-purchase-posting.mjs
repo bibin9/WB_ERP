@@ -362,7 +362,12 @@ ok("an order carries no VAT, and the schema says why", /No VAT anywhere on it/.t
       unitCode: "EA", isStocked: false, standardCost: 3500,
     },
   });
-  const stocked = await db.item.findFirst({ where: { companyId: co.id, isStocked: true } });
+  // Its own, rather than whatever the database happens to hold: on a fresh
+  // PostgreSQL rehearsal there is no stocked item, and the mixed-order check
+  // below quietly did not run — two checks fewer on one engine than the other.
+  const stocked = await db.item.create({
+    data: { companyId: co.id, code: `${tag}-MAT`, name: "Cable, for the mixed order", unitCode: "MTR", isStocked: true },
+  });
 
   const made = await createOrder({
     companyId: co.id, raisedBy: "hr", partyId: supplier.id, date: today(), expectedDate: today(),
@@ -390,7 +395,7 @@ ok("an order carries no VAT, and the schema says why", /No VAT anywhere on it/.t
   ok("marking it delivered twice is refused", twice.ok === false, twice.error);
 
   // The rule that stops this becoming a way to close real material orders.
-  if (stocked) {
+  {
     const mixed = await createOrder({
       companyId: co.id, raisedBy: "buyer", partyId: supplier.id, date: today(), expectedDate: today(),
       lines: [
