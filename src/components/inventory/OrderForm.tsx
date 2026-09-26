@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { Plus, X, Trash2 } from "lucide-react";
 import { saveOrder } from "@/app/(app)/inventory/actions";
+import ItemForm, { type CreatedItem } from "./ItemForm";
+import StoreForm, { type CreatedStore } from "./StoreForm";
+import PartyForm, { type CreatedParty } from "@/components/finance/PartyForm";
 import { money } from "@/lib/money";
 import { orderTotal } from "@/lib/purchasing";
 
@@ -42,6 +45,10 @@ export default function OrderForm({
   jobs,
   stores,
   templates = [],
+  itemCategories = [],
+  canAddItem = false,
+  canAddParty = false,
+  canAddStore = false,
   fromRequest,
 }: {
   companyId: string;
@@ -49,6 +56,13 @@ export default function OrderForm({
   items: { id: string; code: string; name: string; unitCode: string; standardCost: number; isStocked: boolean }[];
   jobs: { id: string; code: string; name: string }[];
   stores: { id: string; code: string; name: string; isDefault: boolean }[];
+  /** The categories already in use, for the item dialog this form can open. */
+  itemCategories?: string[];
+  /** Whether this person may add to the catalogue at all. */
+  canAddItem?: boolean;
+  /** Suppliers and stores are somebody else's master: only offered to those who keep them. */
+  canAddParty?: boolean;
+  canAddStore?: boolean;
   /** Orders somebody expects to raise again — the monthly PRO package, the consumables run. */
   templates?: OrderTemplate[];
   fromRequest?: PrefillRequest | null;
@@ -79,6 +93,17 @@ export default function OrderForm({
   // A template fills the form in and then steps out of the way: what is raised
   // from it is an ordinary order, and the rates it carries are last month's,
   // so whoever raises it is the one who checks them.
+  // Which line asked for a new item. The dialog itself is rendered outside
+  // this form — a form element cannot be nested inside another — so the line
+  // is remembered here and the new item put on it when it comes back.
+  const [addingFor, setAddingFor] = useState<number | null>(null);
+  const [addingParty, setAddingParty] = useState(false);
+  const [addingStore, setAddingStore] = useState(false);
+  // Masters created here, held so the picker can offer them before the page
+  // behind this dialog has been told about them.
+  const [extraParties, setExtraParties] = useState<{ id: string; code: string; name: string }[]>([]);
+  const [extraStores, setExtraStores] = useState<{ id: string; code: string; name: string; isDefault: boolean }[]>([]);
+
   const applyTemplate = (id: string) => {
     const t = templates.find((x) => x.id === id);
     if (!t) return;
@@ -184,10 +209,20 @@ export default function OrderForm({
               <label className="mb-1 block text-sm font-medium text-ink">Supplier</label>
               <select name="partyId" className="input" required value={partyId} onChange={(e) => setPartyId(e.target.value)}>
                 <option value="">Choose&hellip;</option>
-                {parties.map((p) => (
+                {[...parties, ...extraParties].map((p) => (
                   <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
                 ))}
               </select>
+              {canAddParty && (
+                <button
+                  type="button"
+                  onClick={() => setAddingParty(true)}
+                  className="mt-1 text-xs font-medium text-brand-blue-600 hover:underline"
+                  title="A supplier nobody has set up yet"
+                >
+                  + New supplier
+                </button>
+              )}
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-ink">Job</label>
@@ -224,10 +259,19 @@ export default function OrderForm({
                 onChange={(e) => setStoreId(e.target.value)}
               >
                 <option value="">{servicesOnly ? "Nothing is delivered to a store" : "Not decided"}</option>
-                {stores.map((s) => (
+                {[...stores, ...extraStores].map((s) => (
                   <option key={s.id} value={s.id}>{s.code} — {s.name}</option>
                 ))}
               </select>
+              {canAddStore && !servicesOnly && (
+                <button
+                  type="button"
+                  onClick={() => setAddingStore(true)}
+                  className="mt-1 text-xs font-medium text-brand-blue-600 hover:underline"
+                >
+                  + New store
+                </button>
+              )}
               <p className="mt-1 text-xs text-muted">
                 {servicesOnly
                   ? "This order is for work, not material, so it is closed by confirming the work was done rather than by a delivery."
@@ -261,6 +305,16 @@ export default function OrderForm({
                         ))}
                       </optgroup>
                     </select>
+                    {canAddItem && (
+                      <button
+                        type="button"
+                        onClick={() => setAddingFor(l.key)}
+                        className="mt-1 text-xs font-medium text-brand-blue-600 hover:underline"
+                        title="Not in the catalogue yet? Add it without losing this order"
+                      >
+                        + New item
+                      </button>
+                    )}
                   </div>
                   <div className="col-span-2">
                     <input
@@ -324,6 +378,53 @@ export default function OrderForm({
           </div>
         </form>
       </div>
+
+      {/* Outside the form above, deliberately: a form cannot be nested in a
+          form. What it creates lands on the line that asked for it. */}
+      {addingParty && (
+        <PartyForm
+          companyId={companyId}
+          controlled
+          onClose={() => setAddingParty(false)}
+          onCreated={(p: CreatedParty) => {
+            setExtraParties((xs) => [...xs, { id: p.id, code: p.code, name: p.name }]);
+            setPartyId(p.id);
+            setAddingParty(false);
+          }}
+        />
+      )}
+
+      {addingStore && (
+        <StoreForm
+          companyId={companyId}
+          controlled
+          onClose={() => setAddingStore(false)}
+          onCreated={(s: CreatedStore) => {
+            setExtraStores((xs) => [...xs, s]);
+            setStoreId(s.id);
+            setAddingStore(false);
+          }}
+        />
+      )}
+
+      {addingFor !== null && (
+        <ItemForm
+          companyId={companyId}
+          categories={itemCategories}
+          inline
+          controlled
+          onClose={() => setAddingFor(null)}
+          onCreated={(item: CreatedItem) => {
+            set(addingFor, {
+              itemId: item.id,
+              description: `${item.code} — ${item.name}`,
+              unitCode: item.unitCode,
+              ...(item.standardCost ? { unitPrice: String(item.standardCost) } : {}),
+            });
+            setAddingFor(null);
+          }}
+        />
+      )}
     </div>
   );
 }

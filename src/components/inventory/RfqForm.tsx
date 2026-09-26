@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, X, Trash2 } from "lucide-react";
 import { saveRfq } from "@/app/(app)/inventory/actions";
+import ItemForm, { type CreatedItem } from "./ItemForm";
 import { MIN_VENDORS } from "@/lib/rfq";
 
 type Line = { key: number; itemId: string; description: string; unitCode: string; quantity: string };
@@ -23,11 +24,17 @@ export default function RfqForm({
   items,
   jobs,
   requests,
+  itemCategories = [],
+  canAddItem = false,
 }: {
   companyId: string;
   items: { id: string; code: string; name: string; unitCode: string; isStocked: boolean }[];
   jobs: { id: string; code: string; name: string }[];
   requests: { id: string; number: string }[];
+  /** The categories already in use, for the item dialog this form can open. */
+  itemCategories?: string[];
+  /** Whether this person may add to the catalogue at all. */
+  canAddItem?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
@@ -36,6 +43,9 @@ export default function RfqForm({
 
   const set = (key: number, patch: Partial<Line>) =>
     setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+
+  // Which line asked for a new item; the dialog lives outside this form.
+  const [addingFor, setAddingFor] = useState<number | null>(null);
 
   const pickItem = (key: number, itemId: string) => {
     const item = items.find((i) => i.id === itemId);
@@ -149,6 +159,16 @@ export default function RfqForm({
                         </optgroup>
                       )}
                     </select>
+                    {canAddItem && (
+                      <button
+                        type="button"
+                        onClick={() => setAddingFor(l.key)}
+                        className="mt-1 text-xs font-medium text-brand-blue-600 hover:underline"
+                        title="Not in the catalogue yet? Add it without losing what you have typed"
+                      >
+                        + New item
+                      </button>
+                    )}
                   </div>
                   <div className="col-span-4">
                     <input
@@ -214,6 +234,25 @@ export default function RfqForm({
           </div>
         </form>
       </div>
+      {/* Outside the form above: a form element cannot be nested inside
+          another. What it creates lands on the line that asked for it. */}
+      {addingFor !== null && (
+        <ItemForm
+          companyId={companyId}
+          categories={itemCategories}
+          inline
+          controlled
+          onClose={() => setAddingFor(null)}
+          onCreated={(item: CreatedItem) => {
+            set(addingFor, {
+              itemId: item.id,
+              description: `${item.code} — ${item.name}`,
+              unitCode: item.unitCode,
+            });
+            setAddingFor(null);
+          }}
+        />
+      )}
     </div>
   );
 }

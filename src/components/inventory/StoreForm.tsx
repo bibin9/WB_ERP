@@ -16,8 +16,28 @@ export type EditingStore = {
 };
 
 /** A place stock sits: the main store, a site container, a van. */
-export default function StoreForm({ companyId, row }: { companyId: string; row?: EditingStore }) {
-  const [open, setOpen] = useState(false);
+export type CreatedStore = { id: string; code: string; name: string; isDefault: boolean };
+
+export default function StoreForm({
+  companyId,
+  row,
+  /** Opened from inside another form, which holds the open state itself. */
+  controlled = false,
+  onClose,
+  onCreated,
+}: {
+  companyId: string;
+  row?: EditingStore;
+  controlled?: boolean;
+  onClose?: () => void;
+  onCreated?: (store: CreatedStore) => void;
+}) {
+  const [ownOpen, setOwnOpen] = useState(false);
+  const open = controlled ? true : ownOpen;
+  const setOpen = (next: boolean) => {
+    if (controlled) { if (!next) onClose?.(); return; }
+    setOwnOpen(next);
+  };
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [kind, setKind] = useState(row?.kind ?? "Main store");
@@ -58,7 +78,7 @@ export default function StoreForm({ companyId, row }: { companyId: string; row?:
             setSaving(true);
             const res = await saveStore(fd);
             setSaving(false);
-            if (res?.ok) setOpen(false);
+            if (res?.ok) { setOpen(false); if (res.store && onCreated) onCreated(res.store); }
             else setError(res?.error || "Could not save");
           }}
           className="space-y-4 p-5"

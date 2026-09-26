@@ -26,7 +26,13 @@ import { STORE_KINDS } from "@/lib/bins";
  * here could only ever be checked by reading it as text.
  */
 
-type Result = { ok: boolean; error?: string };
+type Result = {
+  ok: boolean;
+  error?: string;
+  /** What was just created, where a caller can use it (saveItem). */
+  item?: { id: string; code: string; name: string; unitCode: string; standardCost: number; isStocked: boolean };
+  store?: { id: string; code: string; name: string; isDefault: boolean };
+};
 
 async function scoped(companyId: string) {
   const session = await getSession();
@@ -87,13 +93,30 @@ export async function saveItem(formData: FormData): Promise<Result> {
     }
     await db.item.update({ where: { id }, data });
     await audit({ action: "Updated", entity: "Item", entityId: id, summary: `Updated item ${code} — ${name}` });
-  } else {
-    const created = await db.item.create({ data: { companyId, ...data } });
-    await audit({ action: "Created", entity: "Item", entityId: created.id, summary: `Added item ${code} — ${name}` });
+    revalidatePath("/inventory");
+    revalidatePath("/inventory/stock");
+    return { ok: true };
   }
+
+  const created = await db.item.create({ data: { companyId, ...data } });
+  await audit({ action: "Created", entity: "Item", entityId: created.id, summary: `Added item ${code} — ${name}` });
   revalidatePath("/inventory");
   revalidatePath("/inventory/stock");
-  return { ok: true };
+  // Handed back so a form that opened this on its way past — an order being
+  // typed when somebody notices the item does not exist yet — can put it
+  // straight on the line, rather than making them find it again in a list
+  // that has only just been told about it.
+  return {
+    ok: true,
+    item: {
+      id: created.id,
+      code: created.code,
+      name: created.name,
+      unitCode: created.unitCode,
+      standardCost: created.standardCost,
+      isStocked: created.isStocked,
+    },
+  };
 }
 
 export async function deleteItem(id: string): Promise<Result> {
@@ -159,12 +182,16 @@ export async function saveStore(formData: FormData): Promise<Result> {
   if (editing) {
     await db.store.update({ where: { id }, data });
     await audit({ action: "Updated", entity: "Store", entityId: id, summary: `Updated store ${code} — ${name}` });
-  } else {
-    const created = await db.store.create({ data: { companyId, ...data } });
-    await audit({ action: "Created", entity: "Store", entityId: created.id, summary: `Added store ${code} — ${name}` });
+    revalidatePath("/inventory/stores");
+    return { ok: true };
   }
+
+  const created = await db.store.create({ data: { companyId, ...data } });
+  await audit({ action: "Created", entity: "Store", entityId: created.id, summary: `Added store ${code} — ${name}` });
   revalidatePath("/inventory/stores");
-  return { ok: true };
+  // Handed back for the same reason saveItem does it: a form that opened this
+  // on its way past can put the new store straight in its field.
+  return { ok: true, store: { id: created.id, code: created.code, name: created.name, isDefault: created.isDefault } };
 }
 
 export async function deleteStore(id: string): Promise<Result> {

@@ -12,6 +12,7 @@ import InspectDelivery from "@/components/inventory/InspectDelivery";
 import DocumentButtons from "@/components/DocumentButtons";
 import { hasStoreNote, NOTE_TITLES } from "@/lib/store-notes";
 import { requireAccess } from "@/lib/guard";
+import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { totalsByItemAndStore, binHoldingsFor } from "@/lib/stock-totals";
 import { getSession } from "@/lib/auth";
@@ -113,6 +114,14 @@ export default async function MovementsPage({
     for (const [key, list] of await totalsByItemAndStore(companyId)) balances[key] = balanceOf(list);
   }
 
+  const itemCategories = companyId
+    ? (await db.item.groupBy({ by: ["category"], where: { companyId, category: { not: null } }, orderBy: { category: "asc" } }))
+        .map((c) => c.category!)
+    : [];
+  const canAddItem = can(session, "inventory.items", "create");
+  const canAddParty = can(session, "finance.parties", "create");
+  const canAddStore = can(session, "inventory.stores", "create");
+
   return (
     <div>
       <PrintHeader companyName={companyName} logoUrl={company?.logoUrl} title="Stock Movements" />
@@ -125,6 +134,10 @@ export default async function MovementsPage({
           <PrintReport />
           {companyId && stores.length > 0 && items.length > 0 && (
             <MovementForm
+              itemCategories={itemCategories}
+              canAddItem={canAddItem}
+              canAddParty={canAddParty}
+              canAddStore={canAddStore}
               companyId={companyId}
               items={items}
               stores={stores}

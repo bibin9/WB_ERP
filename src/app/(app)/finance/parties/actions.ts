@@ -146,7 +146,7 @@ export async function deletePartyContact(id: string): Promise<{ ok: boolean; err
   return { ok: true };
 }
 
-export async function createParty(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+export async function createParty(formData: FormData): Promise<{ ok: boolean; error?: string; party?: { id: string; code: string; name: string; type: string } }> {
   if (!(await allow("finance.parties", "create"))) return { ok: false, error: "Not authorised" };
   const session = await getSession();
   if (!session) return { ok: false, error: "Not signed in" };
@@ -180,7 +180,9 @@ export async function createParty(formData: FormData): Promise<{ ok: boolean; er
   });
   await audit({ action: "Created", entity: "Party", entityId: party.id, summary: `Added ${d.type.toLowerCase()} ${party.code} — ${d.name}` });
   revalidatePath("/finance/parties");
-  return { ok: true };
+  // Handed back so a form that opened this on its way past — an order being
+  // typed for a supplier nobody has set up yet — can select it straight away.
+  return { ok: true, party: { id: party.id, code: party.code, name: party.name, type: party.type } };
 }
 
 export async function updateParty(formData: FormData): Promise<{ ok: boolean; error?: string }> {

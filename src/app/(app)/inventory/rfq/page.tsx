@@ -9,6 +9,7 @@ import SearchBox from "@/components/SearchBox";
 import Pager from "@/components/Pager";
 import RfqForm from "@/components/inventory/RfqForm";
 import { requireAccess } from "@/lib/guard";
+import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { money } from "@/lib/money";
@@ -97,6 +98,12 @@ export default async function RfqPage({
 
   const suppliers = companyId ? await db.party.count({ where: { companyId, isActive: true, type: { not: "Customer" } } }) : 0;
 
+  const itemCategories = companyId
+    ? (await db.item.groupBy({ by: ["category"], where: { companyId, category: { not: null } }, orderBy: { category: "asc" } }))
+        .map((c) => c.category!)
+    : [];
+  const canAddItem = can(session, "inventory.items", "create");
+
   return (
     <div>
       <PrintHeader companyName={companyName} logoUrl={company?.logoUrl} title="Enquiries and Quotations" />
@@ -107,7 +114,7 @@ export default async function RfqPage({
       >
         <div className="flex flex-wrap items-center gap-2">
           <PrintReport />
-          {companyId && <RfqForm companyId={companyId} items={items} jobs={jobs} requests={requests} />}
+          {companyId && <RfqForm companyId={companyId} items={items} jobs={jobs} requests={requests} itemCategories={itemCategories} canAddItem={canAddItem} />}
         </div>
       </PageHeader>
       <InventoryTabs />

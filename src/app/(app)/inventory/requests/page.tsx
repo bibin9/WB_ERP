@@ -8,6 +8,7 @@ import Pager from "@/components/Pager";
 import RequestForm from "@/components/inventory/RequestForm";
 import DocumentButtons from "@/components/DocumentButtons";
 import { requireAccess } from "@/lib/guard";
+import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { readPaging, pageInfo } from "@/lib/paging";
@@ -128,6 +129,12 @@ export default async function RequestsPage({
 
   const awaiting = requests.filter((r) => r.status === "Submitted").length;
 
+  const itemCategories = companyId
+    ? (await db.item.groupBy({ by: ["category"], where: { companyId, category: { not: null } }, orderBy: { category: "asc" } }))
+        .map((c) => c.category!)
+    : [];
+  const canAddItem = can(session, "inventory.items", "create");
+
   return (
     <div>
       <PageHeader
@@ -135,7 +142,14 @@ export default async function RequestsPage({
         subtitle="What site needs, checked against the shelf before anybody buys it."
       >
         {companyId && items.length > 0 && (
-          <RequestForm companyId={companyId} items={items} jobs={jobs} stores={stores} />
+          <RequestForm
+            companyId={companyId}
+            items={items}
+            jobs={jobs}
+            stores={stores}
+            itemCategories={itemCategories}
+            canAddItem={canAddItem}
+          />
         )}
       </PageHeader>
       <InventoryTabs />

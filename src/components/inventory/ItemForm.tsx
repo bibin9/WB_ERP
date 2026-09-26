@@ -25,16 +25,53 @@ export type EditingItem = {
  * and a metre of cable billed mean the same thing. Two lists would drift, and
  * the drift would only show up on a customer's desk.
  */
+export type CreatedItem = {
+  id: string;
+  code: string;
+  name: string;
+  unitCode: string;
+  standardCost: number;
+  isStocked: boolean;
+};
+
 export default function ItemForm({
   companyId,
   categories,
   row,
+  /**
+   * Opened from inside another form — an order being typed when somebody
+   * notices the item is not in the catalogue yet. The trigger is then a quiet
+   * link rather than a primary button, because adding an item is not what
+   * that screen is for.
+   */
+  inline = false,
+  /** Called with what was just created, so the caller can put it on its line. */
+  onCreated,
+  controlled = false,
+  onClose,
 }: {
   companyId: string;
   categories: string[];
   row?: EditingItem;
+  inline?: boolean;
+  onCreated?: (item: CreatedItem) => void;
+  /**
+   * Opened by somebody else, with no trigger of its own.
+   *
+   * A form element cannot be nested inside another, and every screen that
+   * wants this is itself a form: an order, a request, an enquiry. So the
+   * caller puts its own button wherever it likes and renders this dialog
+   * outside its <form>, holding the open state.
+   */
+  controlled?: boolean;
+  onClose?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [ownOpen, setOwnOpen] = useState(false);
+  const open = controlled ? true : ownOpen;
+  const setOpen = (next: boolean) => {
+    if (controlled) { if (!next) onClose?.(); return; }
+    setOwnOpen(next);
+  };
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [stocked, setStocked] = useState(row?.isStocked ?? true);
@@ -50,6 +87,15 @@ export default function ItemForm({
       >
         <Pencil className="h-3.5 w-3.5" />
       </button>
+    ) : inline ? (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-1 text-xs font-medium text-brand-blue-600 hover:underline"
+        title="Add it to the catalogue without leaving this form"
+      >
+        <Plus className="h-3.5 w-3.5" /> New item
+      </button>
     ) : (
       <button onClick={() => setOpen(true)} className="btn-primary">
         <Plus className="h-4 w-4" /> Add item
@@ -58,7 +104,7 @@ export default function ItemForm({
   }
 
   return (
-    <div className="fixed inset-0 z-30 flex items-start justify-center overflow-y-auto bg-black/30 p-4 pt-16 whitespace-normal text-left">
+    <div className={`fixed inset-0 ${inline ? "z-40" : "z-30"} flex items-start justify-center overflow-y-auto bg-black/30 p-4 pt-16 whitespace-normal text-left`}>
       <div className="card w-full max-w-lg p-0">
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
           <h2 className="font-semibold text-heading">{editing ? `${row!.code} — ${row!.name}` : "Add an item"}</h2>
@@ -76,8 +122,10 @@ export default function ItemForm({
             setSaving(true);
             const res = await saveItem(fd);
             setSaving(false);
-            if (res?.ok) setOpen(false);
-            else setError(res?.error || "Could not save");
+            if (res?.ok) {
+              setOpen(false);
+              if (res.item && onCreated) onCreated(res.item);
+            } else setError(res?.error || "Could not save");
           }}
           className="space-y-4 p-5"
         >

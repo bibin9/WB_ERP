@@ -121,6 +121,16 @@ export default async function OrdersPage({
         include: { lines: { orderBy: { sortOrder: "asc" } } },
       })
     : [];
+  // For the item dialog the order form can open when something is not in the
+  // catalogue yet: the categories already in use, so a new item joins one of
+  // them rather than inventing a spelling.
+  const itemCategories = companyId
+    ? (await db.item.groupBy({ by: ["category"], where: { companyId, category: { not: null } }, orderBy: { category: "asc" } }))
+        .map((c) => c.category!)
+    : [];
+  const canAddItem = can(session, "inventory.items", "create");
+  const canAddParty = can(session, "finance.parties", "create");
+  const canAddStore = can(session, "inventory.stores", "create");
   const canAttach = can(session, "inventory.orders", "create");
   const canRemoveAttachment = can(session, "inventory.orders", "delete");
   const fmtDate = (d: Date) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
@@ -195,6 +205,10 @@ export default async function OrdersPage({
               items={items}
               jobs={jobs}
               stores={stores}
+              itemCategories={itemCategories}
+              canAddItem={canAddItem}
+              canAddParty={canAddParty}
+              canAddStore={canAddStore}
               templates={templates.map((t) => ({
                 id: t.id, name: t.name, partyId: t.partyId, notes: t.notes,
                 lines: t.lines.map((l) => ({ itemId: l.itemId, description: l.description, unitCode: l.unitCode, quantity: l.quantity, unitPrice: l.unitPrice })),

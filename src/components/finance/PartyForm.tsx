@@ -18,8 +18,28 @@ export type EditingParty = {
   creditDays: number;
 };
 
-export default function PartyForm({ companyId, party }: { companyId: string; party?: EditingParty }) {
-  const [open, setOpen] = useState(false);
+export type CreatedParty = { id: string; code: string; name: string; type: string };
+
+export default function PartyForm({
+  companyId,
+  party,
+  /** Opened from inside another form, which holds the open state itself. */
+  controlled = false,
+  onClose,
+  onCreated,
+}: {
+  companyId: string;
+  party?: EditingParty;
+  controlled?: boolean;
+  onClose?: () => void;
+  onCreated?: (created: CreatedParty) => void;
+}) {
+  const [ownOpen, setOwnOpen] = useState(false);
+  const open = controlled ? true : ownOpen;
+  const setOpen = (next: boolean) => {
+    if (controlled) { if (!next) onClose?.(); return; }
+    setOwnOpen(next);
+  };
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const editing = !!party;
@@ -53,7 +73,7 @@ export default function PartyForm({ companyId, party }: { companyId: string; par
             setSaving(true);
             const res = editing ? await updateParty(fd) : await createParty(fd);
             setSaving(false);
-            if (res.ok) setOpen(false);
+            if (res.ok) { setOpen(false); const made = (res as { party?: CreatedParty }).party; if (made && onCreated) onCreated(made); }
             else setError(res.error || "Could not save");
           }}
           className="space-y-4 p-5"

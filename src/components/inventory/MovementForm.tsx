@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { saveMovement } from "@/app/(app)/inventory/actions";
+import ItemForm, { type CreatedItem } from "./ItemForm";
+import StoreForm, { type CreatedStore } from "./StoreForm";
+import PartyForm, { type CreatedParty } from "@/components/finance/PartyForm";
 import { MOVEMENT_HELP, isInward } from "@/lib/stock";
 import { binLabel, binMismatch } from "@/lib/bins";
 import { money } from "@/lib/money";
@@ -41,6 +44,10 @@ export default function MovementForm({
   balances,
   bins = {},
   binHoldings = {},
+  itemCategories = [],
+  canAddItem = false,
+  canAddParty = false,
+  canAddStore = false,
 }: {
   companyId: string;
   items: { id: string; code: string; name: string; unitCode: string; category?: string | null }[];
@@ -53,11 +60,24 @@ export default function MovementForm({
   bins?: Record<string, { id: string; code: string; zone: string | null; materialType: string | null }[]>;
   /** What each bin holds of each item, keyed "itemId:binId". */
   binHoldings?: Record<string, number>;
+  /** The categories already in use, for the item dialog this form can open. */
+  itemCategories?: string[];
+  /** Each master is somebody's to keep: only offered to whoever keeps it. */
+  canAddItem?: boolean;
+  canAddParty?: boolean;
+  canAddStore?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [kind, setKind] = useState("Receipt");
+  // A delivery turns up with something not in the catalogue, from a supplier
+  // nobody has set up. The dialogs live outside this form — a form element
+  // cannot be nested — so what is open is held here.
+  const [adding, setAdding] = useState<"item" | "store" | "party" | null>(null);
+  const [extraItems, setExtraItems] = useState<{ id: string; code: string; name: string; unitCode: string; category?: string | null }[]>([]);
+  const [extraStores, setExtraStores] = useState<{ id: string; code: string; name: string; isDefault: boolean }[]>([]);
+  const [extraParties, setExtraParties] = useState<{ id: string; code: string; name: string }[]>([]);
   const [itemId, setItemId] = useState("");
   const [storeId, setStoreId] = useState(stores.find((s) => s.isDefault)?.id ?? stores[0]?.id ?? "");
   const [binId, setBinId] = useState("");
@@ -140,10 +160,15 @@ export default function MovementForm({
               <label className="mb-1 block text-sm font-medium text-ink">Item</label>
               <select name="itemId" value={itemId} onChange={(e) => setItemId(e.target.value)} className="input" required>
                 <option value="">Choose&hellip;</option>
-                {items.map((i) => (
+                {[...items, ...extraItems].map((i) => (
                   <option key={i.id} value={i.id}>{i.code} — {i.name}</option>
                 ))}
               </select>
+              {canAddItem && (
+                <button type="button" onClick={() => setAdding("item")} className="mt-1 text-xs font-medium text-brand-blue-600 hover:underline">
+                  + New item
+                </button>
+              )}
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-ink">
@@ -154,10 +179,15 @@ export default function MovementForm({
                 onChange={(e) => { setStoreId(e.target.value); setBinId(""); }}
                 className="input" required
               >
-                {stores.map((s) => (
+                {[...stores, ...extraStores].map((s) => (
                   <option key={s.id} value={s.id}>{s.code} — {s.name}</option>
                 ))}
               </select>
+              {canAddStore && (
+                <button type="button" onClick={() => setAdding("store")} className="mt-1 text-xs font-medium text-brand-blue-600 hover:underline">
+                  + New store
+                </button>
+              )}
             </div>
           </div>
 
@@ -293,10 +323,15 @@ export default function MovementForm({
               <label className="mb-1 block text-sm font-medium text-ink">Supplier</label>
               <select name="partyId" className="input">
                 <option value="">Not recorded</option>
-                {parties.map((p) => (
+                {[...parties, ...extraParties].map((p) => (
                   <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
                 ))}
               </select>
+              {canAddParty && (
+                <button type="button" onClick={() => setAdding("party")} className="mt-1 text-xs font-medium text-brand-blue-600 hover:underline">
+                  + New supplier
+                </button>
+              )}
             </div>
           )}
 
@@ -321,6 +356,47 @@ export default function MovementForm({
           </div>
         </form>
       </div>
+
+      {/* Outside the form above: a form element cannot be nested in another.
+          What each one creates is selected straight away. */}
+      {adding === "item" && (
+        <ItemForm
+          companyId={companyId}
+          categories={itemCategories}
+          inline
+          controlled
+          onClose={() => setAdding(null)}
+          onCreated={(i: CreatedItem) => {
+            setExtraItems((xs) => [...xs, { id: i.id, code: i.code, name: i.name, unitCode: i.unitCode }]);
+            setItemId(i.id);
+            setAdding(null);
+          }}
+        />
+      )}
+      {adding === "store" && (
+        <StoreForm
+          companyId={companyId}
+          controlled
+          onClose={() => setAdding(null)}
+          onCreated={(s: CreatedStore) => {
+            setExtraStores((xs) => [...xs, s]);
+            setStoreId(s.id);
+            setBinId("");
+            setAdding(null);
+          }}
+        />
+      )}
+      {adding === "party" && (
+        <PartyForm
+          companyId={companyId}
+          controlled
+          onClose={() => setAdding(null)}
+          onCreated={(p: CreatedParty) => {
+            setExtraParties((xs) => [...xs, { id: p.id, code: p.code, name: p.name }]);
+            setAdding(null);
+          }}
+        />
+      )}
     </div>
   );
 }
